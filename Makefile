@@ -9,14 +9,14 @@ build/bootstrap.link:
 	cd build && xbstrap init .
 
 # Build image with release kernel
-lezione-release.hdd: KERNEL_PKG = "release-kernel"
-lezione-release.hdd: IMAGE = "lezione-release.hdd"
-lezione-release.hdd: image
+ricerca-release.hdd: KERNEL_PKG = "release-kernel"
+ricerca-release.hdd: IMAGE = "ricerca-release.hdd"
+ricerca-release.hdd: image
 
 # Build image with debug kernel
-lezione-debug.hdd: KERNEL_PKG = "debug-kernel"
-lezione-debug.hdd: IMAGE = "lezione-debug.hdd"
-lezione-debug.hdd: image
+ricerca-debug.hdd: KERNEL_PKG = "debug-kernel"
+ricerca-debug.hdd: IMAGE = "ricerca-debug.hdd"
+ricerca-debug.hdd: image
 
 # Generic image build rule
 image: build/bootstrap.link
@@ -56,7 +56,7 @@ image: build/bootstrap.link
 # Deletes kernel object files, kernel binaries, and images
 clean:
 	make -C kernel clean
-	rm -rf lezione-debug.hdd lezione-release.hdd
+	rm -rf ricerca-debug.hdd ricerca-release.hdd
 
 # Binary clean rule
 # Clears only kenrel binaries and object files
@@ -65,21 +65,22 @@ kernel-clean:
 
 # Run release image rule
 # Runs OS in QEMU with kvm enabled
-run-release: lezione-release.hdd
+run-release: ricerca-release.hdd
 # Run QEMU
-# -hda lezione-release.hdd - Attach hard drive with our image
+# -hda ricerca-release.hdd - Attach hard drive with our image
 # -cpu host --accel kvm --accel hax --accel tcg - Use hardware virtualization if available
 # If no hardware acceleration is present, fallback to tcg with --accel tcg
 # -debugcon stdio - Add debug connection, so that we can print logs to e9 port from the kernel
 # and see them in the terminal
 # -machine q35 - Use modern hw, duh
+# -m size=1G,slots=4,maxmem=4G - 1 gigabyte of RAM on boot + 4 slots to hotplug up to 4 GB of ram
 # -no-shutdown -no-reboot - Halt on fatal errrors
 # SMP configuration is taken from https://futurewei-cloud.github.io/ARM-Datacenter/qemu/how-to-configure-qemu-numa-nodes/
 	qemu-system-x86_64 \
-	-hda lezione-release.hdd \
-	--accel kvm --accel hax --accel tcg \
+	-hda ricerca-release.hdd \
+	--enable-kvm -cpu host \
 	-debugcon stdio \
-	-machine q35 \
+	-m size=1G,slots=4,maxmem=4G \
 	-no-shutdown -no-reboot \
 	-smp cpus=16 -numa node,cpus=0-3,nodeid=0 \
 	-numa node,cpus=4-7,nodeid=1 \
@@ -93,23 +94,24 @@ run-release: lezione-release.hdd
 	-numa dist,src=1,dst=3,val=20
 
 # Run debug image rule
-run-debug: lezione-debug.hdd
+run-debug: ricerca-debug.hdd
 # Run QEMU
-# -hda lezione-debug.hdd - Attach harddrive with our image
+# -hda ricerca-debug.hdd - Attach harddrive with our image
 # -cpu host --accel kvm --accel hax --accel tcg - Use hardware virtualization if available
 # If no hardware acceleration is present, fallback to tcg with --accel tcg
 # -debugcon stdio - Add debug connection, so that we can print logs to e9 port from the kernel
 # and see them in the terminal
 # -S -s - attach and wait for the debugger
 # -machine q35 - Use modern hw, duh
+# -m size=1G,slots=4,maxmem=4G - 1 gigabyte of RAM on boot + 4 slots to hotplug up to 4 GB of ram
 # -no-shutdown -no-reboot - Halt on fatal errrors
 # SMP configuration is taken from https://futurewei-cloud.github.io/ARM-Datacenter/qemu/how-to-configure-qemu-numa-nodes/
 	qemu-system-x86_64 \
-	-hda lezione-debug.hdd \
-	--accel kvm --accel hax --accel tcg \
+	-hda ricerca-debug.hdd \
+	--enable-kvm -cpu host \
 	-debugcon stdio \
 	-S -s \
-	-machine q35 \
+	-m size=1G,slots=4,maxmem=4G \
 	-no-shutdown -no-reboot \
 	-smp cpus=16 -numa node,cpus=0-3,nodeid=0 \
 	-numa node,cpus=4-7,nodeid=1 \

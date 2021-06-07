@@ -60,45 +60,185 @@ bool acpi_validate_checksum(void *table, size_t len) {
 	return mod == 0;
 }
 
+//! @brief Nullable pointer to SRAT. Set by acpi_early_init if found
+struct acpi_srat *acpi_boot_srat = NULL;
+
+//! @brief Nullable pointer to MADT. Set by acpi_early_init if found
+struct acpi_madt *acpi_boot_madt = NULL;
+
+//! @brief Nullable pointer to SLIT. Set by acpi_early_init if found
+struct acpi_slit *acpi_boot_slit = NULL;
+
+//! @brief Visit a given ACPI table
+//! @param table_phys Physical table address
+static void acpi_visit_table(uint64_t table_phys) {
+	const struct acpi_sdt_header *header = (struct acpi_sdt_header *)(table_phys + HIGH_PHYS_VMA);
+	// Print table hame
+	char name_buf[5] = {0};
+	memcpy(name_buf, header->signature, 4);
+	LOG_INFO("Table \"%s\" found in RSDT", name_buf);
+	// Check a few common tables
+	if (memcmp(header->signature, "SRAT", 4) == 0) {
+		if (acpi_boot_srat != NULL) {
+			PANIC("Duplicate SRAT");
+		}
+		acpi_boot_srat = (struct acpi_srat *)header;
+	} else if (memcmp(header->signature, "APIC", 4) == 0) {
+		if (acpi_boot_madt != NULL) {
+			PANIC("Duplicate MADT");
+		}
+		acpi_boot_madt = (struct acpi_madt *)header;
+	} else if (memcmp(header->signature, "SLIT", 4) == 0) {
+		if (acpi_boot_slit != NULL) {
+			PANIC("Duplicate SLIT");
+		}
+		acpi_boot_slit = (struct acpi_slit *)header;
+	}
+}
+
 //! @brief Walk RSDT
 //! @param rsdt_phys Physical address of RSDT
-void acpi_walk_rsdt(uint64_t rsdt_phys) {
+static void acpi_walk_rsdt(uint64_t rsdt_phys) {
 	struct acpi_rsdt *rsdt = (struct acpi_rsdt *)(rsdt_phys + HIGH_PHYS_VMA);
 	if (!acpi_validate_checksum(rsdt, rsdt->hdr.length)) {
 		LOG_ERR("RSDT checksum validation failed");
 	}
-
+	// Get tables count
 	const size_t tables_count = (rsdt->hdr.length - sizeof(struct acpi_sdt_header)) / 4;
 	LOG_INFO("%U tables found in RSDT", tables_count);
-
+	// Visit tables
 	for (size_t i = 0; i < tables_count; ++i) {
-		const uint64_t table_phys = (uint64_t)rsdt->tables[i];
-		const struct acpi_sdt_header *header =
-		    (struct acpi_sdt_header *)(table_phys + HIGH_PHYS_VMA);
-		char name_buf[5] = {0};
-		memcpy(name_buf, header->signature, 4);
-		LOG_INFO("Table \"%s\" found in RSDT", name_buf);
+		acpi_visit_table((uint64_t)rsdt->tables[i]);
 	}
 }
 
 //! @brief Walk XSDT
 //! @param rsdt_phys Physical address of XSDT
-void acpi_walk_xsdt(uint64_t xsdt_phys) {
+static void acpi_walk_xsdt(uint64_t xsdt_phys) {
 	struct acpi_xsdt *xsdt = (struct acpi_xsdt *)(xsdt_phys + HIGH_PHYS_VMA);
 	if (!acpi_validate_checksum(xsdt, xsdt->hdr.length)) {
 		LOG_ERR("XSDT checksum validation failed");
 	}
-
+	// Get tables count
 	const size_t tables_count = (xsdt->hdr.length - sizeof(struct acpi_sdt_header)) / 8;
 	LOG_INFO("%U tables found in XSDT", tables_count);
-
+	// Visit tables
 	for (size_t i = 0; i < tables_count; ++i) {
-		const uint64_t table_phys = (uint64_t)xsdt->tables[i];
-		const struct acpi_sdt_header *header =
-		    (struct acpi_sdt_header *)(table_phys + HIGH_PHYS_VMA);
-		char name_buf[5] = {0};
-		memcpy(name_buf, header->signature, 4);
-		LOG_INFO("Table \"%s\" found in XSDT", name_buf);
+		acpi_visit_table(xsdt->tables[i]);
+	}
+}
+
+//! @brief Dump SRAT
+//! @brief srat Pointer to SRAT table
+static void acpi_dump_srat(struct acpi_srat *srat) {
+	LOG_INFO("Dumping SRAT:");
+
+	// Calculate entries starting and ending address
+	uint64_t address = (uint64_t)srat + sizeof(struct acpi_srat);
+	const uint64_t end_address = (uint64_t)srat + srat->hdr.length;
+
+	// Iterate over all srat enties
+	while (address < end_address) {
+		struct acpi_srat_entry *entry = (struct acpi_srat_entry *)address;
+		switch (entry->type) {
+		case ACPI_SRAT_XAPIC_ENTRY: {
+			// Processor with APIC id and ACPI id < 256
+			struct acpi_srat_xapic_entry *xapic = (struct acpi_srat_xapic_entry *)entry;
+			// Check that entry is active
+			if ((xapic->flags & 1U) == 0) {
+				break;
+			}
+			// Calculate domain ID
+			uint32_t domain_id = (uint32_t)xapic->domain_low;
+			domain_id += (uint32_t)(xapic->domain_high[0]) << 8U;
+			domain_id += (uint32_t)(xapic->domain_high[1]) << 16U;
+			domain_id += (uint32_t)(xapic->domain_high[2]) << 24U;
+			LOG_INFO("CPU with apic_id %u in domain = %u detected", (uint32_t)xapic->apic_id,
+			         domain_id);
+			break;
+		}
+		case ACPI_SRAT_MEM_ENTRY: {
+			// Memory range
+			struct acpi_srat_mem_entry *mem = (struct acpi_srat_mem_entry *)address;
+			// Check that entry is active
+			if ((mem->flags & 1U) == 0) {
+				break;
+			}
+			bool hotplug = (mem->flags & 2U) != 0;
+			uint32_t domain_id = mem->domain;
+			uint64_t base = ((uint64_t)(mem->base_high) << 32ULL) + (uint64_t)(mem->base_low);
+			uint64_t len = ((uint64_t)(mem->length_high) << 32ULL) + (uint64_t)(mem->length_low);
+			LOG_INFO("Memory range (%p:%p, domain = %u. hotplug: %s) detected", base, base + len,
+			         domain_id, hotplug ? "true" : "false");
+			break;
+		}
+		case ACPI_SRAT_X2APIC_ENTRY: {
+			// Processor with APIC id and ACPI id >= 256
+			struct acpi_srat_x2apic_entry *x2apic = (struct acpi_srat_x2apic_entry *)entry;
+			// Check that entry is active
+			if ((x2apic->flags & 1U) == 0) {
+				break;
+			}
+			LOG_INFO("CPU with apic_id %u in domain = %u detected", x2apic->apic_id,
+			         x2apic->domain);
+			break;
+		}
+		default:
+			break;
+		}
+		// Move to next entry
+		address += entry->length;
+	}
+}
+
+//! @brief Dump SLIT
+//! @brief srat Pointer to SLIT table
+static void acpi_dump_slit(struct acpi_slit *slit) {
+	LOG_INFO("Number of localities (obtained from SLIT): %u", slit->localities);
+	LOG_INFO("Dumping localities distances matrix");
+	// Print table header
+	log_write("/\t", 2);
+	for (size_t i = 0; i < slit->localities; ++i) {
+		log_printf("\033[36m%U\033[0m\t", i);
+	}
+	log_write("\n", 1);
+	for (size_t i = 0; i < slit->localities; ++i) {
+		log_printf("\033[31m%U\033[0m\t", i);
+		for (size_t j = 0; j < slit->localities; ++j) {
+			log_printf("%U\t", slit->lengths[i * slit->localities + j]);
+		}
+		log_write("\n", 1);
+	}
+}
+
+//! @brief Dump MADT
+//! @brief madt Pointer to MADT table
+void acpi_dump_madt(struct acpi_madt *madt) {
+	LOG_INFO("Dumping MADT:");
+
+	// Calculate entries starting and ending address
+	uint64_t address = (uint64_t)madt + sizeof(struct acpi_madt);
+	const uint64_t end_address = (uint64_t)madt + madt->hdr.length;
+
+	// Iterate over all entries
+	while (address < end_address) {
+		struct acpi_madt_entry *entry = (struct acpi_madt_entry *)address;
+		switch (entry->type) {
+		case ACPI_MADT_XAPIC_ENTRY: {
+			struct acpi_madt_xapic_entry *xapic = (struct acpi_madt_xapic_entry *)entry;
+			LOG_INFO("CPU with ACPI ID %U has APIC ID %U", (uint32_t)xapic->acpi_id,
+			         (uint32_t)xapic->apic_id);
+			break;
+		}
+		case ACPI_MADT_X2APIC_ENTRY: {
+			struct acpi_madt_x2apic_entry *x2apic = (struct acpi_madt_x2apic_entry *)entry;
+			LOG_INFO("CPU with ACPI ID %U has APIC ID %U", x2apic->acpi_id, x2apic->apic_id);
+			break;
+		}
+		default:
+			break;
+		}
+		address += entry->length;
 	}
 }
 
@@ -108,10 +248,12 @@ void acpi_early_init(struct stivale2_struct_tag_rsdp *rsdp_tag) {
 	struct acpi_rsdp *rsdp = (struct acpi_rsdp *)rsdp_tag->rsdp;
 	LOG_INFO("RSDP at %p", rsdp);
 
+	// Validate RSDP
 	if (!acpi_validate_checksum(rsdp, sizeof(struct acpi_rsdp))) {
 		LOG_ERR("Legacy RSDP checksum validation failed");
 	}
 
+	// Walk boot ACPI tables
 	if (rsdp->rev == ACPI_RSDP_REV1) {
 		// RSDPv1 and hence RSDT detected
 		const uint64_t rsdt_addr = (uint64_t)rsdp->rsdt_addr;
@@ -128,5 +270,22 @@ void acpi_early_init(struct stivale2_struct_tag_rsdp *rsdp_tag) {
 		acpi_walk_xsdt(xsdt_addr);
 	} else {
 		PANIC("Unknown XSDT revision");
+	}
+
+	// Assert MADT presence
+	if (acpi_boot_madt == NULL) {
+		PANIC("MADT not available");
+	}
+
+	// acpi_dump_madt(acpi_boot_madt);
+
+	// Dump SRAT if present
+	if (acpi_boot_srat != NULL) {
+		acpi_dump_srat(acpi_boot_srat);
+	}
+
+	// Dump SLIT if present
+	if (acpi_boot_slit != NULL) {
+		acpi_dump_slit(acpi_boot_slit);
 	}
 }

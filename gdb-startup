@@ -1,4 +1,4 @@
-file build/system-root/boot/lezione-kernel.elf
+file build/system-root/boot/ricerca-kernel.elf
 target remote localhost:1234
 break kernel_init
 continue

@@ -9,7 +9,7 @@ AS = nasm
 
 # Linker used to generate kernel binary from object files
 # We use gcc itself for linking
-# TODO: replace with x86_64-lezione-gcc once we have xbstrap config
+# TODO: replace with x86_64-ricerca-gcc once we have xbstrap config
 LD = $(CC)
 
 # Common (used both in debug and release mode) C flags, 
@@ -88,10 +88,10 @@ ASFLAGS := -f elf64
 DESTDIR = .
 
 # Release kernel binary output path
-RELEASE_PATH = $(DESTDIR)/lezione-kernel.elf
+RELEASE_PATH = $(DESTDIR)/ricerca-kernel.elf
 
 # Debug kernel binary output path
-DEBUG_PATH = $(DESTDIR)/lezione-kernel.elf
+DEBUG_PATH = $(DESTDIR)/ricerca-kernel.elf
 
 ### Source files and object lists ###
 

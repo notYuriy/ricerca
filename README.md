@@ -1,6 +1,6 @@
 # Ricerca
 
-lezione-os fork that I am using as a playground to experiment with SMP, NUMA, load balancing, and memory/CPU hotplug
+ricerca-os fork that I am using as a playground to experiment with SMP, NUMA, load balancing, and memory/CPU hotplug
 
 # Building
 
