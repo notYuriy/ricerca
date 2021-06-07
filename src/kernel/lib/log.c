@@ -73,6 +73,10 @@ void log_logf(enum log_type type, const char *subsystem, const char *fmt, ...) {
 		prefix = "[\033[31m";
 		suffix = ":panic\033[0m] ";
 		break;
+	case LOG_TYPE_INFO:
+		prefix = "[\033[36m";
+		suffix = ":info\033[0m] ";
+		break;
 	default:
 		break;
 	}

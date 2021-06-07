@@ -72,11 +72,13 @@ run-release: lezione-release.hdd
 # If no hardware acceleration is present, fallback to tcg with --accel tcg
 # -debugcon stdio - Add debug connection, so that we can print logs to e9 port from the kernel
 # and see them in the terminal
+# -machine q35 - Use modern hw, duh
 # -no-shutdown -no-reboot - Halt on fatal errrors
 	qemu-system-x86_64 \
 	-hda lezione-release.hdd \
 	--accel kvm --accel hax --accel tcg \
 	-debugcon stdio \
+	-machine q35 \
 	-no-shutdown -no-reboot
 
 # Run debug image rule
@@ -88,12 +90,14 @@ run-debug: lezione-debug.hdd
 # -debugcon stdio - Add debug connection, so that we can print logs to e9 port from the kernel
 # and see them in the terminal
 # -S -s - attach and wait for the debugger
+# -machine q35 - Use modern hw, duh
 # -no-shutdown -no-reboot - Halt on fatal errrors
 	qemu-system-x86_64 \
 	-hda lezione-debug.hdd \
 	--accel kvm --accel hax --accel tcg \
 	-debugcon stdio \
 	-S -s \
+	-machine q35 \
 	-no-shutdown -no-reboot \
 
 # Attach GDB to running session

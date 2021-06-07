@@ -5,6 +5,7 @@
 #include <drivers/output/stivale2/stivale2.h> // For stivale2 terminal wrapper
 #include <init/stivale2.h>                    // For stivale2 protocol type definitions
 #include <lib/log.h>                          // For LOG_* functions
+#include <lib/panic.h>                        // For hang
 #include <sys/acpi/acpi.h>                    // For acpi_early_init
 
 //! @brief Module name
@@ -90,12 +91,8 @@ void kernel_init(struct stivale2_struct *info) {
 	struct stivale2_struct_tag_rsdp *rsdp_tag =
 	    (struct stivale2_struct_tag_rsdp *)stivale2_query(info, STIVALE2_STRUCT_TAG_RSDP_ID);
 	if (rsdp_tag == NULL) {
-		LOG_PANIC("Machines without ACPI are not supported");
-		goto hang;
+		PANIC("Machines without ACPI are not supported");
 	}
 	acpi_early_init(rsdp_tag);
-hang:
-	while (true) {
-		asm volatile("pause");
-	}
+	hang();
 }
