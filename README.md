@@ -1,6 +1,6 @@
-# lezione
+# Ricerca
 
-Code for the first lesson in lezione-os OSDev tutorial series.
+lezione-os fork that I am using as a playground to experiment with SMP, NUMA, load balancing, and memory/CPU hotplug
 
 # Building
 
@@ -12,4 +12,4 @@ Run `make build-release`/`make build-debug` in root directory to build release i
 
 Run `make run-release` to run release image in QEMU
 
-Run `make run-debug` to run debug image in QEMU. QEMU will wait for debugger to be attached. Run `make gdb-attach` in a separate terminal to start GDB and attach it to QEMU. Now you can debug lezione kernel!
+Run `make run-debug` to run debug image in QEMU. QEMU will wait for debugger to be attached. Run `make gdb-attach` in a separate terminal to start GDB and attach it to QEMU.
