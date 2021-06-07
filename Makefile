@@ -74,12 +74,23 @@ run-release: lezione-release.hdd
 # and see them in the terminal
 # -machine q35 - Use modern hw, duh
 # -no-shutdown -no-reboot - Halt on fatal errrors
+# SMP configuration is taken from https://futurewei-cloud.github.io/ARM-Datacenter/qemu/how-to-configure-qemu-numa-nodes/
 	qemu-system-x86_64 \
 	-hda lezione-release.hdd \
 	--accel kvm --accel hax --accel tcg \
 	-debugcon stdio \
 	-machine q35 \
-	-no-shutdown -no-reboot
+	-no-shutdown -no-reboot \
+	-smp cpus=16 -numa node,cpus=0-3,nodeid=0 \
+	-numa node,cpus=4-7,nodeid=1 \
+	-numa node,cpus=8-11,nodeid=2 \
+	-numa node,cpus=12-15,nodeid=3 \
+	-numa dist,src=0,dst=1,val=15 \
+	-numa dist,src=2,dst=3,val=15 \
+	-numa dist,src=0,dst=2,val=20 \
+	-numa dist,src=0,dst=3,val=20 \
+	-numa dist,src=1,dst=2,val=20 \
+	-numa dist,src=1,dst=3,val=20
 
 # Run debug image rule
 run-debug: lezione-debug.hdd
@@ -92,6 +103,7 @@ run-debug: lezione-debug.hdd
 # -S -s - attach and wait for the debugger
 # -machine q35 - Use modern hw, duh
 # -no-shutdown -no-reboot - Halt on fatal errrors
+# SMP configuration is taken from https://futurewei-cloud.github.io/ARM-Datacenter/qemu/how-to-configure-qemu-numa-nodes/
 	qemu-system-x86_64 \
 	-hda lezione-debug.hdd \
 	--accel kvm --accel hax --accel tcg \
@@ -99,6 +111,16 @@ run-debug: lezione-debug.hdd
 	-S -s \
 	-machine q35 \
 	-no-shutdown -no-reboot \
+	-smp cpus=16 -numa node,cpus=0-3,nodeid=0 \
+	-numa node,cpus=4-7,nodeid=1 \
+	-numa node,cpus=8-11,nodeid=2 \
+	-numa node,cpus=12-15,nodeid=3 \
+	-numa dist,src=0,dst=1,val=15 \
+	-numa dist,src=2,dst=3,val=15 \
+	-numa dist,src=0,dst=2,val=20 \
+	-numa dist,src=0,dst=3,val=20 \
+	-numa dist,src=1,dst=2,val=20 \
+	-numa dist,src=1,dst=3,val=20
 
 # Attach GDB to running session
 gdb-attach:
