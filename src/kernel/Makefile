@@ -46,7 +46,7 @@ C_RELEASE_FLAGS = -O2 -flto
 
 # C flags used for debug builds
 # -g - generate debugging symbols
-C_DEBUG_FLAGS = -g
+C_DEBUG_FLAGS = -g -DDEBUG
 
 # All C flags used in release mode
 C_RELEASE_FLAGS_ALL := $(C_RELEASE_FLAGS) $(CFLAGS) $(C_HARD_FLAGS)

@@ -73,10 +73,6 @@ struct acpi_slit *acpi_boot_slit = NULL;
 //! @param table_phys Physical table address
 static void acpi_visit_table(uint64_t table_phys) {
 	const struct acpi_sdt_header *header = (struct acpi_sdt_header *)(table_phys + HIGH_PHYS_VMA);
-	// Print table hame
-	char name_buf[5] = {0};
-	memcpy(name_buf, header->signature, 4);
-	LOG_INFO("Table \"%s\" found in RSDT", name_buf);
 	// Check a few common tables
 	if (memcmp(header->signature, "SRAT", 4) == 0) {
 		if (acpi_boot_srat != NULL) {
@@ -130,7 +126,7 @@ static void acpi_walk_xsdt(uint64_t xsdt_phys) {
 
 //! @brief Dump SRAT
 //! @brief srat Pointer to SRAT table
-static void acpi_dump_srat(struct acpi_srat *srat) {
+void acpi_dump_srat(struct acpi_srat *srat) {
 	LOG_INFO("Dumping SRAT:");
 
 	// Calculate entries starting and ending address
@@ -193,7 +189,7 @@ static void acpi_dump_srat(struct acpi_srat *srat) {
 
 //! @brief Dump SLIT
 //! @brief srat Pointer to SLIT table
-static void acpi_dump_slit(struct acpi_slit *slit) {
+void acpi_dump_slit(struct acpi_slit *slit) {
 	LOG_INFO("Number of localities (obtained from SLIT): %u", slit->localities);
 	LOG_INFO("Dumping localities distances matrix");
 	// Print table header
@@ -226,12 +222,22 @@ void acpi_dump_madt(struct acpi_madt *madt) {
 		switch (entry->type) {
 		case ACPI_MADT_XAPIC_ENTRY: {
 			struct acpi_madt_xapic_entry *xapic = (struct acpi_madt_xapic_entry *)entry;
-			LOG_INFO("CPU with ACPI ID %U has APIC ID %U", (uint32_t)xapic->acpi_id,
-			         (uint32_t)xapic->apic_id);
+			if ((xapic->flags & 0b11U) == 0) {
+				// Disabled core
+				break;
+			}
+			if ((xapic->flags & 0b1) == 0) {
+				LOG_INFO("CPU with ACPI ID %U has APIC ID %U ", (uint32_t)xapic->acpi_id,
+				         (uint32_t)xapic->apic_id);
+			}
 			break;
 		}
 		case ACPI_MADT_X2APIC_ENTRY: {
 			struct acpi_madt_x2apic_entry *x2apic = (struct acpi_madt_x2apic_entry *)entry;
+			if ((x2apic->flags & 0b11U) == 0) {
+				// Disabled core
+				break;
+			}
 			LOG_INFO("CPU with ACPI ID %U has APIC ID %U", x2apic->acpi_id, x2apic->apic_id);
 			break;
 		}
@@ -277,14 +283,7 @@ void acpi_early_init(struct stivale2_struct_tag_rsdp *rsdp_tag) {
 		PANIC("MADT not available");
 	}
 
-	// acpi_dump_madt(acpi_boot_madt);
-
-	// Dump SRAT if present
-	if (acpi_boot_srat != NULL) {
-		acpi_dump_srat(acpi_boot_srat);
-	}
-
-	// Dump SLIT if present
+	// Dump SLIT if its there
 	if (acpi_boot_slit != NULL) {
 		acpi_dump_slit(acpi_boot_slit);
 	}

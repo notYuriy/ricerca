@@ -18,3 +18,16 @@ static inline void hang() {
 		LOG_PANIC(__VA_ARGS__);                                                                    \
 		hang();                                                                                    \
 	} while (0)
+
+#ifdef DEBUG
+//! @brief ASSERT macro
+//! @note Requires MODULE to be defined
+#define ASSERT(cond, ...)                                                                          \
+	if (!(cond)) {                                                                                 \
+		PANIC(__VA_ARGS__);                                                                        \
+	}
+#else
+//! @brief ASSERT macro
+//! @note Requires MODULE to be defined
+#define ASSERT(cond, ...) (void)(cond);
+#endif

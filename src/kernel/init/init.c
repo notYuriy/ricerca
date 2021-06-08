@@ -7,6 +7,7 @@
 #include <lib/log.h>                          // For LOG_* functions
 #include <lib/panic.h>                        // For hang
 #include <sys/acpi/acpi.h>                    // For acpi_early_init
+#include <sys/numa/numa.h>                    // For NUMA early init
 
 //! @brief Module name
 #define MODULE "init"
@@ -94,5 +95,7 @@ void kernel_init(struct stivale2_struct *info) {
 		PANIC("Machines without ACPI are not supported");
 	}
 	acpi_early_init(rsdp_tag);
+	// Do NUMA init
+	numa_init();
 	hang();
 }

@@ -80,13 +80,19 @@ run-release: ricerca-release.hdd
 	-hda ricerca-release.hdd \
 	--enable-kvm -cpu host \
 	-debugcon stdio \
-	-m size=1G,slots=4,maxmem=4G \
+	-m size=4G,slots=4,maxmem=8G \
 	-no-shutdown -no-reboot \
-	-smp cpus=16 -numa node,cpus=0-3,nodeid=0 \
-	-numa node,cpus=4-7,nodeid=1 \
-	-numa node,cpus=8-11,nodeid=2 \
-	-numa node,cpus=12-15,nodeid=3 \
-	-numa dist,src=0,dst=1,val=15 \
+	-machine q35 \
+	-object memory-backend-ram,size=1G,id=m0 \
+    -object memory-backend-ram,size=1G,id=m1 \
+    -object memory-backend-ram,size=1G,id=m2 \
+    -object memory-backend-ram,size=1G,id=m3 \
+	-smp cpus=16,maxcpus=32 \
+	-numa node,cpus=0-7,nodeid=0,memdev=m0 \
+	-numa node,cpus=8-10,nodeid=1,memdev=m1 \
+	-numa node,cpus=11-15,nodeid=2,memdev=m2 \
+	-numa node,cpus=16-31,nodeid=3,memdev=m3 \
+	-numa dist,src=0,dst=1,val=255 \
 	-numa dist,src=2,dst=3,val=15 \
 	-numa dist,src=0,dst=2,val=20 \
 	-numa dist,src=0,dst=3,val=20 \
@@ -97,7 +103,6 @@ run-release: ricerca-release.hdd
 run-debug: ricerca-debug.hdd
 # Run QEMU
 # -hda ricerca-debug.hdd - Attach harddrive with our image
-# -cpu host --accel kvm --accel hax --accel tcg - Use hardware virtualization if available
 # If no hardware acceleration is present, fallback to tcg with --accel tcg
 # -debugcon stdio - Add debug connection, so that we can print logs to e9 port from the kernel
 # and see them in the terminal
@@ -108,22 +113,26 @@ run-debug: ricerca-debug.hdd
 # SMP configuration is taken from https://futurewei-cloud.github.io/ARM-Datacenter/qemu/how-to-configure-qemu-numa-nodes/
 	qemu-system-x86_64 \
 	-hda ricerca-debug.hdd \
-	--enable-kvm -cpu host \
 	-debugcon stdio \
+	-m size=4G,slots=4,maxmem=8G \
 	-S -s \
-	-m size=1G,slots=4,maxmem=4G \
 	-no-shutdown -no-reboot \
-	-smp cpus=16 -numa node,cpus=0-3,nodeid=0 \
-	-numa node,cpus=4-7,nodeid=1 \
-	-numa node,cpus=8-11,nodeid=2 \
-	-numa node,cpus=12-15,nodeid=3 \
+	-machine q35 \
+	-object memory-backend-ram,size=1G,id=m0 \
+    -object memory-backend-ram,size=1G,id=m1 \
+    -object memory-backend-ram,size=1G,id=m2 \
+    -object memory-backend-ram,size=1G,id=m3 \
+	-smp cpus=16,maxcpus=32 \
+	-numa node,cpus=0-7,nodeid=0,memdev=m0 \
+	-numa node,cpus=8-10,nodeid=1,memdev=m1 \
+	-numa node,cpus=11-15,nodeid=2,memdev=m2 \
+	-numa node,cpus=16-31,nodeid=3,memdev=m3 \
 	-numa dist,src=0,dst=1,val=15 \
 	-numa dist,src=2,dst=3,val=15 \
 	-numa dist,src=0,dst=2,val=20 \
 	-numa dist,src=0,dst=3,val=20 \
 	-numa dist,src=1,dst=2,val=20 \
 	-numa dist,src=1,dst=3,val=20
-
 # Attach GDB to running session
 gdb-attach:
 	gdb -x gdb-startup
