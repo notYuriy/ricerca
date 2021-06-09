@@ -4,7 +4,7 @@
 #include <lib/log.h> // For LOG_* macros
 
 //! @brief Hang forever
-static inline void hang() {
+static inline _Noreturn void hang() {
 	asm volatile("cli");
 	while (true) {
 		asm volatile("pause");

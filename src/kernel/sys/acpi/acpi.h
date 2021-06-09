@@ -136,3 +136,13 @@ bool acpi_validate_checksum(void *table, size_t len);
 //! @brief Early ACPI subsystem init
 //! @param rsdp_tag Stivale2 RSDP tag
 void acpi_early_init(struct stivale2_struct_tag_rsdp *rsdp_tag);
+
+//! @brief Lookup APIC CPU id from ACPI CPU id
+//! @param acpi_id ACPI CPU id
+//! @return APIC CPU id
+uint32_t acpi_acpi2apic_id(uint32_t acpi_id);
+
+//! @brief Lookup ACPI CPI id from APIC CPI id
+//! @param apic_id APIC CPU id
+//! @return ACPI CPU id
+uint32_t acpi_apic2acpi_id(uint32_t apic_id);

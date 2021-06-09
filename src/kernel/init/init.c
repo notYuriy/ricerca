@@ -6,7 +6,9 @@
 #include <init/stivale2.h>                    // For stivale2 protocol type definitions
 #include <lib/log.h>                          // For LOG_* functions
 #include <lib/panic.h>                        // For hang
+#include <mem/mem.h>                          // For memory management init
 #include <sys/acpi/acpi.h>                    // For acpi_early_init
+#include <sys/acpi/numa.h>                    // For acpi_numa_init
 #include <sys/numa/numa.h>                    // For NUMA early init
 
 //! @brief Module name
@@ -88,14 +90,25 @@ void kernel_init(struct stivale2_struct *info) {
 	e9_register();
 	// Attempt to initialize stivale2 terminal
 	kernel_load_stivale2_term(info);
+
 	// Attempt early ACPI init
 	struct stivale2_struct_tag_rsdp *rsdp_tag =
 	    (struct stivale2_struct_tag_rsdp *)stivale2_query(info, STIVALE2_STRUCT_TAG_RSDP_ID);
-	if (rsdp_tag == NULL) {
-		PANIC("Machines without ACPI are not supported");
+	if (rsdp_tag != NULL) {
+		acpi_early_init(rsdp_tag);
+		acpi_numa_init();
 	}
-	acpi_early_init(rsdp_tag);
+
 	// Do NUMA init
 	numa_init();
+
+	// Initialize memory management
+	struct stivale2_struct_tag_memmap *memmap_tag =
+	    (struct stivale2_struct_tag_memmap *)stivale2_query(info, STIVALE2_STRUCT_TAG_MEMMAP_ID);
+	if (memmap_tag == NULL) {
+		PANIC("No memory map!");
+	}
+	mem_init(memmap_tag);
+
 	hang();
 }

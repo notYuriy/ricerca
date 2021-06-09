@@ -20,26 +20,47 @@ enum {
 struct numa_node {
 	//! @brief Reference counting base
 	struct mem_rc rc_base;
-	//! @brief Next active NUMA node
+	//! @brief Next NUMA node
 	struct numa_node *next;
 	//! @brief NUMA ID of the node itself
 	numa_id_t node_id;
-	//! @brief Accessible neighbours sorted by distance (from the smallest to the largest)
-	//! @note Includes self for convinience
-	numa_id_t neighbours[NUMA_MAX_NODES];
-	//! @brief Number of used entries in neighbours array
-	numa_id_t used_entries;
+	//! @brief Permanent accessible neighbours sorted by distance (from the smallest to the largest)
+	//! @note Includes self for convinience if self is permanent
+	numa_id_t permanent_neighbours[NUMA_MAX_NODES];
+	//! @brief Number of used entries in permanent_neighbours array
+	numa_id_t permanent_used_entries;
+	//! @brief Hotpluggable accessible neighbours sorted by distance (from the smallest to the
+	//! largest)
+	//! @note Includes self for convinience if self is hotpluggable
+	numa_id_t hotpluggable_neighbours[NUMA_MAX_NODES];
+	//! @brief Number of used entries in hotpluggable_neighbours array
+	numa_id_t hotpluggable_used_entries;
+	//! @brief Permanent memory ranges
+	struct mem_range *permanent_ranges;
+	//! @brief Hotpluggable memory ranges
+	struct mem_range *hotpluggable_ranges;
+	//! @brief True if node is permanent
+	bool permanent;
 };
+
+//! @brief Head of hotpluggable NUMA nodes list
+extern struct numa_node *numa_hotpluggable_nodes;
+
+//! @brief Head of permanent NUMA nodes list
+extern struct numa_node *numa_permanent_nodes;
 
 //! @brief Initialize NUMA subsystem
 void numa_init(void);
 
 //! @brief Take NUMA subsystem lock
-void numa_acquire(void);
+//! @return Interrupt state
+bool numa_acquire(void);
 
 //! @brief Drop NUMA subsystem lock
-void numa_release(void);
+//! @param state Interrupt state returned from numa_acquire
+void numa_release(bool state);
 
-//! @brief Query NUMA node data by ID
+//! @brief Query NUMA node data by ID without borrowing reference
 //! @return Borrowed RC reference to the numa data
-struct numa_node *numa_query_data(numa_id_t data);
+//! @note Use only at boot
+struct numa_node *numa_query_data_no_borrow(numa_id_t data);

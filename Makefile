@@ -89,10 +89,10 @@ run-release: ricerca-release.hdd
     -object memory-backend-ram,size=1G,id=m3 \
 	-smp cpus=16,maxcpus=32 \
 	-numa node,cpus=0-7,nodeid=0,memdev=m0 \
-	-numa node,cpus=8-10,nodeid=1,memdev=m1 \
-	-numa node,cpus=11-15,nodeid=2,memdev=m2 \
-	-numa node,cpus=16-31,nodeid=3,memdev=m3 \
-	-numa dist,src=0,dst=1,val=255 \
+	-numa node,cpus=8-15,nodeid=1,memdev=m1 \
+	-numa node,cpus=16-23,nodeid=2,memdev=m2 \
+	-numa node,cpus=24-31,nodeid=3,memdev=m3 \
+	-numa dist,src=0,dst=1,val=15 \
 	-numa dist,src=2,dst=3,val=15 \
 	-numa dist,src=0,dst=2,val=20 \
 	-numa dist,src=0,dst=3,val=20 \
@@ -124,9 +124,9 @@ run-debug: ricerca-debug.hdd
     -object memory-backend-ram,size=1G,id=m3 \
 	-smp cpus=16,maxcpus=32 \
 	-numa node,cpus=0-7,nodeid=0,memdev=m0 \
-	-numa node,cpus=8-10,nodeid=1,memdev=m1 \
-	-numa node,cpus=11-15,nodeid=2,memdev=m2 \
-	-numa node,cpus=16-31,nodeid=3,memdev=m3 \
+	-numa node,cpus=8-15,nodeid=1,memdev=m1 \
+	-numa node,cpus=16-23,nodeid=2,memdev=m2 \
+	-numa node,cpus=24-31,nodeid=3,memdev=m3 \
 	-numa dist,src=0,dst=1,val=15 \
 	-numa dist,src=2,dst=3,val=15 \
 	-numa dist,src=0,dst=2,val=20 \
