@@ -136,3 +136,9 @@ run-debug: ricerca-debug.hdd
 # Attach GDB to running session
 gdb-attach:
 	gdb -x gdb-startup
+
+# Release build rule
+build-release: ricerca-release.hdd
+
+# Debug build rule
+build-debug: ricerca-debug.hdd

@@ -280,5 +280,5 @@ void acpi_numa_init(void) {
 	uint32_t boot_prox_domain = acpi_numa_apic2numa_id(boot_apic_id);
 	LOG_INFO("NUMA domain of boot CPU is %u", boot_prox_domain);
 	acpi_numa_boot_domain = boot_prox_domain;
-	LOG_SUCCESS("Initialization finished");
+	LOG_SUCCESS("Initialization finished!");
 }
