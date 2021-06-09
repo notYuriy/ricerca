@@ -58,6 +58,10 @@ struct acpi_numa_memory_range {
 bool acpi_numa_get_memory_range(struct acpi_numa_phys_range_iter *iter,
                                 struct acpi_numa_memory_range *buf);
 
+//! @brief Find size of physical address space according to SRAT
+//! @return Size of physical memory space including hotplug regions or 0 if SRAT is not there
+size_t acpi_numa_query_phys_space_size(void);
+
 //! @brief Translate APIC id to proximity domain
 //! @param apic_id APIC id
 //! @return NUMA domain ID

@@ -4,26 +4,11 @@
 #include <lib/log.h>            // Logging facilities
 #include <mem/mem.h>            // For declaration of mem_init function
 #include <mem/misc.h>           // For phys low
-#include <mem/phys/slub.h>      // For physical memory slub
-#include <mem/rc.h>             // For reference counting
+#include <mem/phys/phys.h>      // For mem/phys init
 #include <mem/rc_static_pool.h> // For static RC pool
 #include <sys/acpi/numa.h>      // For memory areas iteration
 
 #define MODULE "mem/init"
-
-//! @brief Physical memory range
-struct mem_range {
-	//! @brief Refcounted base
-	struct mem_rc rc_base;
-	//! @brief Next memory range for this node
-	struct mem_range *next_range;
-	//! @brief Previous memory range for this ndoe
-	struct mem_range *prev_range;
-	//! @brief Physical memory slub
-	struct mem_phys_slub slub;
-	//! @brief True if memory range was offlined
-	bool offlined;
-};
 
 //! @brief Backing array for static mem_range pool
 static struct mem_range mem_range_backer[MEM_MAX_RANGES_STATIC];
@@ -83,5 +68,6 @@ void mem_init(struct stivale2_struct_tag_memmap *memmap) {
 			}
 		}
 	}
+	mem_phys_init(memmap);
 	LOG_SUCCESS("Initialization finished!");
 }

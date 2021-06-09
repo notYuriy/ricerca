@@ -74,7 +74,7 @@ static void mem_phys_slub_split_until_target(struct mem_phys_slub *slub, uintptr
 //! @brief Calculate size order
 //! @param size Size of the memory block requested
 static size_t mem_phys_slub_get_order(size_t size) {
-	size_t current = (1ULL << PHYS_SLUB_GRAN);
+	size_t current = PAGE_SIZE;
 	size_t order = PHYS_SLUB_GRAN;
 	for (; order < MEM_PHYS_SLUB_ORDERS_COUNT; ++order, current *= 2) {
 		if (size <= current) {
@@ -96,8 +96,7 @@ uintptr_t mem_phys_slub_alloc(struct mem_phys_slub *slub, size_t size) {
 	// 4. If all free lists are empty, attempt to allocate by incerasing slub->brk_base by size
 
 	// Find free list to query. Check that size is granular
-	ASSERT(size % (1ULL << PHYS_SLUB_GRAN) == 0,
-	       "Attempt to allocate %U bytes (not granular allocation)", size);
+	ASSERT(size % PAGE_SIZE == 0, "Attempt to allocate %U bytes (not granular allocation)", size);
 	// Get block order
 	size_t order = mem_phys_slub_get_order(size);
 	if (order == MEM_PHYS_SLUB_ORDERS_COUNT) {

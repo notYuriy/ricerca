@@ -131,8 +131,8 @@ bool acpi_numa_get_memory_range(struct acpi_numa_phys_range_iter *iter,
 			buf->end = iter->range_end;
 			buf->start = iter->range_start;
 			// Align start and end
-			buf->start = align_up(buf->start, (1ULL << PHYS_SLUB_GRAN));
-			buf->end = align_down(buf->end, (1ULL << PHYS_SLUB_GRAN));
+			buf->start = align_up(buf->start, PAGE_SIZE);
+			buf->end = align_down(buf->end, PAGE_SIZE);
 			return true;
 		} else {
 			return false;
@@ -170,8 +170,8 @@ bool acpi_numa_get_memory_range(struct acpi_numa_phys_range_iter *iter,
 			buf->start = (base < iter->range_start) ? iter->range_start : base;
 			buf->node_id = domain_id;
 			// Align start and end
-			buf->start = align_up(buf->start, (1ULL << PHYS_SLUB_GRAN));
-			buf->end = align_down(buf->end, (1ULL << PHYS_SLUB_GRAN));
+			buf->start = align_up(buf->start, PAGE_SIZE);
+			buf->end = align_down(buf->end, PAGE_SIZE);
 			return true;
 		}
 	}
@@ -235,6 +235,40 @@ numa_id_t acpi_numa_apic2numa_id(uint32_t apic_id) {
 		}
 	}
 	PANIC("Can't find APIC ID %u in SRAT", apic_id);
+}
+
+//! @brief Find size of physical address space according to SRAT
+//! @return Size of physical memory space including hotplug regions
+size_t acpi_numa_query_phys_space_size(void) {
+	if (acpi_boot_srat == NULL) {
+		return 0;
+	}
+	size_t result = 0;
+	// Enumerate SRAT
+	const uintptr_t starting_address = ((uintptr_t)acpi_boot_srat) + sizeof(struct acpi_srat);
+	const uintptr_t entries_len = acpi_boot_srat->hdr.length - sizeof(struct acpi_srat);
+	uintptr_t current_offset = 0;
+	while (current_offset < entries_len) {
+		// Get pointer to current SRAT entry and increment offset
+		struct acpi_srat_entry *entry =
+		    (struct acpi_srat_entry *)(starting_address + current_offset);
+		current_offset += entry->length;
+		// We only need memory entries
+		if (entry->type != ACPI_SRAT_MEM_ENTRY) {
+			continue;
+		}
+		struct acpi_srat_mem_entry *mem = (struct acpi_srat_mem_entry *)entry;
+		// Check that entry is active
+		if ((mem->flags & 1U) == 0) {
+			continue;
+		}
+		uint64_t base = ((uint64_t)(mem->base_high) << 32ULL) + (uint64_t)(mem->base_low);
+		uint64_t len = ((uint64_t)(mem->length_high) << 32ULL) + (uint64_t)(mem->length_low);
+		if (base + len > result) {
+			result = base + len;
+		}
+	}
+	return result;
 }
 
 //! @brief Initialize NUMA ACPI wrappers

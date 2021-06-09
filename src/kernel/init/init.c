@@ -7,6 +7,7 @@
 #include <lib/log.h>                          // For LOG_* functions
 #include <lib/panic.h>                        // For hang
 #include <mem/mem.h>                          // For memory management init
+#include <mem/phys/phys.h>                    // Just to play with it for a bit
 #include <sys/acpi/acpi.h>                    // For acpi_early_init
 #include <sys/acpi/numa.h>                    // For acpi_numa_init
 #include <sys/numa/numa.h>                    // For NUMA early init
@@ -102,7 +103,7 @@ void kernel_init(struct stivale2_struct *info) {
 	// Do NUMA init
 	numa_init();
 
-	// Initialize memory management
+	// Initialize memory management subsystem
 	struct stivale2_struct_tag_memmap *memmap_tag =
 	    (struct stivale2_struct_tag_memmap *)stivale2_query(info, STIVALE2_STRUCT_TAG_MEMMAP_ID);
 	if (memmap_tag == NULL) {
@@ -110,5 +111,7 @@ void kernel_init(struct stivale2_struct *info) {
 	}
 	mem_init(memmap_tag);
 
+	// Nothing more for now
+	LOG_SUCCESS("Kernel initialization finished!");
 	hang();
 }

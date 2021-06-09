@@ -75,11 +75,15 @@ static void numa_sort_neighbours(numa_id_t self, numa_id_t *neighbours, size_t n
 //! @param head Head of node's list
 static void numa_dump_list(struct numa_node *head) {
 	for (struct numa_node *current = head; current != NULL; current = current->next) {
-		log_printf("Node %%\033[36m%u\033[0m: { neighbours: { ", (uint32_t)current->node_id);
+		log_printf("Node %%\033[36m%u\033[0m: { perm_neighbours: { ", (uint32_t)current->node_id);
 		for (size_t i = 0; i < current->permanent_used_entries; ++i) {
 			log_printf("%%\033[32m%u\033[0m, ", (uint32_t)current->permanent_neighbours[i]);
 		}
-		log_write("} }, \n", 6);
+		log_printf("}, hotplug_neighbours: { ");
+		for (size_t i = 0; i < current->hotpluggable_used_entries; ++i) {
+			log_printf("%%\033[32m%u\033[0m, ", (uint32_t)current->hotpluggable_neighbours[i]);
+		}
+		log_printf("} }\n");
 	}
 }
 
