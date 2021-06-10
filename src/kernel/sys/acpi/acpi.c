@@ -10,7 +10,7 @@
 #include <sys/acpi/acpi.h>
 
 MODULE("sys/acpi")
-TARGET(acpi_target, acpi_init)
+TARGET(acpi_target, acpi_init, {mem_misc_collect_info_target})
 
 //! @brief ACPI RSDP revisions
 enum {
@@ -219,7 +219,8 @@ void acpi_dump_madt(struct acpi_madt *madt) {
 //! @brief Visit a given ACPI table
 //! @param table_phys Physical table address
 static void acpi_visit_table(uint64_t table_phys) {
-	const struct acpi_sdt_header *header = (struct acpi_sdt_header *)(table_phys + HIGH_PHYS_VMA);
+	const struct acpi_sdt_header *header =
+	    (struct acpi_sdt_header *)(table_phys + mem_wb_phys_win_base);
 	// Check a few common tables
 	if (memcmp(header->signature, "SRAT", 4) == 0) {
 		if (acpi_boot_srat != NULL) {
@@ -250,7 +251,7 @@ static void acpi_visit_table(uint64_t table_phys) {
 //! @brief Walk RSDT
 //! @param rsdt_phys Physical address of RSDT
 static void acpi_walk_rsdt(uint64_t rsdt_phys) {
-	struct acpi_rsdt *rsdt = (struct acpi_rsdt *)(rsdt_phys + HIGH_PHYS_VMA);
+	struct acpi_rsdt *rsdt = (struct acpi_rsdt *)(rsdt_phys + mem_wb_phys_win_base);
 	if (!acpi_validate_checksum(rsdt, rsdt->hdr.length)) {
 		LOG_ERR("RSDT checksum validation failed");
 	}
@@ -266,7 +267,7 @@ static void acpi_walk_rsdt(uint64_t rsdt_phys) {
 //! @brief Walk XSDT
 //! @param rsdt_phys Physical address of XSDT
 static void acpi_walk_xsdt(uint64_t xsdt_phys) {
-	struct acpi_xsdt *xsdt = (struct acpi_xsdt *)(xsdt_phys + HIGH_PHYS_VMA);
+	struct acpi_xsdt *xsdt = (struct acpi_xsdt *)(xsdt_phys + mem_wb_phys_win_base);
 	if (!acpi_validate_checksum(xsdt, xsdt->hdr.length)) {
 		LOG_ERR("XSDT checksum validation failed");
 	}
@@ -277,6 +278,40 @@ static void acpi_walk_xsdt(uint64_t xsdt_phys) {
 	for (size_t i = 0; i < tables_count; ++i) {
 		acpi_visit_table(xsdt->tables[i]);
 	}
+}
+
+//! @brief Find size of physical address space according to SRAT
+//! @return Size of physical memory space including hotplug regions
+size_t acpi_query_phys_space_size(void) {
+	if (acpi_boot_srat == NULL) {
+		return 0;
+	}
+	size_t result = 0;
+	// Enumerate SRAT
+	const uintptr_t starting_address = ((uintptr_t)acpi_boot_srat) + sizeof(struct acpi_srat);
+	const uintptr_t entries_len = acpi_boot_srat->hdr.length - sizeof(struct acpi_srat);
+	uintptr_t current_offset = 0;
+	while (current_offset < entries_len) {
+		// Get pointer to current SRAT entry and increment offset
+		struct acpi_srat_entry *entry =
+		    (struct acpi_srat_entry *)(starting_address + current_offset);
+		current_offset += entry->length;
+		// We only need memory entries
+		if (entry->type != ACPI_SRAT_MEM_ENTRY) {
+			continue;
+		}
+		struct acpi_srat_mem_entry *mem = (struct acpi_srat_mem_entry *)entry;
+		// Check that entry is active
+		if ((mem->flags & 1U) == 0) {
+			continue;
+		}
+		uint64_t base = ((uint64_t)(mem->base_high) << 32ULL) + (uint64_t)(mem->base_low);
+		uint64_t len = ((uint64_t)(mem->length_high) << 32ULL) + (uint64_t)(mem->length_low);
+		if (base + len > result) {
+			result = base + len;
+		}
+	}
+	return result;
 }
 
 //! @brief Early ACPI subsystem init

@@ -34,7 +34,7 @@ static void mem_phys_slub_enqueue(struct mem_phys_slub *slub, size_t order, uint
 	if (slub->max_freed_order < order) {
 		slub->max_freed_order = order;
 	}
-	uintptr_t *block_next_ptr = (uintptr_t *)(HIGH_PHYS_VMA + block);
+	uintptr_t *block_next_ptr = (uintptr_t *)(mem_wb_phys_win_base + block);
 	*block_next_ptr = slub->free_lists[order];
 	slub->free_lists[order] = block;
 }
@@ -45,7 +45,7 @@ static void mem_phys_slub_enqueue(struct mem_phys_slub *slub, size_t order, uint
 //! @return Physical address of the block
 static uintptr_t mem_phys_slub_dequeue(struct mem_phys_slub *slub, size_t order) {
 	uintptr_t block = slub->free_lists[order];
-	uintptr_t next = *(uintptr_t *)(HIGH_PHYS_VMA + block);
+	uintptr_t next = *(uintptr_t *)(mem_wb_phys_win_base + block);
 	slub->free_lists[order] = next;
 	if (next == PHYS_NULL && slub->max_freed_order == order) {
 		size_t i = slub->max_freed_order - 1;

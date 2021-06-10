@@ -30,5 +30,10 @@ uintptr_t mem_phys_perm_alloc_on_behalf(size_t size, numa_id_t id);
 //! @param addr Address returned from mem_phys_perm_alloc_on_behalf
 void mem_phys_perm_free(uintptr_t addr);
 
+//! @brief Get access to physical regions's data
+//! @param addr Address of the physical
+//! @return Pointer to physical region data
+struct mem_phys_object_data *mem_phys_get_data(uintptr_t addr);
+
 //! @brief Export PMM initializaton target
 EXPORT_TARGET(mem_phys_target)

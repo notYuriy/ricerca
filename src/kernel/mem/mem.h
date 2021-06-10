@@ -24,3 +24,6 @@ struct mem_range {
 
 //! @brief Export "add memory ranges to NUMA nodes" target
 EXPORT_TARGET(mem_add_numa_ranges_target)
+
+//! @brief Export kernel memory management init target
+EXPORT_TARGET(mem_kern_init_target)

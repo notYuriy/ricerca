@@ -11,7 +11,7 @@
 #include <thread/spinlock.h>
 
 MODULE("sys/numa")
-TARGET(numa_target, numa_init, acpi_numa_target)
+TARGET(numa_target, numa_init, {acpi_numa_target})
 
 //! @brief Backing memory for NUMA nodes static memory pool
 static struct numa_node numa_nodes[NUMA_MAX_NODES];
@@ -137,6 +137,8 @@ static void numa_init(void) {
 			node->permanent_used_entries = 0;
 			node->hotpluggable_used_entries = 0;
 			node->permanent = true;
+			node->hotpluggable_ranges = NULL;
+			node->permanent_ranges = NULL;
 			if (node == NULL) {
 				PANIC("Bootstrap NUMA node allocation failed");
 			}

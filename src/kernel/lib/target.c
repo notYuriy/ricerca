@@ -7,65 +7,63 @@
 
 MODULE("initgraph")
 
-//! @brief Reach subsystem target
-void target_reach(struct target *target) {
-	if (target->status == TARGET_RESOLVED) {
-		return;
-	}
-	// Generate init plan
-	struct target *stack_top = target;
-	target->next = NULL;
+//! @brief Compute plan to reach target
+//! @param target Target to be reached
+//! @return Linked list of targets to execute
+//! @note Panics if circular dependency is detected
+struct target *target_compute_plan(struct target *target) {
+	struct target *head = NULL;
+	struct target *tail = NULL;
+	struct target *stack = target;
 	target->next_to_be_visited = NULL;
-	struct target *run_list = NULL;
-	struct target *run_list_tail = NULL;
-
-	while (stack_top != NULL) {
-		struct target *current = stack_top;
-		if (current->status == TARGET_UNRESOVLED) {
-			current->status = TARGET_WAITING_FOR_DEPS;
-			// Iterate over all dependencies and push them on resolution stack
-			for (size_t i = 0; i < current->deps_count; ++i) {
-				struct target *dependency = current->deps[i];
-				if (dependency->status == TARGET_WAITING_FOR_DEPS) {
-					PANIC(
-					    "Circular dependency detected while resolving dependency \"%s\" of \"%s\"",
-					    dependency->name, target->name);
-				}
-				if (dependency->status == TARGET_UNRESOVLED) {
-					dependency->next_to_be_visited = stack_top;
-					stack_top = dependency;
-				}
-			}
-		} else if (current->status == TARGET_WAITING_FOR_DEPS) {
-			// Dependencies have been satisfied, so target can be added to run list and removed from
-			// the stack
-			current->status = TARGET_RESOLVED;
-			current->next = NULL;
-			if (run_list == NULL) {
-				run_list = run_list_tail = current;
+	while (stack != NULL) {
+		struct target *tos = stack;
+		if (tos->dep_index == tos->deps_count) {
+			// Resolved
+			stack = stack->next_to_be_visited;
+			tos->next = NULL;
+			if (head == NULL) {
+				head = tos;
+				tail = tos;
 			} else {
-				run_list_tail->next = current;
-				run_list_tail = current;
+				tail->next = tos;
+				tail = tos;
 			}
-			stack_top = stack_top->next_to_be_visited;
 		} else {
-			PANIC("Resolved node enqueued");
+			struct target *dependency = tos->deps[tos->dep_index++];
+			if (dependency->dep_index == dependency->deps_count) {
+				// Dependency is already resolved
+				continue;
+			}
+			if (dependency->dep_index != 0) {
+				PANIC("Circular dependency \"%s\" detected while resolving dependencies of \"%s\"",
+				      dependency->name, tos->name);
+			}
+			dependency->next_to_be_visited = stack;
+			stack = dependency;
 		}
 	}
+	return head;
+}
 
-	// Dump plan
-	LOG_INFO("Running the following plan");
-	struct target *current = run_list;
-	while (current != NULL) {
-		log_printf("* \033[33m\"%s\"\033[0m\n", current->name);
-		current = current->next;
-	}
-
-	// Execute plan
-	current = run_list;
+//! @brief Execute plan
+//! @param plan Plan to be executed returned from target_compute_plan
+void target_execute_plan(struct target *plan) {
+	struct target *current = plan;
 	while (current != NULL) {
 		current->callback();
-		LOG_SUCCESS("Target \033[33m\"%s\"\033[0m reached", current->name);
+		LOG_INFO("Target \033[33m\"%s\"\033[0m reached", current->name);
+		current = current->next;
+	}
+}
+
+//! @brief Dump plan to kernel log
+//! @param plan Plan to be printed
+void target_plan_dump(struct target *plan) {
+	LOG_INFO("Running the following plan");
+	struct target *current = plan;
+	while (current != NULL) {
+		log_printf("* \033[33m\"%s\"\033[0m\n", current->name);
 		current = current->next;
 	}
 }

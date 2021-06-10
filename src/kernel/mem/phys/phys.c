@@ -13,7 +13,9 @@
 #include <sys/numa/numa.h>
 
 MODULE("mem/phys")
-TARGET(mem_phys_target, mem_phys_init, mem_add_numa_ranges_target, numa_target)
+TARGET(mem_phys_target, mem_phys_init,
+       {mem_add_numa_ranges_target, numa_target, mem_misc_collect_info_target,
+        mem_phys_space_size_target})
 
 //! @brief Pointer to array of mem_phys_object_data structures.
 //! @note Used to store information about allocated physical objects
@@ -83,28 +85,17 @@ void mem_phys_perm_free(uintptr_t addr) {
 	numa_release(int_state);
 }
 
+//! @brief Get access to physical regions's data
+//! @param addr Address of the physical
+//! @return Pointer to physical region data
+struct mem_phys_object_data *mem_phys_get_data(uintptr_t addr) {
+	return mem_phys_objects_info + (addr / PAGE_SIZE);
+}
+
 //! @brief Initialize physical memory manager
-//! @param memmap Memory map
 static void mem_phys_init(void) {
-	struct stivale2_struct_tag_memmap *memmap = init_memmap_tag;
-	if (init_memmap_tag == NULL) {
-		PANIC("No memory map tag");
-	}
-	// Query physical memory space size
-	size_t phys_space_size = acpi_numa_query_phys_space_size();
-	if (phys_space_size == 0) {
-		// SRAT is not given, calculate manually by enumerating memory map
-		for (size_t i = 0; i < memmap->entries; ++i) {
-			size_t end = memmap->memmap[i].base + memmap->memmap[i].length;
-			if (end > phys_space_size) {
-				phys_space_size = end;
-			}
-		}
-	}
-	// Align phys_space_size
-	phys_space_size = align_up(phys_space_size, PAGE_SIZE);
 	// Calculate space needed to store info about allocations
-	const size_t gran_units_size = phys_space_size / PAGE_SIZE;
+	const size_t gran_units_size = mem_phys_space_size / PAGE_SIZE;
 	const size_t info_size = gran_units_size * sizeof(struct mem_phys_object_data);
 	// Allocate space for info in boot domain
 	const numa_id_t boot_domain = acpi_numa_boot_domain;
@@ -114,6 +105,6 @@ static void mem_phys_init(void) {
 		PANIC("Failed to allocate space to store info about physical allocations");
 	}
 	// Convert to higher half
-	mem_phys_objects_info = (struct mem_phys_object_data *)(HIGH_PHYS_VMA + info_phys);
+	mem_phys_objects_info = (struct mem_phys_object_data *)(mem_wb_phys_win_base + info_phys);
 	LOG_INFO("mem_phys_objects_info at %p", mem_phys_objects_info);
 }

@@ -155,5 +155,9 @@ uint32_t acpi_acpi2apic_id(uint32_t acpi_id);
 //! @return ACPI CPU id
 uint32_t acpi_apic2acpi_id(uint32_t apic_id);
 
+//! @brief Find size of physical address space according to SRAT
+//! @return Size of physical memory space including hotplug regions
+size_t acpi_query_phys_space_size(void);
+
 //! @brief Export ACPI init target
 EXPORT_TARGET(acpi_target);

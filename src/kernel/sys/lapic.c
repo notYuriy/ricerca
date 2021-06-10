@@ -3,7 +3,7 @@
 
 #include <lib/log.h>
 #include <lib/panic.h>
-#include <mem/mem.h>
+#include <mem/misc.h>
 #include <sys/acpi/acpi.h>
 #include <sys/cpuid.h>
 #include <sys/lapic.h>
@@ -11,7 +11,7 @@
 #include <sys/pic.h>
 
 MODULE("sys/lapic");
-TARGET(lapic_bsp_target, lapic_bsp_init, pic_remap_target)
+TARGET(lapic_bsp_target, lapic_bsp_init, {pic_remap_target, mem_misc_collect_info_target})
 
 //! @brief True if x2APIC is supported
 static bool lapic_x2apic_supported;
@@ -79,7 +79,7 @@ static void lapic_bsp_init(void) {
 	if (lapic_phys_base >= INIT_PHYS_MAPPING_SIZE && !lapic_x2apic_supported) {
 		PANIC("LAPIC unreachable until direct phys window set up");
 	}
-	lapic_xapic = (volatile uint32_t *)(HIGH_PHYS_VMA + lapic_phys_base);
+	lapic_xapic = (volatile uint32_t *)(mem_wb_phys_win_base + lapic_phys_base);
 	LOG_INFO("xAPIC address: 0x%p", lapic_xapic);
 	// Enable LAPIC
 	lapic_enable();

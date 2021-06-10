@@ -3,8 +3,7 @@
 
 #pragma once
 
-//! @brief Higher-half physical direct map virtual address
-#define HIGH_PHYS_VMA (0xffff800000000000ULL)
+#include <lib/target.h>
 
 //! @brief Physical slub granularity as power of 2
 #define PHYS_SLUB_GRAN 12ULL
@@ -20,3 +19,21 @@
 
 //! @brief Maximum number of static memory range
 #define MEM_MAX_RANGES_STATIC 1024
+
+//! @brief Writeback physical window base
+extern uintptr_t mem_wb_phys_win_base;
+
+//! @brief True if 5 level paging is enabled
+extern bool mem_5level_paging_enabled;
+
+//! @brief Physical space size
+extern size_t mem_phys_space_size;
+
+//! @brief Export boot memory-related info detection routine
+//! @note Required as a dependency to use mem_wb_phys_win_base
+//! @note Required as a dependency to use mem_5level_paging_enabled
+EXPORT_TARGET(mem_misc_collect_info_target)
+
+//! @brief Export phys space size calculation target
+//! @note Required as a dependency to use mem_phys_space_size
+EXPORT_TARGET(mem_phys_space_size_target)

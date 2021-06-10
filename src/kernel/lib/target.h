@@ -13,15 +13,6 @@ struct target {
 	struct target **deps;
 	//! @brief Target count
 	size_t deps_count;
-	//! @brief Target status
-	enum {
-		//! @brief Target is yet to be resolved
-		TARGET_UNRESOVLED,
-		//! @brief Target has been visited, but it has not been resolved
-		TARGET_WAITING_FOR_DEPS,
-		//! @brief Target has been satisfied
-		TARGET_RESOLVED,
-	} status;
 	//! @brief Subsystem initialization callback
 	void (*callback)();
 	//! @brief Subsystem name
@@ -30,6 +21,8 @@ struct target {
 	struct target *next;
 	//! @brief Next to be visited
 	struct target *next_to_be_visited;
+	//! @brief Current dependency being enumerated
+	size_t dep_index;
 };
 
 //! @brief Define module
@@ -45,16 +38,27 @@ struct target {
 //! @param init_callback Init callback
 //! @param ... Dependencies
 #define TARGET(target_name, init_callback, ...)                                                    \
-	static struct target *deps[] = {__VA_ARGS__};                                                  \
+	static struct target *target_name##deps[] = __VA_ARGS__;                                       \
 	static void init_callback(void);                                                               \
 	struct target target_name[1] = {(struct target){                                               \
-	    .deps = deps,                                                                              \
-	    .deps_count = ARRAY_SIZE(deps),                                                            \
-	    .status = TARGET_UNRESOVLED,                                                               \
+	    .deps = target_name##deps,                                                                 \
+	    .deps_count = ARRAY_SIZE(target_name##deps),                                               \
 	    .callback = init_callback,                                                                 \
-	    .name = #init_callback,                                                                    \
+	    .name = #target_name,                                                                      \
 	    .next = NULL,                                                                              \
+	    .dep_index = 0,                                                                            \
 	}};
 
-//! @brief Reach subsystem target
-void target_reach(struct target *target);
+//! @brief Compute plan to reach target
+//! @param target Target to be reached
+//! @return Linked list of targets to execute
+//! @note Panics if circular dependency is detected
+struct target *target_compute_plan(struct target *target);
+
+//! @brief Execute plan
+//! @param plan Plan to be executed returned from target_compute_plan
+void target_execute_plan(struct target *plan);
+
+//! @brief Dump plan to kernel log
+//! @param plan Plan to be printed
+void target_plan_dump(struct target *plan);

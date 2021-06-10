@@ -1,5 +1,5 @@
 //! @file init.h
-//! @brief File containing stivale2 loaded tags
+//! @brief File containing externs for info collected on early kernel init
 
 #pragma once
 

@@ -35,8 +35,7 @@ C_HARD_FLAGS := -c -mgeneral-regs-only -mno-red-zone -mcmodel=kernel \
 
 # Common C flags, that are not essential for correct
 # compilation, but useful anyways. Value of this variable can be changed from the command line
-# -Wall -Werror -Wextra - guard against simple mistakes using
-# GCC diagnostics capabilities
+# -Wall -Werror -Wextra - guard against simple mistakes using GCC diagnostics capabilities
 CFLAGS = -Wall -Werror -Wextra
 
 # C flags used for release builds

@@ -8,7 +8,8 @@
 #include <lib/log.h>
 #include <lib/panic.h>
 #include <lib/target.h>
-#include <mem/phys/phys.h>
+#include <mem/mem.h>
+#include <sys/cr.h>
 
 MODULE("init")
 
@@ -24,9 +25,16 @@ struct stivale2_struct_tag_rsdp *init_rsdp_tag;
 //! @brief Memory map tag or NULL if not found
 struct stivale2_struct_tag_memmap *init_memmap_tag;
 
+//! @brief Stivale2 5-level paging tag
+static struct stivale2_tag stivale2_5lvl_paging_tag = {
+    .identifier = STIVALE2_HEADER_TAG_5LV_PAGING_ID,
+    .next = 0,
+};
+
 //! @brief Stivale2 framebuffer tag
 static struct stivale2_header_tag_framebuffer stivale2_fb_tag = {
-    .tag = {.identifier = STIVALE2_HEADER_TAG_FRAMEBUFFER_ID, .next = 0},
+    .tag = {.identifier = STIVALE2_HEADER_TAG_FRAMEBUFFER_ID,
+            .next = (uint64_t)&stivale2_5lvl_paging_tag},
     .framebuffer_height = 0,
     .framebuffer_width = 0,
     .framebuffer_bpp = 0,
@@ -102,8 +110,12 @@ void kernel_init(struct stivale2_struct *info) {
 	init_memmap_tag =
 	    (struct stivale2_struct_tag_memmap *)stivale2_query(info, STIVALE2_STRUCT_TAG_MEMMAP_ID);
 
-	// Initialize physical memory manager
-	target_reach(mem_phys_target);
+	// Compute init plan to initialize memory management
+	struct target *plan = target_compute_plan(mem_kern_init_target);
+
+	// Execute plan
+	target_plan_dump(plan);
+	target_execute_plan(plan);
 
 	// Nothing more for now
 	LOG_SUCCESS("Kernel initialization finished!");
