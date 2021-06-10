@@ -3,9 +3,9 @@
 
 #pragma once
 
-#include <mem/misc.h>   // For config
-#include <mem/rc.h>     // For refcounted object
-#include <misc/types.h> // For uint_* types
+#include <mem/misc.h>
+#include <mem/rc.h>
+#include <misc/types.h>
 
 //! @brief One physical memory slub on a given range of physical memory
 struct mem_phys_slub {

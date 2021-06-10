@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <misc/attributes.h> // For bool
+#include <misc/attributes.h>
 
 //! @brief Disable interrupts
 //! @return True if interrupts were enabled

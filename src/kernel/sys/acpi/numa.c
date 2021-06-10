@@ -1,15 +1,16 @@
 //! @file numa.c
 //! @brief File containing definitions of NUMA proximities enumeration wrappers
 
-#include <lib/panic.h>     // For PANIC
-#include <mem/misc.h>      // For PHYS_SLUB_GRAN
-#include <misc/misc.h>     // For align_up and align_down functions
-#include <misc/types.h>    // For bool
-#include <sys/acpi/acpi.h> // For ACPI tables
-#include <sys/acpi/numa.h> // For declarations of functions below
+#include <lib/panic.h>
+#include <mem/misc.h>
+#include <misc/misc.h>
+#include <misc/types.h>
+#include <sys/acpi/acpi.h>
+#include <sys/acpi/numa.h>
+#include <sys/lapic.h>
 
-//! @brief Module name
-#define MODULE "acpi/numa"
+MODULE("sys/acpi/numa")
+TARGET(acpi_numa_target, acpi_numa_init, lapic_bsp_target, acpi_target)
 
 //! @brief Current SRAT offset
 static uintptr_t acpi_numa_current_srat_offset = 0;
@@ -272,7 +273,7 @@ size_t acpi_numa_query_phys_space_size(void) {
 }
 
 //! @brief Initialize NUMA ACPI wrappers
-void acpi_numa_init(void) {
+static void acpi_numa_init(void) {
 	// Get boot CPU APIC id
 	uint32_t boot_apic_id = acpi_acpi2apic_id(0);
 	LOG_INFO("APIC ID of boot CPU is %u", boot_apic_id);

@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <misc/types.h> // For fixed width integer types
+#include <misc/types.h>
 
 //! @brief Output one byte to a given port
 //! @param port Target port the byte is sent to

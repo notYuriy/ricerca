@@ -1,9 +1,9 @@
 //! @file log.c
 //! @brief File containing definitions for formatting functions
 
-#include <lib/fmt.h>    // For vsnprint declaration
-#include <lib/string.h> // For strlen and memcpy
-#include <misc/types.h> // For fixed width integer types
+#include <lib/fmt.h>
+#include <lib/string.h>
+#include <misc/types.h>
 
 //! @brief Print 64 bit unsigned integer to the buffer
 //! @param val Unsigned integer value to be printed

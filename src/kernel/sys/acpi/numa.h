@@ -3,14 +3,12 @@
 
 #pragma once
 
-#include <misc/types.h>    // For bool
-#include <sys/numa/numa.h> // For numa_id_t and numa_distance_t
+#include <lib/target.h>
+#include <misc/types.h>
+#include <sys/numa/numa.h>
 
 //! @brief Proximity domain of boot CPU
 extern numa_id_t acpi_numa_boot_domain;
-
-//! @brief Initialize NUMA ACPI wrappers
-void acpi_numa_init(void);
 
 //! @brief Enumerate NUMA proximities at boot time
 //! @param buf Buffer to store NUMA proxmities IDs in
@@ -66,3 +64,6 @@ size_t acpi_numa_query_phys_space_size(void);
 //! @param apic_id APIC id
 //! @return NUMA domain ID
 numa_id_t acpi_numa_apic2numa_id(uint32_t apic_id);
+
+//! @brief Export ACPI NUMA wrappers init target
+EXPORT_TARGET(acpi_numa_target)

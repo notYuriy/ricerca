@@ -1,17 +1,17 @@
 //! @param numa.c
 //! @brief File containing NUMA nodes manager interface implementation
 
-#include <lib/log.h>                 // For logging functions
-#include <lib/panic.h>               // For PANIC and ASSERT
-#include <lib/static_handle_table.h> // For handle table
-#include <mem/rc.h>                  // For reference-counted objects
-#include <mem/rc_static_pool.h>      // For static RC pool
-#include <sys/acpi/numa.h>           // For NUMA related ACPI wrapper functions
-#include <sys/numa/numa.h>           // For declarations of functions below
-#include <thread/spinlock.h>         // For spinlocks
+#include <lib/log.h>
+#include <lib/panic.h>
+#include <lib/static_handle_table.h>
+#include <mem/rc.h>
+#include <mem/rc_static_pool.h>
+#include <sys/acpi/numa.h>
+#include <sys/numa/numa.h>
+#include <thread/spinlock.h>
 
-//! @brief Module name
-#define MODULE "numa"
+MODULE("sys/numa")
+TARGET(numa_target, numa_init, acpi_numa_target)
 
 //! @brief Backing memory for NUMA nodes static memory pool
 static struct numa_node numa_nodes[NUMA_MAX_NODES];
@@ -88,7 +88,7 @@ static void numa_dump_list(struct numa_node *head) {
 }
 
 //! @brief Dump NUMA nodes
-void numa_dump_nodes() {
+void numa_dump_nodes(void) {
 	LOG_INFO("Dumping NUMA nodes.");
 	if (numa_permanent_nodes != NULL) {
 		log_printf("Permanent nodes:\n");
@@ -113,7 +113,7 @@ void numa_release(bool state) {
 }
 
 //! @brief Initialize NUMA subsystem
-void numa_init(void) {
+static void numa_init(void) {
 	// Enumerate all domains and create nodes for them
 	numa_id_t buf;
 	struct numa_node *head = NULL;

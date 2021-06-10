@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <misc/types.h> // For fixed width integer types
+#include <misc/types.h>
 
 //! @brief Log type
 enum log_type {
@@ -52,24 +52,24 @@ void log_printf(const char *fmt, ...);
 void log_logf(enum log_type type, const char *subsystem, const char *fmt, ...);
 
 //! @brief Local info log statement.
-//! @note Requires MODULE macro to be defined
-#define LOG_INFO(...) log_logf(LOG_TYPE_INFO, MODULE, __VA_ARGS__)
+//! @note Requires module_name macro to be defined
+#define LOG_INFO(...) log_logf(LOG_TYPE_INFO, module_name, __VA_ARGS__)
 
 //! @brief Local sucess log statement
-//! @note Requires MODULE macro to be defined
-#define LOG_SUCCESS(...) log_logf(LOG_TYPE_SUCCESS, MODULE, __VA_ARGS__)
+//! @note Requires module_name macro to be defined
+#define LOG_SUCCESS(...) log_logf(LOG_TYPE_SUCCESS, module_name, __VA_ARGS__)
 
 //! @brief Local warning log statement
-//! @note Requires MODULE macro to be defined
-#define LOG_WARN(...) log_logf(LOG_TYPE_WARN, MODULE, __VA_ARGS__)
+//! @note Requires module_name macro to be defined
+#define LOG_WARN(...) log_logf(LOG_TYPE_WARN, module_name, __VA_ARGS__)
 
 //! @brief Local error log statement
-//! @note Requires MODULE macro to be defined
-#define LOG_ERR(...) log_logf(LOG_TYPE_ERR, MODULE, __VA_ARGS__)
+//! @note Requires module_name macro to be defined
+#define LOG_ERR(...) log_logf(LOG_TYPE_ERR, module_name, __VA_ARGS__)
 
 //! @brief Local panic log statement
-//! @note Requires MODULE macro to be defined
-#define LOG_PANIC(...) log_logf(LOG_TYPE_PANIC, MODULE, __VA_ARGS__)
+//! @note Requires module_name macro to be defined
+#define LOG_PANIC(...) log_logf(LOG_TYPE_PANIC, module_name, __VA_ARGS__)
 
 //! @brief Load logging subsystem
 void log_register_subsystem(struct log_subsystem *subsystem);

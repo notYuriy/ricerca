@@ -1,25 +1,28 @@
 //! @file init.c
 //! @brief File containing kernel entrypoint and kernel init functions
 
-#include <drivers/output/e9/e9.h>             // For e9 log subsystem
-#include <drivers/output/stivale2/stivale2.h> // For stivale2 terminal wrapper
-#include <init/stivale2.h>                    // For stivale2 protocol type definitions
-#include <lib/log.h>                          // For LOG_* functions
-#include <lib/panic.h>                        // For hang
-#include <mem/mem.h>                          // For memory management init
-#include <mem/phys/phys.h>                    // Just to play with it for a bit
-#include <sys/acpi/acpi.h>                    // For acpi_early_init
-#include <sys/acpi/numa.h>                    // For acpi_numa_init
-#include <sys/numa/numa.h>                    // For NUMA early init
+#include <drivers/output/e9/e9.h>
+#include <drivers/output/stivale2/stivale2.h>
+#include <init/init.h>
+#include <init/stivale2.h>
+#include <lib/log.h>
+#include <lib/panic.h>
+#include <lib/target.h>
+#include <mem/phys/phys.h>
 
-//! @brief Module name
-#define MODULE "init"
+MODULE("init")
 
 //! @brief True if stivale2 terminal was registered
-bool kernel_stivale2_term_loaded = false;
+static bool kernel_stivale2_term_loaded = false;
 
 //! @brief Stack used by kernel on bootstrap
 static uint8_t kernel_stack[65536];
+
+//! @brief RSDP tag or NULL if not found
+struct stivale2_struct_tag_rsdp *init_rsdp_tag;
+
+//! @brief Memory map tag or NULL if not found
+struct stivale2_struct_tag_memmap *init_memmap_tag;
 
 //! @brief Stivale2 framebuffer tag
 static struct stivale2_header_tag_framebuffer stivale2_fb_tag = {
@@ -92,24 +95,15 @@ void kernel_init(struct stivale2_struct *info) {
 	// Attempt to initialize stivale2 terminal
 	kernel_load_stivale2_term(info);
 
-	// Attempt early ACPI init
-	struct stivale2_struct_tag_rsdp *rsdp_tag =
+	// Attempt to load some stivale2 tags
+	init_rsdp_tag =
 	    (struct stivale2_struct_tag_rsdp *)stivale2_query(info, STIVALE2_STRUCT_TAG_RSDP_ID);
-	if (rsdp_tag != NULL) {
-		acpi_early_init(rsdp_tag);
-		acpi_numa_init();
-	}
 
-	// Do NUMA init
-	numa_init();
-
-	// Initialize memory management subsystem
-	struct stivale2_struct_tag_memmap *memmap_tag =
+	init_memmap_tag =
 	    (struct stivale2_struct_tag_memmap *)stivale2_query(info, STIVALE2_STRUCT_TAG_MEMMAP_ID);
-	if (memmap_tag == NULL) {
-		PANIC("No memory map!");
-	}
-	mem_init(memmap_tag);
+
+	// Initialize physical memory manager
+	target_reach(mem_phys_target);
 
 	// Nothing more for now
 	LOG_SUCCESS("Kernel initialization finished!");

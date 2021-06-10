@@ -1,7 +1,7 @@
 //! @file static.c
 //! @brief File containing implementations of static pool functions
 
-#include <mem/rc_static_pool.h> // For declarations of functions below
+#include <mem/rc_static_pool.h>
 
 //! @brief Initialize static memory pool from a given memory range
 //! @param pool Static memory pool to be initialized

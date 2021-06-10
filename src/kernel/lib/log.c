@@ -1,11 +1,11 @@
 //! @file log.c
 //! @brief File containing definitions for logging functions
 
-#include <lib/fmt.h>         // For vsnprintf
-#include <lib/log.h>         // For logging interface defintions
-#include <lib/string.h>      // For strlen
-#include <sys/ports.h>       // For outb
-#include <thread/spinlock.h> // For spinlocks
+#include <lib/fmt.h>
+#include <lib/log.h>
+#include <lib/string.h>
+#include <sys/ports.h>
+#include <thread/spinlock.h>
 
 //! @brief Maximum length of the buffer for log_printf
 #define LOG_BUFFER_SIZE 4096

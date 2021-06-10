@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <misc/types.h> // For varargs
+#include <misc/types.h>
 
 //! @brief Format data using format string and put it in the buffer
 //! @param buf Buffer to store formatted string in

@@ -1,14 +1,16 @@
 //! @file mem.c
 //! @brief Implementation of memory management initialization
 
-#include <lib/log.h>            // Logging facilities
-#include <mem/mem.h>            // For declaration of mem_init function
-#include <mem/misc.h>           // For phys low
-#include <mem/phys/phys.h>      // For mem/phys init
-#include <mem/rc_static_pool.h> // For static RC pool
-#include <sys/acpi/numa.h>      // For memory areas iteration
+#include <init/init.h>
+#include <lib/log.h>
+#include <mem/mem.h>
+#include <mem/misc.h>
+#include <mem/rc_static_pool.h>
+#include <sys/acpi/numa.h>
+#include <sys/numa/numa.h>
 
-#define MODULE "mem/init"
+MODULE("mem");
+TARGET(mem_add_numa_ranges_target, mem_add_numa_ranges, numa_target, acpi_numa_target)
 
 //! @brief Backing array for static mem_range pool
 static struct mem_range mem_range_backer[MEM_MAX_RANGES_STATIC];
@@ -17,9 +19,13 @@ static struct mem_range mem_range_backer[MEM_MAX_RANGES_STATIC];
 static struct mem_rc_static_pool mem_ranges_pool =
     STATIC_POOL_INIT(struct mem_range, mem_range_backer);
 
-//! @brief Initialize memory management
+//! @brief Initialize NUMA nodes with memory ranges
 //! @param memmap Stivale2 memory map tag
-void mem_init(struct stivale2_struct_tag_memmap *memmap) {
+static void mem_add_numa_ranges(void) {
+	if (init_memmap_tag == NULL) {
+		LOG_PANIC("No memory map");
+	}
+	struct stivale2_struct_tag_memmap *memmap = init_memmap_tag;
 	LOG_INFO("Number of memory map entries: %U", memmap->entries);
 	// Enumerate all usable memory map entries
 	for (size_t i = 0; i < memmap->entries; ++i) {
@@ -68,6 +74,5 @@ void mem_init(struct stivale2_struct_tag_memmap *memmap) {
 			}
 		}
 	}
-	mem_phys_init(memmap);
 	LOG_SUCCESS("Initialization finished!");
 }

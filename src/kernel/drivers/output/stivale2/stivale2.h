@@ -1,7 +1,7 @@
 //! @file e9.h
 //! @brief File containing stivale2 wrapper declarations
 
-#include <init/stivale2.h> // For terminal structure tag
+#include <init/stivale2.h>
 
 //! @brief Add logging subsystem for stivale2 terminal
 //! @param term Pointer to terminal struct tag

@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include <misc/atomics.h> // For atomic operations
-#include <misc/types.h>   // For size_t
+#include <misc/atomics.h>
+#include <misc/types.h>
 
 struct mem_rc;
 

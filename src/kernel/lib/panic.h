@@ -1,7 +1,7 @@
 //! @file panic.h
 //! @brief File containing declaration of the panic macro
 
-#include <lib/log.h> // For LOG_* macros
+#include <lib/log.h>
 
 //! @brief Hang forever
 static inline _Noreturn void hang() {

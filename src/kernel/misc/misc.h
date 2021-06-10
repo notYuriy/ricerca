@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <misc/types.h> // For types
+#include <misc/types.h>
 
 //! @brief Get array size
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(*arr))

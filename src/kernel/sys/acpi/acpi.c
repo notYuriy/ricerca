@@ -1,15 +1,16 @@
 //! @file log.c
 //! @brief File containing definitions for ACPI high level functions
 
-#include <lib/log.h>         // For logging
-#include <lib/panic.h>       // For PANIC
-#include <lib/string.h>      // For memcpy
-#include <mem/misc.h>        // For HIGH_PHYS_VMA
-#include <misc/attributes.h> // For packed
-#include <sys/acpi/acpi.h>   // For declarations of functions used here
+#include <init/init.h>
+#include <lib/log.h>
+#include <lib/panic.h>
+#include <lib/string.h>
+#include <mem/misc.h>
+#include <misc/attributes.h>
+#include <sys/acpi/acpi.h>
 
-//! @brief Module name
-#define MODULE "acpi"
+MODULE("sys/acpi")
+TARGET(acpi_target, acpi_init)
 
 //! @brief ACPI RSDP revisions
 enum {
@@ -60,13 +61,13 @@ bool acpi_validate_checksum(void *table, size_t len) {
 	return mod == 0;
 }
 
-//! @brief Nullable pointer to SRAT. Set by acpi_early_init if found
+//! @brief Nullable pointer to SRAT. Set by acpi_init if found
 struct acpi_srat *acpi_boot_srat = NULL;
 
-//! @brief Nullable pointer to MADT. Set by acpi_early_init if found
+//! @brief Nullable pointer to MADT. Set by acpi_init if found
 struct acpi_madt *acpi_boot_madt = NULL;
 
-//! @brief Nullable pointer to SLIT. Set by acpi_early_init if found
+//! @brief Nullable pointer to SLIT. Set by acpi_init if found
 struct acpi_slit *acpi_boot_slit = NULL;
 
 //! @brief Validate SLIT
@@ -280,8 +281,13 @@ static void acpi_walk_xsdt(uint64_t xsdt_phys) {
 }
 
 //! @brief Early ACPI subsystem init
-//! @param rsdp_tag Stivale2 RSDP tag
-void acpi_early_init(struct stivale2_struct_tag_rsdp *rsdp_tag) {
+static void acpi_init(void) {
+	struct stivale2_struct_tag_rsdp *rsdp_tag = init_rsdp_tag;
+	if (rsdp_tag == NULL) {
+		LOG_WARN("Machine does not support ACPI");
+		return;
+	}
+
 	struct acpi_rsdp *rsdp = (struct acpi_rsdp *)rsdp_tag->rsdp;
 	LOG_INFO("RSDP at %p", rsdp);
 
@@ -390,5 +396,5 @@ uint32_t acpi_apic2acpi_id(uint32_t apic_id) {
 			break;
 		}
 	}
-	PANIC("APNIC ID %u not found", apic_id);
+	PANIC("APIC ID %u not found", apic_id);
 }

@@ -1,10 +1,10 @@
 //! @file phys.h
 //! @brief Physical memory management
 
-#include <init/stivale2.h> // For stivale2_struct_tag_memmap
-#include <mem/phys/slub.h> // For PHYS_NULL
-#include <misc/types.h>    // For size_t and uintptr_t
-#include <sys/numa/numa.h> // For NUMA ids
+#include <init/stivale2.h>
+#include <mem/phys/slub.h>
+#include <misc/types.h>
+#include <sys/numa/numa.h>
 
 //! @brief Physical allocation data
 struct mem_phys_object_data {
@@ -30,6 +30,5 @@ uintptr_t mem_phys_perm_alloc_on_behalf(size_t size, numa_id_t id);
 //! @param addr Address returned from mem_phys_perm_alloc_on_behalf
 void mem_phys_perm_free(uintptr_t addr);
 
-//! @brief Initialize physical memory manager
-//! @param memmap Memory map
-void mem_phys_init(struct stivale2_struct_tag_memmap *memmap);
+//! @brief Export PMM initializaton target
+EXPORT_TARGET(mem_phys_target)

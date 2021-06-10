@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <misc/types.h> // For size_t
+#include <misc/types.h>
 
 //! @brief Calculate length of null-terminated string
 //! @param str String, length of which should be calculated

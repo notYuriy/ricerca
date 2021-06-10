@@ -3,9 +3,10 @@
 
 #pragma once
 
-#include <init/stivale2.h> // For stivale2 memory map
-#include <mem/phys/slub.h> // For physical memory slub
-#include <mem/rc.h>        // For reference counting
+#include <init/stivale2.h>
+#include <lib/target.h>
+#include <mem/phys/slub.h>
+#include <mem/rc.h>
 
 //! @brief Physical memory range
 struct mem_range {
@@ -21,6 +22,5 @@ struct mem_range {
 	bool offlined;
 };
 
-//! @brief Initialize memory management
-//! @param memmap Stivale2 memory map tag
-void mem_init(struct stivale2_struct_tag_memmap *memmap);
+//! @brief Export "add memory ranges to NUMA nodes" target
+EXPORT_TARGET(mem_add_numa_ranges_target)

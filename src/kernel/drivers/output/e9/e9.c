@@ -1,13 +1,13 @@
 //! @file e9.c
 //! @brief File containing e9 driver
 
-#include <drivers/output/e9/e9.h> // For interface declarations
-#include <lib/log.h>              // For logging subsystem loading
-#include <misc/types.h>           // For bool
-#include <sys/ports.h>            // For port IO
+#include <drivers/output/e9/e9.h>
+#include <lib/log.h>
+#include <misc/types.h>
+#include <sys/ports.h>
 
 //! @brief Module name
-#define MODULE "e9"
+#define MODULE "drivers/output/e9"
 
 //! @brief Print string to e9
 //! @param self Pointer to the logging subsystem object

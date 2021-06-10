@@ -3,7 +3,8 @@
 
 #pragma once
 
-#include <mem/rc.h> // For reference-counted objects
+#include <lib/target.h>
+#include <mem/rc.h>
 
 //! @brief Type of NUMA node ID
 typedef uint8_t numa_id_t;
@@ -49,9 +50,6 @@ extern struct numa_node *numa_hotpluggable_nodes;
 //! @brief Head of permanent NUMA nodes list
 extern struct numa_node *numa_permanent_nodes;
 
-//! @brief Initialize NUMA subsystem
-void numa_init(void);
-
 //! @brief Take NUMA subsystem lock
 //! @return Interrupt state
 bool numa_acquire(void);
@@ -64,3 +62,6 @@ void numa_release(bool state);
 //! @return Borrowed RC reference to the numa data
 //! @note Use only at boot
 struct numa_node *numa_query_data_no_borrow(numa_id_t data);
+
+//! @brief Export ACPI init target
+EXPORT_TARGET(numa_target)

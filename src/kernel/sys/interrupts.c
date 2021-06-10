@@ -1,11 +1,11 @@
 //! @file interrupts.c
 //! @brief File containing definitions for interrupts disable/enable functions
 
-#include <misc/types.h> // For uint32_t
+#include <misc/types.h>
 
 //! @brief Disable interrupts
 //! @return True if interrupts were enabled
-bool interrupts_disable() {
+bool interrupts_disable(void) {
 	// Get interrupt enable flag
 	uint64_t flags;
 	asm volatile("pushf; pop %0; cli" : "=g"(flags));

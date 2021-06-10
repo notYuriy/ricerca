@@ -1,8 +1,8 @@
 //! @file static.h
 //! @brief File containing declarations of static memory pool functions
 
-#include <mem/rc.h>    // For reference-counted objects
-#include <misc/misc.h> // For ARRAY_SIZE
+#include <mem/rc.h>
+#include <misc/misc.h>
 
 //! @brief Static RC pool free list node
 struct mem_rc_static_pool_free_node {

@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <misc/types.h> // For bool
+#include <misc/types.h>
 
 //! @brief Register e9 log if present
 //! @return True if e9 log is present

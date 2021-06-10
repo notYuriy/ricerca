@@ -1,9 +1,9 @@
 //! @file physregion.h
 //! @brief File containing interface for physical memory slubs
 
-#include <lib/panic.h>     // For ASSERT
-#include <mem/misc.h>      // For memory management config access
-#include <mem/phys/slub.h> // For declarations of functions below
+#include <lib/panic.h>
+#include <mem/misc.h>
+#include <mem/phys/slub.h>
 
 // Module name
 #define MODULE "mem/phys/slub"

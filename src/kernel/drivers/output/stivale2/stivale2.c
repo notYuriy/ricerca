@@ -1,8 +1,8 @@
 //! @file e9.c
 //! @brief File containing implementation of stivale2 terminal wrapper
 
-#include <init/stivale2.h> // For terminal structure tag
-#include <lib/log.h>       // For adding/removing logging subsystem
+#include <init/stivale2.h>
+#include <lib/log.h>
 
 //! @brief Logging subsystem object for stivale2 terminal
 static struct log_subsystem subsystem;

@@ -3,9 +3,9 @@
 
 #pragma once
 
-#include <mem/rc.h>     // For mem_rc
-#include <misc/misc.h>  // For ARRAY_SIZE
-#include <misc/types.h> // For size_t
+#include <mem/rc.h>
+#include <misc/misc.h>
+#include <misc/types.h>
 
 //! @brief Static handle table
 struct static_handle_table {

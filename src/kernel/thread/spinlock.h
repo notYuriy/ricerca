@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include <misc/atomics.h>   // For atomic operations
-#include <sys/interrupts.h> // For interrupts functions
+#include <misc/atomics.h>
+#include <sys/interrupts.h>
 
 //! @brief Spinlock
 struct thread_spinlock {

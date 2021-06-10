@@ -1,16 +1,19 @@
 //! @file phys.c
 //! @brief Implementation of NUMA-aware physical memory allocation
 
-#include <lib/log.h>       // For logging functions
-#include <lib/panic.h>     // For PANIC
-#include <mem/mem.h>       // For struct mem_range
-#include <mem/misc.h>      // For PHYS_SLUB_GRAN
-#include <mem/phys/phys.h> // For declarations of functions below
-#include <misc/misc.h>     // For align_up
-#include <sys/acpi/numa.h> // For acpi_numa_query_phys_space_size
+#include <init/init.h>
+#include <lib/log.h>
+#include <lib/panic.h>
+#include <lib/target.h>
+#include <mem/mem.h>
+#include <mem/misc.h>
+#include <mem/phys/phys.h>
+#include <misc/misc.h>
+#include <sys/acpi/numa.h>
+#include <sys/numa/numa.h>
 
-//! @brief Module name
-#define MODULE "mem/phys"
+MODULE("mem/phys")
+TARGET(mem_phys_target, mem_phys_init, mem_add_numa_ranges_target, numa_target)
 
 //! @brief Pointer to array of mem_phys_object_data structures.
 //! @note Used to store information about allocated physical objects
@@ -82,7 +85,11 @@ void mem_phys_perm_free(uintptr_t addr) {
 
 //! @brief Initialize physical memory manager
 //! @param memmap Memory map
-void mem_phys_init(struct stivale2_struct_tag_memmap *memmap) {
+static void mem_phys_init(void) {
+	struct stivale2_struct_tag_memmap *memmap = init_memmap_tag;
+	if (init_memmap_tag == NULL) {
+		PANIC("No memory map tag");
+	}
 	// Query physical memory space size
 	size_t phys_space_size = acpi_numa_query_phys_space_size();
 	if (phys_space_size == 0) {
@@ -109,5 +116,4 @@ void mem_phys_init(struct stivale2_struct_tag_memmap *memmap) {
 	// Convert to higher half
 	mem_phys_objects_info = (struct mem_phys_object_data *)(HIGH_PHYS_VMA + info_phys);
 	LOG_INFO("mem_phys_objects_info at %p", mem_phys_objects_info);
-	LOG_SUCCESS("Initialization finished!");
 }
