@@ -14,10 +14,11 @@ MODULE("sys/numa")
 TARGET(numa_target, numa_init, {acpi_numa_target})
 
 //! @brief Backing memory for NUMA nodes static memory pool
-static struct numa_node numa_nodes[NUMA_MAX_NODES];
+static struct numa_node numa_node_pool_backer[NUMA_MAX_NODES];
 
 //! @brief NUMA nodes static RC pool
-struct mem_rc_static_pool numa_node_pool = STATIC_POOL_INIT(struct numa_node, numa_nodes);
+struct mem_rc_static_pool numa_node_pool =
+    STATIC_POOL_INIT(struct numa_node, numa_node_pool_backer);
 
 //! @brief Backing memory for NUMA nodes handle tables
 static struct mem_rc *numa_table_backer[NUMA_MAX_NODES] = {NULL};
@@ -28,11 +29,11 @@ static struct static_handle_table numa_table = STATIC_HANDLE_TABLE_INIT(numa_tab
 //! @brief NUMA subsystem lock
 static struct thread_spinlock numa_lock = THREAD_SPINLOCK_INIT;
 
-//! @brief Head of hotpluggable NUMA nodes list
-struct numa_node *numa_hotpluggable_nodes = NULL;
-
 //! @brief Head of permanent NUMA nodes list
-struct numa_node *numa_permanent_nodes = NULL;
+struct numa_node *numa_permanent_nodes;
+
+//! @brief Head of all NUMA nodes list
+struct numa_node *numa_nodes = NULL;
 
 //! @brief Initialize neighbours array by iterating node lists
 //! @param node Node in which neighbour lists should be initialized
@@ -40,11 +41,11 @@ static void numa_fill_neighbours_lists(struct numa_node *node) {
 	struct numa_node *current = numa_permanent_nodes;
 	while (current != NULL) {
 		node->permanent_neighbours[node->permanent_used_entries++] = current->node_id;
-		current = current->next;
+		current = current->next_permanent;
 	}
-	current = numa_hotpluggable_nodes;
+	current = numa_nodes;
 	while (current != NULL) {
-		node->hotpluggable_neighbours[node->hotpluggable_used_entries] = current->node_id;
+		node->neighbours[node->used_entries++] = current->node_id;
 		current = current->next;
 	}
 }
@@ -75,13 +76,9 @@ static void numa_sort_neighbours(numa_id_t self, numa_id_t *neighbours, size_t n
 //! @param head Head of node's list
 static void numa_dump_list(struct numa_node *head) {
 	for (struct numa_node *current = head; current != NULL; current = current->next) {
-		log_printf("Node %%\033[36m%u\033[0m: { perm_neighbours: { ", (uint32_t)current->node_id);
-		for (size_t i = 0; i < current->permanent_used_entries; ++i) {
-			log_printf("%%\033[32m%u\033[0m, ", (uint32_t)current->permanent_neighbours[i]);
-		}
-		log_printf("}, hotplug_neighbours: { ");
-		for (size_t i = 0; i < current->hotpluggable_used_entries; ++i) {
-			log_printf("%%\033[32m%u\033[0m, ", (uint32_t)current->hotpluggable_neighbours[i]);
+		log_printf("Node %%\033[36m%u\033[0m: { neighbours: { ", (uint32_t)current->node_id);
+		for (size_t i = 0; i < current->used_entries; ++i) {
+			log_printf("%%\033[32m%u\033[0m, ", (uint32_t)current->neighbours[i]);
 		}
 		log_printf("} }\n");
 	}
@@ -90,14 +87,7 @@ static void numa_dump_list(struct numa_node *head) {
 //! @brief Dump NUMA nodes
 void numa_dump_nodes(void) {
 	LOG_INFO("Dumping NUMA nodes.");
-	if (numa_permanent_nodes != NULL) {
-		log_printf("Permanent nodes:\n");
-		numa_dump_list(numa_permanent_nodes);
-	}
-	if (numa_hotpluggable_nodes != NULL) {
-		log_printf("Hotpluggable nodes:\n");
-		numa_dump_list(numa_hotpluggable_nodes);
-	}
+	numa_dump_list(numa_nodes);
 }
 
 //! @brief Take NUMA subsystem lock
@@ -125,17 +115,19 @@ static void numa_init(void) {
 			struct numa_node *node = STATIC_POOL_ALLOC(&numa_node_pool, struct numa_node);
 			// Add node to the list of active nodes
 			node->next = NULL;
+			node->next_permanent = NULL;
 			if (head == NULL) {
 				head = node;
 				tail = node;
 			} else {
 				tail->next = node;
+				tail->next_permanent = node;
 				tail = node;
 			}
 			// Set node ID field
 			node->node_id = buf;
 			node->permanent_used_entries = 0;
-			node->hotpluggable_used_entries = 0;
+			node->used_entries = 0;
 			node->permanent = true;
 			node->hotpluggable_ranges = NULL;
 			node->permanent_ranges = NULL;
@@ -146,9 +138,9 @@ static void numa_init(void) {
 			static_handle_table_reserve(&numa_table, buf, (struct mem_rc *)node);
 		}
 	}
-	numa_permanent_nodes = head;
+	numa_permanent_nodes = numa_nodes = head;
 	// Iterate all nodes and build proximity graph
-	struct numa_node *iter = numa_permanent_nodes;
+	struct numa_node *iter = numa_nodes;
 	while (iter != NULL) {
 		numa_fill_neighbours_lists(iter);
 		numa_sort_neighbours(iter->node_id, iter->permanent_neighbours,

@@ -23,6 +23,8 @@ struct numa_node {
 	struct mem_rc rc_base;
 	//! @brief Next NUMA node
 	struct numa_node *next;
+	//! @brief Next permanent NUMA node
+	struct numa_node *next_permanent;
 	//! @brief NUMA ID of the node itself
 	numa_id_t node_id;
 	//! @brief Permanent accessible neighbours sorted by distance (from the smallest to the largest)
@@ -32,10 +34,10 @@ struct numa_node {
 	numa_id_t permanent_used_entries;
 	//! @brief Hotpluggable accessible neighbours sorted by distance (from the smallest to the
 	//! largest)
-	//! @note Includes self for convinience if self is hotpluggable
-	numa_id_t hotpluggable_neighbours[NUMA_MAX_NODES];
+	//! @note Includes self for convinience
+	numa_id_t neighbours[NUMA_MAX_NODES];
 	//! @brief Number of used entries in hotpluggable_neighbours array
-	numa_id_t hotpluggable_used_entries;
+	numa_id_t used_entries;
 	//! @brief Permanent memory ranges
 	struct mem_range *permanent_ranges;
 	//! @brief Hotpluggable memory ranges
@@ -44,8 +46,8 @@ struct numa_node {
 	bool permanent;
 };
 
-//! @brief Head of hotpluggable NUMA nodes list
-extern struct numa_node *numa_hotpluggable_nodes;
+//! @brief Head of NUMA nodes list
+extern struct numa_node *numa_nodes;
 
 //! @brief Head of permanent NUMA nodes list
 extern struct numa_node *numa_permanent_nodes;
