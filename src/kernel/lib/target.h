@@ -28,6 +28,8 @@ struct target {
 	const char *name;
 	//! @brief Next to resolve
 	struct target *next;
+	//! @brief Next to be visited
+	struct target *next_to_be_visited;
 };
 
 //! @brief Define module
