@@ -239,7 +239,6 @@ static void acpi_visit_table(uint64_t table_phys) {
 		}
 		LOG_SUCCESS("SLIT ACPI table found");
 		struct acpi_slit *slit = (struct acpi_slit *)header;
-		acpi_dump_slit(slit);
 		if (acpi_validate_slit(slit)) {
 			acpi_boot_slit = slit;
 		} else {

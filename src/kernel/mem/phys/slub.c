@@ -2,11 +2,11 @@
 //! @brief File containing interface for physical memory slubs
 
 #include <lib/panic.h>
+#include <lib/target.h>
 #include <mem/misc.h>
 #include <mem/phys/slub.h>
 
-// Module name
-#define MODULE "mem/phys/slub"
+MODULE("mem/phys/slub")
 
 //! @brief Initialize mem_phys_slub for allocations from a given memory range
 //! @param slub Slub object

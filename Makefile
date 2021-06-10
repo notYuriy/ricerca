@@ -61,7 +61,7 @@ clean:
 # Binary clean rule
 # Clears only kenrel binaries and object files
 kernel-clean:
-	make -C kernel clean
+	make -C src/kernel clean
 
 # Run release image rule
 # Runs OS in QEMU with kvm enabled

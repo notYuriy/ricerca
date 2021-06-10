@@ -275,7 +275,7 @@ size_t acpi_numa_query_phys_space_size(void) {
 //! @brief Initialize NUMA ACPI wrappers
 static void acpi_numa_init(void) {
 	// Get boot CPU APIC id
-	uint32_t boot_apic_id = acpi_acpi2apic_id(0);
+	uint32_t boot_apic_id = lapic_get_apic_id();
 	LOG_INFO("APIC ID of boot CPU is %u", boot_apic_id);
 	// Get boot CPU proximity domain
 	uint32_t boot_prox_domain = acpi_numa_apic2numa_id(boot_apic_id);

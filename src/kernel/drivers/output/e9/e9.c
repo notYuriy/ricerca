@@ -3,11 +3,11 @@
 
 #include <drivers/output/e9/e9.h>
 #include <lib/log.h>
+#include <lib/target.h>
 #include <misc/types.h>
 #include <sys/ports.h>
 
-//! @brief Module name
-#define MODULE "drivers/output/e9"
+MODULE("drivers/output/e9")
 
 //! @brief Print string to e9
 //! @param self Pointer to the logging subsystem object

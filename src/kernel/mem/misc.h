@@ -15,5 +15,8 @@
 //! @brief End of low physical memory
 #define PHYS_LOW (2 * 1024 * 1024)
 
+//! @brief Size of initial direct phys mapping
+#define INIT_PHYS_MAPPING_SIZE 0x100000000
+
 //! @brief Maximum number of static memory range
 #define MEM_MAX_RANGES_STATIC 1024

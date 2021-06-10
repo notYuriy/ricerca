@@ -5,8 +5,11 @@
 
 #include <lib/target.h>
 
-//! @brief Initiailize lapic on AP
-void lapic_ap_init(void);
+//! @brief Enable LAPIC
+void lapic_enable(void);
+
+//! @brief Get APIC id
+uint32_t lapic_get_apic_id(void);
 
 //! @brief Export LAPIC BSP init target
 EXPORT_TARGET(lapic_bsp_target)
