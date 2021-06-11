@@ -6,7 +6,7 @@ ricerca-os fork that I am using as a playground to experiment with SMP, NUMA, lo
 
 # Building
 
-Install `python3`, `fuse`, `rsync`, `qemu-system-x86_64` and `build-essential` packages.
+Install `python3`, `fuse`, `rsync`, `qemu-system-x86_64`, `xorriso` and `build-essential` packages.
 
 Install xbstrap from pip: `pip3 install xbstrap`.
 

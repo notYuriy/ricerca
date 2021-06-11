@@ -20,11 +20,6 @@ sources:
     tag: "v2.16-binary"
     subdir: build-tools
 
-  - name: echfs
-    git: "https://github.com/echfs/echfs.git"
-    branch: master
-    subdir: build-tools
-
   - name: kernel
     subdir: ../src
 
@@ -132,7 +127,7 @@ packages:
           - "CC=x86_64-elf-gcc"
         workdir: "@THIS_SOURCE_DIR@"
 
-  - name: limine-stage3
+  - name: limine-cd
     from_source: limine
     tools_required:
       - limine
@@ -146,3 +141,13 @@ packages:
           - "cp"
           - "@THIS_SOURCE_DIR@/limine.sys"
           - "@THIS_COLLECT_DIR@/boot/limine.sys"
+      # Copy limine-cd.bin
+      - args:
+          - "cp"
+          - "@THIS_SOURCE_DIR@/limine-cd.bin"
+          - "@THIS_COLLECT_DIR@/limine-cd.bin"
+      # Copy limine-eltorito-efi.bin
+      - args:
+          - "cp"
+          - "@THIS_SOURCE_DIR@/limine-eltorito-efi.bin"
+          - "@THIS_COLLECT_DIR@/limine-eltorito-efi.bin"
