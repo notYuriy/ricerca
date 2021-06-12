@@ -4,6 +4,7 @@
 #pragma once
 
 #include <lib/target.h>
+#include <mem/heap/slub.h>
 #include <mem/rc.h>
 
 //! @brief Type of NUMA node ID
@@ -42,6 +43,8 @@ struct numa_node {
 	struct mem_range *permanent_ranges;
 	//! @brief Hotpluggable memory ranges
 	struct mem_range *hotpluggable_ranges;
+	//! @brief Heap slubs on this node
+	struct mem_heap_slub_data slub_data;
 	//! @brief True if node is permanent
 	bool permanent;
 };

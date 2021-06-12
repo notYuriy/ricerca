@@ -12,7 +12,7 @@
 
 MODULE("mem");
 TARGET(mem_add_numa_ranges_target, mem_add_numa_ranges, {numa_target, acpi_numa_target})
-TARGET(mem_kern_init_target, mem_kern_init, {mem_phys_target})
+TARGET(mem_kern_init_target, NULL, {mem_phys_target})
 
 //! @brief Backing array for static mem_range pool
 static struct mem_range mem_range_backer[MEM_MAX_RANGES_STATIC];
@@ -77,10 +77,4 @@ static void mem_add_numa_ranges(void) {
 		}
 	}
 	LOG_SUCCESS("Initialization finished!");
-}
-
-//! @brief Callback for kernel memory management initialization
-static void mem_kern_init(void) {
-	// Nothing to do, dependencies have already initialized everything
-	// This is solely a metatarget
 }

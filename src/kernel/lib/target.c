@@ -51,7 +51,9 @@ struct target *target_compute_plan(struct target *target) {
 void target_execute_plan(struct target *plan) {
 	struct target *current = plan;
 	while (current != NULL) {
-		current->callback();
+		if (current->callback != NULL) {
+			current->callback();
+		}
 		LOG_INFO("Target \033[33m\"%s\"\033[0m reached", current->name);
 		current = current->next;
 	}

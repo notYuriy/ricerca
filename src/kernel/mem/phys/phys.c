@@ -26,11 +26,10 @@ static struct mem_phys_object_data *mem_phys_objects_info;
 //! @param size Size of the memory area to be allocated
 //! @param id Numa node on behalf of which memory will be allocated
 //! @param buf Buffer to store reference to the borrowed memory pool in
+//! @param id_buf buffer to store NUMA node id of owner in
 //! @return Physical address of the allocated area, PHYS_NULL otherwise
 static uintptr_t mem_phys_perm_alloc_on_behalf_nometa(size_t size, numa_id_t id,
-                                                      struct mem_range **buf) {
-	// Acquire NUMA subsystem lock
-	const bool int_state = numa_acquire();
+                                                      struct mem_range **buf, numa_id_t *id_buf) {
 	// Get NUMA node data
 	const struct numa_node *data = numa_query_data_no_borrow(id);
 	// Iterate over all permanent neighbours
@@ -44,22 +43,23 @@ static uintptr_t mem_phys_perm_alloc_on_behalf_nometa(size_t size, numa_id_t id,
 			uintptr_t result = mem_phys_slub_alloc(&range->slub, size);
 			if (result != PHYS_NULL) {
 				*buf = REF_BORROW(range);
-				numa_release(int_state);
+				*id_buf = neighbour_id;
 				return result;
 			}
 		}
 	}
-	numa_release(int_state);
 	return PHYS_NULL;
 }
 
-//! @brief Allocate permanent physical memory on behalf of the given NUMA node
+//! @brief Allocate permanent physical memory on behalf of the given NUMA node without taking NUMA
+//! lock
 //! @param size Size of the memory area to be allocated
 //! @param id Numa node on behalf of which memory will be allocated
 //! @return Physical address of the allocated area, PHYS_NULL otherwise
-uintptr_t mem_phys_perm_alloc_on_behalf(size_t size, numa_id_t id) {
+uintptr_t mem_phys_perm_alloc_on_behalf_nolock(size_t size, numa_id_t id) {
 	struct mem_range *buf;
-	uintptr_t raw = mem_phys_perm_alloc_on_behalf_nometa(size, id, &buf);
+	numa_id_t id_buf;
+	uintptr_t raw = mem_phys_perm_alloc_on_behalf_nometa(size, id, &buf, &id_buf);
 	if (raw == PHYS_NULL) {
 		return PHYS_NULL;
 	}
@@ -68,20 +68,37 @@ uintptr_t mem_phys_perm_alloc_on_behalf(size_t size, numa_id_t id) {
 	// Store reference to the memory pool in it
 	obj->range = buf;
 	obj->size = size;
+	obj->node_id = id_buf;
 	return raw;
 }
 
-//! @brief Free permanent physical memory
-//! @param addr Address returned from mem_phys_perm_alloc_on_behalf
-void mem_phys_perm_free(uintptr_t addr) {
-	// Acquire NUMA subsystem lock
+//! @brief Allocate permanent physical memory on behalf of the given NUMA node
+//! @param size Size of the memory area to be allocated
+//! @param id Numa node on behalf of which memory will be allocated
+//! @return Physical address of the allocated area, PHYS_NULL otherwise
+uintptr_t mem_phys_perm_alloc_on_behalf(size_t size, numa_id_t id) {
 	const bool int_state = numa_acquire();
+	const uintptr_t result = mem_phys_perm_alloc_on_behalf_nolock(size, id);
+	numa_release(int_state);
+	return result;
+}
+
+//! @brief Free permanent physical memory without taking NUMA lock
+//! @param addr Address returned from mem_phys_perm_alloc_on_behalf
+void mem_phys_perm_free_nolock(uintptr_t addr) {
 	// Get allocation data
 	struct mem_phys_object_data *obj = mem_phys_objects_info + (addr / PAGE_SIZE);
 	// Free memory back to the memory region
 	mem_phys_slub_free(&obj->range->slub, addr, obj->size);
 	// Drop reference to the memory region
 	REF_DROP(obj->range);
+}
+
+//! @brief Free permanent physical memory
+//! @param addr Address returned from mem_phys_perm_alloc_on_behalf
+void mem_phys_perm_free(uintptr_t addr) {
+	const bool int_state = numa_acquire();
+	mem_phys_perm_free_nolock(addr);
 	numa_release(int_state);
 }
 
