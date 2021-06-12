@@ -19,57 +19,77 @@ TARGET(mem_phys_target, mem_phys_init,
 
 //! @brief Pointer to array of mem_phys_object_data structures.
 //! @note Used to store information about allocated physical objects
-static struct mem_phys_object_data *mem_phys_objects_info;
+static struct mem_phys_object_data *mem_phys_objects_info = NULL;
 
-//! @brief Allocate permanent physical memory on behalf of the given NUMA node without saving any
-//! metadata
+//! @brief Safe info about newly allocated physical block
+//! @param addr Physical address
+//! @param size Size
+//! @param range Weak ref to range
+//! @param id NUMA node id
+static void mem_phys_store_info(uintptr_t addr, size_t size, struct mem_range *range,
+                                numa_id_t id) {
+	// If object info pointer is NULL, do not store any info
+	if (mem_phys_objects_info == NULL) {
+		return;
+	}
+	// Get allocation object
+	struct mem_phys_object_data *obj = mem_phys_objects_info + (addr / PAGE_SIZE);
+	// Store reference to the memory pool in it
+	obj->range = REF_BORROW(range);
+	obj->size = size;
+	obj->node_id = id;
+}
+
+//! @brief Allocate permanent physical memory in the specific NUMA node wihtout taking NUMA
+//! lock
 //! @param size Size of the memory area to be allocated
-//! @param id Numa node on behalf of which memory will be allocated
-//! @param buf Buffer to store reference to the borrowed memory pool in
-//! @param id_buf buffer to store NUMA node id of owner in
+//! @param id Numa node in which memory should be allocated
 //! @return Physical address of the allocated area, PHYS_NULL otherwise
-static uintptr_t mem_phys_perm_alloc_on_behalf_nometa(size_t size, numa_id_t id,
-                                                      struct mem_range **buf, numa_id_t *id_buf) {
-	// Get NUMA node data
-	const struct numa_node *data = numa_query_data_no_borrow(id);
-	// Iterate over all permanent neighbours
-	for (size_t i = 0; i < data->permanent_used_entries; ++i) {
-		const numa_id_t neighbour_id = data->permanent_neighbours[i];
-		const struct numa_node *neighbour = numa_query_data_no_borrow(neighbour_id);
-		// Iterate permanent memory ranges of the node
-		for (struct mem_range *range = neighbour->permanent_ranges; range != NULL;
-		     range = range->next_range) {
-			// Try to allocate from range slub allocator
-			uintptr_t result = mem_phys_slub_alloc(&range->slub, size);
-			if (result != PHYS_NULL) {
-				*buf = REF_BORROW(range);
-				*id_buf = neighbour_id;
-				return result;
-			}
+uintptr_t mem_phys_perm_alloc_specific_nolock(size_t size, numa_id_t id) {
+	// Iterate permanent rages belonging to the node
+	const struct numa_node *neighbour = numa_query_data_no_borrow(id);
+	for (struct mem_range *range = neighbour->permanent_ranges; range != NULL;
+	     range = range->next_range) {
+		// Try to allocate from range slub allocator
+		uintptr_t result = mem_phys_slub_alloc(&range->slub, size);
+		ASSERT(result < mem_wb_phys_win_base, "Block in higher half");
+		if (result != PHYS_NULL) {
+			mem_phys_store_info(result, size, range, id);
+			return result;
 		}
 	}
 	return PHYS_NULL;
 }
 
-//! @brief Allocate permanent physical memory on behalf of the given NUMA node without taking NUMA
+//! @brief Allocate permanent physical memory in the specific NUMA node
+//! lock
+//! @param size Size of the memory area to be allocated
+//! @param id Numa node in which memory should be allocated
+//! @return Physical address of the allocated area, PHYS_NULL otherwise
+uintptr_t mem_phys_perm_alloc_specific(size_t size, numa_id_t id) {
+	const bool int_state = numa_acquire();
+	uintptr_t result = mem_phys_perm_alloc_specific_nolock(size, id);
+	numa_release(int_state);
+	return result;
+}
+
+//! @brief Allocate permanent physical memory on behalf of the given NUMA node wihtout taking NUMA
 //! lock
 //! @param size Size of the memory area to be allocated
 //! @param id Numa node on behalf of which memory will be allocated
 //! @return Physical address of the allocated area, PHYS_NULL otherwise
 uintptr_t mem_phys_perm_alloc_on_behalf_nolock(size_t size, numa_id_t id) {
-	struct mem_range *buf;
-	numa_id_t id_buf;
-	uintptr_t raw = mem_phys_perm_alloc_on_behalf_nometa(size, id, &buf, &id_buf);
-	if (raw == PHYS_NULL) {
-		return PHYS_NULL;
+	// Get NUMA node data
+	const struct numa_node *data = numa_query_data_no_borrow(id);
+	// Iterate over all permanent neighbours
+	for (size_t i = 0; i < data->permanent_used_entries; ++i) {
+		const numa_id_t neighbour_id = data->permanent_neighbours[i];
+		uintptr_t result = mem_phys_perm_alloc_specific_nolock(size, neighbour_id);
+		if (result != PHYS_NULL) {
+			return result;
+		}
 	}
-	// Get allocation object
-	struct mem_phys_object_data *obj = mem_phys_objects_info + (raw / PAGE_SIZE);
-	// Store reference to the memory pool in it
-	obj->range = buf;
-	obj->size = size;
-	obj->node_id = id_buf;
-	return raw;
+	return PHYS_NULL;
 }
 
 //! @brief Allocate permanent physical memory on behalf of the given NUMA node
@@ -116,10 +136,7 @@ static void mem_phys_init(void) {
 	const size_t info_size = gran_units_size * sizeof(struct mem_phys_object_data);
 	// Allocate space for info in boot domain
 	const numa_id_t boot_domain = acpi_numa_boot_domain;
-	struct mem_range *buf; // Unused
-	numa_id_t id_buf;      // Unused
-	uintptr_t info_phys =
-	    mem_phys_perm_alloc_on_behalf_nometa(info_size, boot_domain, &buf, &id_buf);
+	uintptr_t info_phys = mem_phys_perm_alloc_on_behalf(info_size, boot_domain);
 	if (info_phys == PHYS_NULL) {
 		PANIC("Failed to allocate space to store info about physical allocations");
 	}

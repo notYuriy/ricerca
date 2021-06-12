@@ -22,6 +22,20 @@ struct mem_phys_object_data {
 	numa_id_t node_id;
 };
 
+//! @brief Allocate permanent physical memory in the specific NUMA node wihtout taking NUMA
+//! lock
+//! @param size Size of the memory area to be allocated
+//! @param id Numa node in which memory should be allocated
+//! @return Physical address of the allocated area, PHYS_NULL otherwise
+uintptr_t mem_phys_perm_alloc_specific_nolock(size_t size, numa_id_t id);
+
+//! @brief Allocate permanent physical memory in the specific NUMA node
+//! lock
+//! @param size Size of the memory area to be allocated
+//! @param id Numa node in which memory should be allocated
+//! @return Physical address of the allocated area, PHYS_NULL otherwise
+uintptr_t mem_phys_perm_alloc_specific(size_t size, numa_id_t id);
+
 //! @brief Allocate permanent physical memory on behalf of the given NUMA node wihtout taking NUMA
 //! lock
 //! @param size Size of the memory area to be allocated

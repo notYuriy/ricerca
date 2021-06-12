@@ -31,6 +31,7 @@ void mem_phys_slub_init(struct mem_phys_slub *slub, uintptr_t base, size_t lengt
 //! @param order Block order
 //! @param block Physical address of the block
 static void mem_phys_slub_enqueue(struct mem_phys_slub *slub, size_t order, uintptr_t block) {
+	ASSERT(block < mem_wb_phys_win_base, "Block in higher half");
 	if (slub->max_freed_order < order) {
 		slub->max_freed_order = order;
 	}
@@ -55,6 +56,7 @@ static uintptr_t mem_phys_slub_dequeue(struct mem_phys_slub *slub, size_t order)
 			}
 		}
 	}
+	ASSERT(block < mem_wb_phys_win_base, "Block in higher half");
 	return block;
 }
 

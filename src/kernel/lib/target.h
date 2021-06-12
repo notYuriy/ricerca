@@ -23,6 +23,8 @@ struct target {
 	struct target *next_to_be_visited;
 	//! @brief Current dependency being enumerated
 	size_t dep_index;
+	//! @brief True if resolved
+	bool resolved;
 };
 
 //! @brief Define module
@@ -47,6 +49,7 @@ struct target {
 	    .name = #target_name,                                                                      \
 	    .next = NULL,                                                                              \
 	    .dep_index = 0,                                                                            \
+	    .resolved = false,                                                                         \
 	}};
 
 //! @brief Compute plan to reach target

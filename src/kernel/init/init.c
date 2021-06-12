@@ -8,7 +8,9 @@
 #include <lib/log.h>
 #include <lib/panic.h>
 #include <lib/target.h>
+#include <mem/heap/heap.h>
 #include <mem/mem.h>
+#include <misc/misc.h>
 #include <sys/cr.h>
 
 MODULE("init")

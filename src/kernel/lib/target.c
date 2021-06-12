@@ -21,6 +21,7 @@ struct target *target_compute_plan(struct target *target) {
 		if (tos->dep_index == tos->deps_count) {
 			// Resolved
 			stack = stack->next_to_be_visited;
+			tos->resolved = true;
 			tos->next = NULL;
 			if (head == NULL) {
 				head = tos;
@@ -31,8 +32,7 @@ struct target *target_compute_plan(struct target *target) {
 			}
 		} else {
 			struct target *dependency = tos->deps[tos->dep_index++];
-			if (dependency->dep_index == dependency->deps_count) {
-				// Dependency is already resolved
+			if (dependency->resolved) {
 				continue;
 			}
 			if (dependency->dep_index != 0) {

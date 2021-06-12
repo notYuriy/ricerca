@@ -14,8 +14,8 @@
 // 2. Since physical memory allocation subsystem does not guarantee alignment above 4k, and heap
 // slubs need 64k alignment (to calculate slub header address), slubs are allocated in a big chunks
 // (64 slubs in a chunk in the best case, 63 in the worst) and padding is then leaked.
-// 3. Allocator only attempts to use slubs that belong to the host NUMA node. It won't use slubs of
-// other proximity domains
+// 3. For each neighbour proximity domain (including self :^) allocator will first try to allocate
+// from slubs, and then it will try to allocate new chunk
 // 4. If there is no good block in free list, allocator will ask PMM for a new chunk. However, new
 // slubs from the chunk are added to the node which PMM picked for allocation, not to the node ID of
 // which was passed to mem_heap_alloc call
@@ -23,7 +23,7 @@
 // TODO: maybe its a good idea to reclaim memory for slubs? We have slub headers anyway
 
 MODULE("mem/heap")
-TARGET(mem_heap_target, META_DUMMY, {mem_phys_target})
+TARGET(mem_heap_target, META_DUMMY, {mem_phys_target, mem_misc_collect_info_target})
 META_DEFINE_DUMMY()
 
 //! @brief Slub size
@@ -47,35 +47,28 @@ struct mem_heap_slub_hdr {
 };
 
 //! @brief Allocate a new slubs chunk
-//! @param node_id Node hint
-//! @param node_ref Weak reference to the node in which chunk was actually allocated
-//! @return False if allocation of a new chunk failed, true otherwise
+//! @param owner NUMA node in which allocation should be placed
 //! @note NUMA lock should be acquired
-static bool mem_allocate_new_slubs_chunk(numa_id_t id, struct numa_node **node_ref) {
-	// Allocate backing memory
-	uintptr_t backing_physmem = mem_phys_perm_alloc_on_behalf_nolock(MEM_HEAP_CHUNK_SIZE, id);
+static bool mem_allocate_new_slubs_chunk(struct numa_node *owner) {
+	// Allocate backing memory on the given node
+	uintptr_t backing_physmem =
+	    mem_phys_perm_alloc_specific_nolock(MEM_HEAP_CHUNK_SIZE, owner->node_id);
 	if (backing_physmem == PHYS_NULL) {
 		return false;
 	}
 	// Align begin and end to slub size
 	uintptr_t backing_begin = align_up(backing_physmem, MEM_HEAP_SLUB_SIZE);
 	uintptr_t backing_end = align_down(backing_physmem + MEM_HEAP_CHUNK_SIZE, MEM_HEAP_SLUB_SIZE);
-	// Get NUMA node allocation was placed in
-	struct mem_phys_object_data *data = mem_phys_get_data(backing_physmem);
-	numa_id_t real_id = data->node_id;
-	struct numa_node *node = numa_query_data_no_borrow(real_id);
-	// Iterate over  new slubs in backing memory
+	// Iterate over new slubs in backing memory
 	for (uintptr_t physaddr = backing_begin; physaddr < backing_end;
 	     physaddr += MEM_HEAP_SLUB_SIZE) {
 		// Get higher half pointer to the slub
 		struct mem_heap_slub_hdr *new_slub =
 		    (struct mem_heap_slub_hdr *)(mem_wb_phys_win_base + physaddr);
 		// Add it to the list
-		new_slub->next_free = node->slub_data.slubs;
-		node->slub_data.slubs = new_slub;
+		new_slub->next_free = owner->slub_data.slubs;
+		owner->slub_data.slubs = new_slub;
 	}
-	// Store ref to the real owner
-	*node_ref = node;
 	return true;
 }
 
@@ -149,31 +142,36 @@ void *mem_heap_alloc(size_t size, numa_id_t id) {
 	const bool int_state = numa_acquire();
 	// 2. Get NUMA node data
 	struct numa_node *data = numa_query_data_no_borrow(id);
-	// 3. Check if corresponding free list has anything for us
-	if (data->slub_data.free_lists[order] != NULL) {
-		// Cool, let's give that as a result
-		struct mem_heap_obj *obj = data->slub_data.free_lists[order];
-		data->slub_data.free_lists[order] = obj->next;
-		return (void *)obj;
-	}
-	// 4. Okey, time to make a new slub
-	if (data->slub_data.slubs != NULL) {
-		// There are some empty slubs, just use them
-		mem_heap_add_slub(data, order);
-		struct mem_heap_obj *obj = mem_allocate_from_slub(data, order);
+	// 3. Iterate ove all permanent neighbours
+	for (size_t i = 0; i < data->permanent_used_entries; ++i) {
+		const numa_id_t neighbour_id = data->permanent_neighbours[i];
+		struct numa_node *neighbour = numa_query_data_no_borrow(neighbour_id);
+		// 4. Check if corresponding free list has anything for us
+		if (neighbour->slub_data.free_lists[order] != NULL) {
+			// Cool, let's give that as a result
+			struct mem_heap_obj *obj = neighbour->slub_data.free_lists[order];
+			neighbour->slub_data.free_lists[order] = obj->next;
+			numa_release(int_state);
+			return (void *)obj;
+		}
+		// 5. Okey, time to make a new slub
+		if (neighbour->slub_data.slubs != NULL) {
+			// There are some empty slubs, just use them
+			mem_heap_add_slub(neighbour, order);
+			struct mem_heap_obj *obj = mem_allocate_from_slub(neighbour, order);
+			numa_release(int_state);
+			return (void *)obj;
+		}
+		// 5. Alright, let's allocate a new chunk
+		if (!mem_allocate_new_slubs_chunk(neighbour)) {
+			continue;
+		}
+		mem_heap_add_slub(neighbour, order);
+		struct mem_heap_obj *obj = mem_allocate_from_slub(neighbour, order);
 		numa_release(int_state);
 		return (void *)obj;
 	}
-	// 5. Alright, let's allocate a new chunk
-	struct numa_node *real_owner;
-	if (!mem_allocate_new_slubs_chunk(id, &real_owner)) {
-		numa_release(int_state);
-		return NULL;
-	}
-	mem_heap_add_slub(data, order);
-	struct mem_heap_obj *obj = mem_allocate_from_slub(data, order);
-	numa_release(int_state);
-	return (void *)obj;
+	return NULL;
 }
 
 //! @brief Free memory on behalf of a given node

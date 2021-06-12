@@ -1,7 +1,7 @@
 # List of defined commands
 # build rule is not to be used by the user, however it is included in this list to make makefile
 # evaluate it
-.PHONY: build-debug build-release clean kernel-clean run-release
+.PHONY: build-debug build-release clean kernel-clean run-release run-debug run-safe
 
 # Rule for xbstrap init
 build/bootstrap.link:
@@ -65,6 +65,42 @@ run-release: ricerca-release.hdd
 # SMP configuration is taken from https://futurewei-cloud.github.io/ARM-Datacenter/qemu/how-to-configure-qemu-numa-nodes/
 	qemu-system-x86_64 \
 	-hda ricerca-release.hdd \
+	--enable-kvm -cpu host \
+	-debugcon stdio \
+	-m size=4G,slots=4,maxmem=8G \
+	-no-shutdown -no-reboot \
+	-machine q35 \
+	-object memory-backend-ram,size=1G,id=m0 \
+    -object memory-backend-ram,size=1G,id=m1 \
+    -object memory-backend-ram,size=1G,id=m2 \
+    -object memory-backend-ram,size=1G,id=m3 \
+	-smp cpus=16,maxcpus=32 \
+	-numa node,cpus=0-7,nodeid=0,memdev=m0 \
+	-numa node,cpus=8-15,nodeid=1,memdev=m1 \
+	-numa node,cpus=16-23,nodeid=2,memdev=m2 \
+	-numa node,cpus=24-31,nodeid=3,memdev=m3 \
+	-numa dist,src=0,dst=1,val=15 \
+	-numa dist,src=2,dst=3,val=15 \
+	-numa dist,src=0,dst=2,val=20 \
+	-numa dist,src=0,dst=3,val=20 \
+	-numa dist,src=1,dst=2,val=20 \
+	-numa dist,src=1,dst=3,val=20
+
+# Run safe image rule
+# Runs debug image without waiting for debugger
+# Run QEMU
+# -hda ricerca-debug.hdd - Attach hard drive with our image
+# -cpu host --accel kvm --accel hax --accel tcg - Use hardware virtualization if available
+# If no hardware acceleration is present, fallback to tcg with --accel tcg
+# -debugcon stdio - Add debug connection, so that we can print logs to e9 port from the kernel
+# and see them in the terminal
+# -machine q35 - Use modern hw, duh
+# -m size=1G,slots=4,maxmem=4G - 1 gigabyte of RAM on boot + 4 slots to hotplug up to 4 GB of ram
+# -no-shutdown -no-reboot - Halt on fatal errrors
+# SMP configuration is taken from https://futurewei-cloud.github.io/ARM-Datacenter/qemu/how-to-configure-qemu-numa-nodes/
+run-safe: ricerca-debug.hdd
+	qemu-system-x86_64 \
+	-hda ricerca-debug.hdd \
 	--enable-kvm -cpu host \
 	-debugcon stdio \
 	-m size=4G,slots=4,maxmem=8G \
