@@ -16,4 +16,6 @@ struct mem_heap_slub_data {
 
 //! @brief Static slub data init
 #define MEM_HEAP_SLUB_DATA_INIT                                                                    \
-	{ .free_lists = {0}, .slubs = 0 }
+	(struct mem_heap_slub_data) {                                                                  \
+		.free_lists = {0}, .slubs = 0                                                              \
+	}

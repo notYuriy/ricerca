@@ -117,7 +117,9 @@ static void mem_phys_init(void) {
 	// Allocate space for info in boot domain
 	const numa_id_t boot_domain = acpi_numa_boot_domain;
 	struct mem_range *buf; // Unused
-	uintptr_t info_phys = mem_phys_perm_alloc_on_behalf_nometa(info_size, boot_domain, &buf);
+	numa_id_t id_buf;      // Unused
+	uintptr_t info_phys =
+	    mem_phys_perm_alloc_on_behalf_nometa(info_size, boot_domain, &buf, &id_buf);
 	if (info_phys == PHYS_NULL) {
 		PANIC("Failed to allocate space to store info about physical allocations");
 	}

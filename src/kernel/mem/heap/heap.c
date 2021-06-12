@@ -23,7 +23,8 @@
 // TODO: maybe its a good idea to reclaim memory for slubs? We have slub headers anyway
 
 MODULE("mem/heap")
-TARGET(mem_heap_target, NULL, mem_phys_target)
+TARGET(mem_heap_target, META_DUMMY, {mem_phys_target})
+META_DEFINE_DUMMY()
 
 //! @brief Slub size
 #define MEM_HEAP_SLUB_SIZE 65536
@@ -60,7 +61,7 @@ static bool mem_allocate_new_slubs_chunk(numa_id_t id, struct numa_node **node_r
 	uintptr_t backing_begin = align_up(backing_physmem, MEM_HEAP_SLUB_SIZE);
 	uintptr_t backing_end = align_down(backing_physmem + MEM_HEAP_CHUNK_SIZE, MEM_HEAP_SLUB_SIZE);
 	// Get NUMA node allocation was placed in
-	struct mem_phys_object_data *data = mem_phys_get_data(addr);
+	struct mem_phys_object_data *data = mem_phys_get_data(backing_physmem);
 	numa_id_t real_id = data->node_id;
 	struct numa_node *node = numa_query_data_no_borrow(real_id);
 	// Iterate over  new slubs in backing memory
@@ -75,6 +76,7 @@ static bool mem_allocate_new_slubs_chunk(numa_id_t id, struct numa_node **node_r
 	}
 	// Store ref to the real owner
 	*node_ref = node;
+	return true;
 }
 
 //! @brief Create a new slub for a given order on the node
@@ -88,7 +90,7 @@ static void mem_heap_add_slub(struct numa_node *node, size_t order) {
 	node->slub_data.slubs = new_slub->next_free;
 	const uintptr_t start =
 	    align_up((uintptr_t)new_slub + sizeof(struct mem_heap_slub_hdr), (1ULL << order));
-	const uintptr_t end = addr + (uintptr_t)new_slub + MEM_HEAP_SLUB_SIZE;
+	const uintptr_t end = (uintptr_t)new_slub + MEM_HEAP_SLUB_SIZE;
 	for (uintptr_t addr = start; addr < end; addr += (1ULL << order)) {
 		struct mem_heap_obj *obj = (struct mem_heap_obj *)addr;
 		obj->next = node->slub_data.free_lists[order];
@@ -121,9 +123,9 @@ static size_t mem_heap_get_size_order(size_t size) {
 //! @param order Order of the block to allocate
 //! @return Pointer to allocated object
 static struct mem_heap_obj *mem_allocate_from_slub(struct numa_node *node, size_t order) {
-	ASSERT(data->slub_data.free_lists[order] != NULL);
-	struct mem_heap_obj *obj = data->slub.free_lists[order];
-	data->slub.free_lists[order] = obj->next;
+	ASSERT(node->slub_data.free_lists[order] != NULL, "Free-list is empty");
+	struct mem_heap_obj *obj = node->slub_data.free_lists[order];
+	node->slub_data.free_lists[order] = obj->next;
 	return obj;
 }
 
@@ -146,12 +148,12 @@ void *mem_heap_alloc(size_t size, numa_id_t id) {
 	// 1. Acquire NUMA lock
 	const bool int_state = numa_acquire();
 	// 2. Get NUMA node data
-	const struct numa_node *data = numa_query_data_no_borrow(id);
+	struct numa_node *data = numa_query_data_no_borrow(id);
 	// 3. Check if corresponding free list has anything for us
-	if (data->slub.free_lists[order] != NULL) {
+	if (data->slub_data.free_lists[order] != NULL) {
 		// Cool, let's give that as a result
-		struct mem_heap_obj *obj = data->slub.free_lists[order];
-		data->slub.free_lists[order] = obj->next;
+		struct mem_heap_obj *obj = data->slub_data.free_lists[order];
+		data->slub_data.free_lists[order] = obj->next;
 		return (void *)obj;
 	}
 	// 4. Okey, time to make a new slub
@@ -159,24 +161,25 @@ void *mem_heap_alloc(size_t size, numa_id_t id) {
 		// There are some empty slubs, just use them
 		mem_heap_add_slub(data, order);
 		struct mem_heap_obj *obj = mem_allocate_from_slub(data, order);
-		numa_release(order);
+		numa_release(int_state);
 		return (void *)obj;
 	}
 	// 5. Alright, let's allocate a new chunk
 	struct numa_node *real_owner;
 	if (!mem_allocate_new_slubs_chunk(id, &real_owner)) {
-		numa_release(order);
+		numa_release(int_state);
 		return NULL;
 	}
 	mem_heap_add_slub(data, order);
 	struct mem_heap_obj *obj = mem_allocate_from_slub(data, order);
-	numa_release(order);
+	numa_release(int_state);
 	return (void *)obj;
 }
 
 //! @brief Free memory on behalf of a given node
 //! @param ptr Pointer to the previously allocated memory
-void *mem_heap_free(void *mem) {
+//! @param size Size of the allocated memory
+void mem_heap_free(void *mem, size_t size) {
 	ASSERT(mem != NULL, "Attempt to free NULL");
 	size_t order = mem_heap_get_size_order(size);
 	if (order == MEM_PHYS_SLUB_ORDERS_COUNT) {
@@ -190,7 +193,7 @@ void *mem_heap_free(void *mem) {
 	struct mem_heap_slub_hdr *hdr = (struct mem_heap_slub_hdr *)slub_hdr_addr;
 	// 3. Get owning NUMA node data
 	numa_id_t owner_id = hdr->owner;
-	const struct numa_node *data = numa_query_data_no_borrow(owner_id);
+	struct numa_node *data = numa_query_data_no_borrow(owner_id);
 	// 4. Enqueue node
 	struct mem_heap_obj *obj = (struct mem_heap_obj *)mem;
 	obj->next = data->slub_data.free_lists[order];

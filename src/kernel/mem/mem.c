@@ -3,6 +3,7 @@
 
 #include <init/init.h>
 #include <lib/log.h>
+#include <mem/heap/heap.h>
 #include <mem/mem.h>
 #include <mem/misc.h>
 #include <mem/phys/phys.h>
@@ -12,7 +13,8 @@
 
 MODULE("mem");
 TARGET(mem_add_numa_ranges_target, mem_add_numa_ranges, {numa_target, acpi_numa_target})
-TARGET(mem_kern_init_target, NULL, {mem_phys_target})
+TARGET(mem_kern_init_target, META_DUMMY, {mem_phys_target, mem_heap_target})
+META_DEFINE_DUMMY()
 
 //! @brief Backing array for static mem_range pool
 static struct mem_range mem_range_backer[MEM_MAX_RANGES_STATIC];

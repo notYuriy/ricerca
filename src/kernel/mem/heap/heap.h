@@ -17,7 +17,7 @@ void *mem_heap_alloc(size_t size, numa_id_t id);
 //! @brief Free memory on behalf of a given node
 //! @param ptr Pointer to the previously allocated memory
 //! @param size Size of the allocated memory
-void *mem_heap_free(void *mem, size_t size);
+void mem_heap_free(void *mem, size_t size);
 
 //! @brief Target to initialize kernel heap
 EXPORT_TARGET(mem_heap_target)

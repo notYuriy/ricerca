@@ -62,3 +62,11 @@ void target_execute_plan(struct target *plan);
 //! @brief Dump plan to kernel log
 //! @param plan Plan to be printed
 void target_plan_dump(struct target *plan);
+
+//! @brief Dummy callback name for meta packages
+#define META_DUMMY target_dummy
+
+//! @brief Define dummy callback
+#define META_DEFINE_DUMMY()                                                                        \
+	static void target_dummy() {                                                                   \
+	}
