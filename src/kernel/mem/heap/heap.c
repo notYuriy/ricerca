@@ -7,6 +7,7 @@
 #include <mem/misc.h>
 #include <mem/phys/phys.h>
 #include <sys/numa/numa.h>
+#include <thread/smp/locals.h>
 
 // Overview
 // 1. Slubs are aligned 64k regions for objects that are smaller that one page size. Each slub has a
@@ -23,7 +24,8 @@
 // TODO: maybe its a good idea to reclaim memory for slubs? We have slub headers anyway
 
 MODULE("mem/heap")
-TARGET(mem_heap_target, META_DUMMY, {mem_phys_target, mem_misc_collect_info_target})
+TARGET(mem_heap_target, META_DUMMY,
+       {mem_phys_target, mem_misc_collect_info_target, thread_smp_locals_target})
 META_DEFINE_DUMMY()
 
 //! @brief Slub size
@@ -122,14 +124,17 @@ static struct mem_heap_obj *mem_allocate_from_slub(struct numa_node *node, size_
 	return obj;
 }
 
-//! @brief Allocate memory on behalf of a given node
+//! @brief Allocate memory
 //! @param size Size of the memory to be allocated
 //! @param id Locality to which memory will belong
 //! @return NULL pointer if allocation failed, pointer to the virtual memory of size "size"
 //! otherwise
-void *mem_heap_alloc(size_t size, numa_id_t id) {
+void *mem_heap_alloc(size_t size) {
+	// Get NUMA id
+	numa_id_t id = thread_smp_locals_get()->numa_id;
+	// Get size order
 	size_t order = mem_heap_get_size_order(size);
-	if (order == MEM_PHYS_SLUB_ORDERS_COUNT) {
+	if (order == MEM_HEAP_SLUB_ORDERS) {
 		// Allocate directly using PMM and cast to upper half
 		uintptr_t res = mem_phys_perm_alloc_on_behalf(size, id);
 		if (res == PHYS_NULL) {

@@ -101,10 +101,6 @@ uintptr_t mem_phys_slub_alloc(struct mem_phys_slub *slub, size_t size) {
 	ASSERT(size % PAGE_SIZE == 0, "Attempt to allocate %U bytes (not granular allocation)", size);
 	// Get block order
 	size_t order = mem_phys_slub_get_order(size);
-	if (order == MEM_PHYS_SLUB_ORDERS_COUNT) {
-		// TOO large
-		return PHYS_NULL;
-	}
 	// If block is larger than all orders we provide, return PHYS_NULL
 	if (order == MEM_PHYS_SLUB_ORDERS_COUNT) {
 		return PHYS_NULL;

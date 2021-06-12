@@ -350,79 +350,81 @@ static void acpi_init(void) {
 	}
 }
 
-//! @brief Lookup APIC CPU id from ACPI CPU id
-//! @param acpi_id ACPI CPU id
-uint32_t acpi_acpi2apic_id(uint32_t acpi_id) {
-	if (acpi_boot_madt == NULL) {
-		return 0;
+//! @brief Load a given property from xAPIC ACPI MADT entry
+//! @param entry MADT xAPIC entry
+//! @param prop Property to load
+//! @param lid Local ID
+static uint32_t acpi_madt_xapic_load_prop(struct acpi_madt_xapic_entry *entry,
+                                          enum acpi_madt_lapic_entry_prop prop, uint32_t lid) {
+	switch (prop) {
+	case ACPI_MADT_LAPIC_PROP_LOGICAL_ID:
+		return lid;
+	case ACPI_MADT_LAPIC_PROP_ACPI_ID:
+		return (uint32_t)entry->acpi_id;
+	case ACPI_MADT_LAPIC_PROP_APIC_ID:
+		return (uint32_t)entry->apic_id;
+	default:
+		PANIC("Unknown property");
 	}
-	// Enumerate MADT entries
-	// Calculate entries starting and ending address
-	uint64_t address = (uint64_t)acpi_boot_madt + sizeof(struct acpi_madt);
-	const uint64_t end_address = (uint64_t)acpi_boot_madt + acpi_boot_madt->hdr.length;
-	while (address < end_address) {
-		struct acpi_madt_entry *entry = (struct acpi_madt_entry *)address;
-		address += entry->length;
-		switch (entry->type) {
-		case ACPI_MADT_XAPIC_ENTRY: {
-			struct acpi_madt_xapic_entry *xapic = (struct acpi_madt_xapic_entry *)entry;
-			if ((xapic->flags & 0b11U) == 0) {
-				break;
-			}
-			if ((uint32_t)(xapic->acpi_id) == acpi_id) {
-				return (uint32_t)xapic->apic_id;
-			}
-			break;
-		}
-		case ACPI_MADT_X2APIC_ENTRY: {
-			struct acpi_madt_x2apic_entry *x2apic = (struct acpi_madt_x2apic_entry *)entry;
-			if ((x2apic->flags & 0b11U) == 0) {
-				break;
-			}
-			if (x2apic->acpi_id == acpi_id) {
-				return x2apic->apic_id;
-			}
-			break;
-		}
-		default:
-			break;
-		}
-	}
-	PANIC("ACPI ID %u not found", acpi_id);
 }
 
-//! @brief Lookup ACPI CPI id from APIC CPI id
-//! @param apic_id APIC CPU id
-uint32_t acpi_apic2acpi_id(uint32_t apic_id) {
-	// Enumerate MADT entries
+//! @brief Load a given property from x2APIC ACPI MADT entry
+//! @param entry MADT x2APIC entry
+//! @param prop Property to load
+//! @param lid Local ID
+static uint32_t acpi_madt_x2apic_load_prop(struct acpi_madt_x2apic_entry *entry,
+                                           enum acpi_madt_lapic_entry_prop prop, uint32_t lid) {
+	switch (prop) {
+	case ACPI_MADT_LAPIC_PROP_LOGICAL_ID:
+		return lid;
+	case ACPI_MADT_LAPIC_PROP_ACPI_ID:
+		return entry->acpi_id;
+	case ACPI_MADT_LAPIC_PROP_APIC_ID:
+		return entry->apic_id;
+	default:
+		PANIC("Unknown property");
+	}
+}
+
+//! @brief Find MADT lapic entry that satisifies given criteria
+//! @param matched Property of MADT lapic entries to match with expected
+//! @param returned Property of MADT lapic entries to return
+//! @param expected Expected value of matched property
+//! @return Value of returned property
+uint32_t acpi_madt_convert_ids(enum acpi_madt_lapic_entry_prop matched,
+                               enum acpi_madt_lapic_entry_prop returned, uint32_t expected) {
 	if (acpi_boot_madt == NULL) {
+		// 0 is valid for all props anyway
 		return 0;
 	}
-	// Enumerate MADT entries
-	// Calculate entries starting and ending address
 	uint64_t address = (uint64_t)acpi_boot_madt + sizeof(struct acpi_madt);
 	const uint64_t end_address = (uint64_t)acpi_boot_madt + acpi_boot_madt->hdr.length;
+	uint32_t logical_id = 0;
 	while (address < end_address) {
 		struct acpi_madt_entry *entry = (struct acpi_madt_entry *)address;
 		address += entry->length;
 		switch (entry->type) {
 		case ACPI_MADT_XAPIC_ENTRY: {
+			logical_id++;
 			struct acpi_madt_xapic_entry *xapic = (struct acpi_madt_xapic_entry *)entry;
 			if ((xapic->flags & 0b11U) == 0) {
 				break;
 			}
-			if ((uint32_t)(xapic->apic_id) == apic_id) {
-				return (uint32_t)xapic->acpi_id;
+			uint32_t matched_val = acpi_madt_xapic_load_prop(xapic, matched, logical_id);
+			if (matched_val == expected) {
+				return acpi_madt_xapic_load_prop(xapic, returned, logical_id);
 			}
 			break;
 		}
 		case ACPI_MADT_X2APIC_ENTRY: {
+			logical_id++;
 			struct acpi_madt_x2apic_entry *x2apic = (struct acpi_madt_x2apic_entry *)entry;
 			if ((x2apic->flags & 0b11U) == 0) {
 				break;
 			}
-			if (x2apic->apic_id == apic_id) {
-				return x2apic->acpi_id;
+			uint32_t matched_val = acpi_madt_x2apic_load_prop(x2apic, matched, logical_id);
+			if (matched_val == expected) {
+				return acpi_madt_x2apic_load_prop(x2apic, returned, logical_id);
 			}
 			break;
 		}
@@ -430,5 +432,32 @@ uint32_t acpi_apic2acpi_id(uint32_t apic_id) {
 			break;
 		}
 	}
-	PANIC("APIC ID %u not found", apic_id);
+	PANIC("Search for MADT LAPIC entry failed. Params: {%u, %u, %u}", (uint32_t)matched,
+	      (uint32_t)returned, expected);
+}
+
+//! @brief Calculate max CPUs count
+//! @return Maximum possible number of CPUs
+uint32_t acpi_get_max_cpus(void) {
+	if (acpi_boot_madt == NULL) {
+		return 1;
+	}
+	uint64_t address = (uint64_t)acpi_boot_madt + sizeof(struct acpi_madt);
+	const uint64_t end_address = (uint64_t)acpi_boot_madt + acpi_boot_madt->hdr.length;
+	uint32_t count = 0;
+	while (address < end_address) {
+		struct acpi_madt_entry *entry = (struct acpi_madt_entry *)address;
+		address += entry->length;
+		switch (entry->type) {
+		case ACPI_MADT_XAPIC_ENTRY:
+			count++;
+			break;
+		case ACPI_MADT_X2APIC_ENTRY:
+			count++;
+			break;
+		default:
+			break;
+		}
+	}
+	return count;
 }

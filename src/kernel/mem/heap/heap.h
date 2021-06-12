@@ -7,12 +7,11 @@
 #include <misc/types.h>
 #include <sys/numa/numa.h>
 
-//! @brief Allocate memory on behalf of a given node
+//! @brief Allocate memory
 //! @param size Size of the memory to be allocated
-//! @param id Locality to which memory will belong
 //! @return NULL pointer if allocation failed, pointer to the virtual memory of size "size"
 //! otherwise
-void *mem_heap_alloc(size_t size, numa_id_t id);
+void *mem_heap_alloc(size_t size);
 
 //! @brief Free memory on behalf of a given node
 //! @param ptr Pointer to the previously allocated memory

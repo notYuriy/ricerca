@@ -18,7 +18,7 @@
 #define INIT_PHYS_MAPPING_SIZE 0x100000000
 
 //! @brief Maximum number of static memory range
-#define MEM_MAX_RANGES_STATIC 1024
+#define MEM_MAX_RANGES_STATIC 16384
 
 //! @brief Writeback physical window base
 extern uintptr_t mem_wb_phys_win_base;

@@ -21,10 +21,22 @@ static inline size_t strlen(const char *str) {
 //! @param n Number of bytes to be copied
 //! @return Value of dest parameter
 static inline void *memcpy(void *dest, const void *src, size_t n) {
-	char *cdest = dest;
-	const char *csrc = src;
+	uint8_t *cdest = dest;
+	const uint8_t *csrc = src;
 	for (size_t i = 0; i < n; ++i) {
 		cdest[i] = csrc[i];
+	}
+	return dest;
+}
+
+//! @brief Fill area with bytes
+//! @param dest Pointer to destination buffer
+//! @param fill Byte to fill with
+//! @param size Size of the destination buffer
+static inline void *memset(void *dest, uint8_t fill, size_t size) {
+	uint8_t *cdest = dest;
+	for (size_t i = 0; i < size; ++i) {
+		cdest[i] = (uint8_t)fill;
 	}
 	return dest;
 }

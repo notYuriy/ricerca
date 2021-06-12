@@ -145,19 +145,31 @@ extern struct acpi_slit *acpi_boot_slit;
 //! @param len ACPI table length
 bool acpi_validate_checksum(void *table, size_t len);
 
-//! @brief Lookup APIC CPU id from ACPI CPU id
-//! @param acpi_id ACPI CPU id
-//! @return APIC CPU id
-uint32_t acpi_acpi2apic_id(uint32_t acpi_id);
-
-//! @brief Lookup ACPI CPI id from APIC CPI id
-//! @param apic_id APIC CPU id
-//! @return ACPI CPU id
-uint32_t acpi_apic2acpi_id(uint32_t apic_id);
-
 //! @brief Find size of physical address space according to SRAT
 //! @return Size of physical memory space including hotplug regions
 size_t acpi_query_phys_space_size(void);
+
+//! @brief MADT lapic entry property
+enum acpi_madt_lapic_entry_prop {
+	// Local ID
+	ACPI_MADT_LAPIC_PROP_LOGICAL_ID = 0,
+	// ACPI ID
+	ACPI_MADT_LAPIC_PROP_ACPI_ID = 1,
+	// APIC ID
+	ACPI_MADT_LAPIC_PROP_APIC_ID = 2,
+};
+
+//! @brief Find MADT lapic entry that satisifies given criteria
+//! @param matched Property of MADT lapic entries to match with expected
+//! @param returned Property of MADT lapic entries to return
+//! @param expected Expected value of matched property
+//! @return Value of returned property
+uint32_t acpi_madt_convert_ids(enum acpi_madt_lapic_entry_prop matched,
+                               enum acpi_madt_lapic_entry_prop returned, uint32_t expected);
+
+//! @brief Calculate max CPUs count
+//! @return Maximum possible number of CPUs
+uint32_t acpi_get_max_cpus(void);
 
 //! @brief Export ACPI init target
 EXPORT_TARGET(acpi_target);

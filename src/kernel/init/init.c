@@ -12,6 +12,7 @@
 #include <mem/mem.h>
 #include <misc/misc.h>
 #include <sys/cr.h>
+#include <test/tests.h>
 
 MODULE("init")
 
@@ -118,6 +119,9 @@ void kernel_init(struct stivale2_struct *info) {
 	// Execute plan
 	target_plan_dump(plan);
 	target_execute_plan(plan);
+
+	// Run heap integrity test
+	test_heap_integrity();
 
 	// Nothing more for now
 	LOG_SUCCESS("Kernel initialization finished!");
