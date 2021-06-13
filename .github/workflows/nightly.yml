@@ -1,0 +1,45 @@
+name: nightly
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    name: Build
+
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install build-essential python3 fuse rsync qemu-system xorriso
+
+      - name: Install xbstrap
+        run: pip3 install xbstrap
+
+      - name: Build release image
+        run: make build-release
+
+      - name: Build debug image
+        run: make build-debug
+
+      - name: Untag last nightly release
+        run: ( git push --delete origin nightly || true ) && ( git tag --delete nightly || true )
+
+      - name: Tag new nightly release
+        run: git tag nightly && git push --tags
+
+      - name: Create nightly release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Nightly build
+          tag_name: nightly
+          body: Images of an up to date ricerca nightly build.
+          files: |
+            ricerca-release.hdd
+            ricerca-debug.hdd
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run debug image
+        run: timeout --signal=SIGINT 120 make run-ci || true

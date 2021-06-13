@@ -1,7 +1,7 @@
 # List of defined commands
 # build rule is not to be used by the user, however it is included in this list to make makefile
 # evaluate it
-.PHONY: build-debug build-release clean kernel-clean run-release run-debug run-safe
+.PHONY: build-debug build-release clean kernel-clean run-release run-debug run-safe run-ci
 
 # Machine to test on
 MACHINE=numa-distances
@@ -70,6 +70,7 @@ run-release: ricerca-release.hdd
 	-debugcon stdio \
 	-no-shutdown -no-reboot \
 	`cat machines/$(MACHINE) | tr '\n' ' '`
+
 # Run safe image rule
 # Runs debug image without waiting for debugger
 # Run QEMU
@@ -87,6 +88,25 @@ run-safe: ricerca-debug.hdd
 	-debugcon stdio \
 	-no-shutdown -no-reboot \
 	`cat machines/$(MACHINE) | tr '\n' ' '`
+
+# Run image on CI rule
+# Runs release image on CI
+# Run QEMU
+# -hda ricerca-debug.hdd - Attach hard drive with our image
+# If no hardware acceleration is present, fallback to tcg with --accel tcg
+# -debugcon stdio - Add debug connection, so that we can print logs to e9 port from the kernel
+# -display none - Do not actually open the window
+# and see them in the terminal
+# -no-shutdown -no-reboot - Halt on fatal errrors
+run-ci: ricerca-debug.hdd
+	echo `cat machines/$(MACHINE) | tr '\n' ' '`
+	qemu-system-x86_64 \
+	-hda ricerca-debug.hdd \
+	-debugcon stdio \
+	-display none \
+	-no-shutdown -no-reboot \
+	`cat machines/$(MACHINE) | tr '\n' ' '`
+
 
 # Run debug image rule
 run-debug: ricerca-debug.hdd

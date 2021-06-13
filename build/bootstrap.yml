@@ -4,6 +4,8 @@ sources:
     format: "tar.xz"
     subdir: build-tools
     regenerate:
+      - args: ["./contrib/download_prerequisites"]
+        workdir: "@THIS_SOURCE_DIR@/gcc-10.2.0"
       - args: ["autoconf"]
         workdir: "@THIS_SOURCE_DIR@/gcc-10.2.0"
 
@@ -21,7 +23,7 @@ sources:
     subdir: build-tools
 
   - name: lai
-    git: "https://github.com/managarm/lai"
+    git: "https://github.com/managarm/lai.git"
     branch: "master"
     commit: a8d130357175df4515fb24ba3f114b4a66033790
     subdir: libraries
@@ -157,9 +159,9 @@ packages:
       - args:
           - "cp"
           - "@THIS_SOURCE_DIR@/limine-cd.bin"
-          - "@THIS_COLLECT_DIR@/limine-cd.bin"
+          - "@THIS_COLLECT_DIR@/boot/limine-cd.bin"
       # Copy limine-eltorito-efi.bin
       - args:
           - "cp"
           - "@THIS_SOURCE_DIR@/limine-eltorito-efi.bin"
-          - "@THIS_COLLECT_DIR@/limine-eltorito-efi.bin"
+          - "@THIS_COLLECT_DIR@/boot/limine-eltorito-efi.bin"

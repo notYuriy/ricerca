@@ -2,11 +2,15 @@
 
 ![](screenshots/system-init.png)
 
-ricerca-os fork that I am using as a playground to experiment with SMP, NUMA, load balancing, and memory/CPU hotplug
+lezione-os fork that I am using as a playground to experiment with SMP, NUMA, load balancing, and memory/CPU hotplug
+
+# Nightly images
+
+If you don't want to build ricerca, you can download latest images from nightly tag. Those are built on CI after every commit.
 
 # Building
 
-Install `python3`, `fuse`, `rsync`, `qemu-system-x86_64`, `xorriso` and `build-essential` packages.
+Install `python3`, `bison`, `flex`, `libgmp3-dev`, `libmpc-dev`, `libmpfr-dev`, `texinfo`, `rsync`, `qemu-system-x86_64`, `xorriso` and `build-essential` packages.
 
 Install xbstrap from pip: `pip3 install xbstrap`.
 
