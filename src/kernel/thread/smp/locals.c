@@ -6,7 +6,7 @@
 #include <mem/phys/phys.h>
 #include <sys/acpi/acpi.h>
 #include <sys/acpi/numa.h>
-#include <sys/lapic.h>
+#include <sys/ic.h>
 #include <sys/msr.h>
 #include <thread/smp/locals.h>
 
@@ -41,7 +41,7 @@ struct thread_smp_locals *thread_smp_locals_get(void) {
 //! @note To be used on AP bootup
 void thread_smp_locals_set(void) {
 	// Get APIC ID
-	uint32_t apic_id = lapic_get_apic_id();
+	uint32_t apic_id = ic_get_apic_id();
 	// Query logical id
 	uint32_t logical_id = acpi_madt_convert_ids(ACPI_MADT_LAPIC_PROP_APIC_ID,
 	                                            ACPI_MADT_LAPIC_PROP_LOGICAL_ID, apic_id);

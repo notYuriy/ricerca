@@ -6,15 +6,19 @@
 #include <mem/misc.h>
 #include <sys/acpi/acpi.h>
 #include <sys/cpuid.h>
-#include <sys/lapic.h>
+#include <sys/ic.h>
 #include <sys/msr.h>
 #include <sys/pic.h>
 
-MODULE("sys/lapic");
-TARGET(lapic_bsp_target, lapic_bsp_init, {pic_remap_target, mem_misc_collect_info_target})
+MODULE("sys/ic");
+TARGET(ic_bsp_target, ic_bsp_init, {pic_remap_target, mem_misc_collect_info_target})
 
-//! @brief True if x2APIC is supported
-static bool lapic_x2apic_supported;
+//! @brief LAPIC state
+static enum {
+	LAPIC_X2APIC_USED,
+	LAPIC_XAPIC_USED,
+	LAPIC_PIC_USED,
+} lapic_state = LAPIC_PIC_USED;
 
 //! @brief Pointer to LAPIC registers
 static volatile uint32_t *lapic_xapic;
@@ -41,46 +45,50 @@ enum {
 	LAPIC_X2APIC_ID_REG = 0x802
 };
 
-//! @brief Get APIC id
-uint32_t lapic_get_apic_id(void) {
-	if (lapic_x2apic_supported) {
+//! @brief Get interrupt controller ID
+uint32_t ic_get_apic_id(void) {
+	if (lapic_state == LAPIC_X2APIC_USED) {
 		return rdmsr(LAPIC_X2APIC_ID_REG);
-	} else {
+	} else if (lapic_state == LAPIC_XAPIC_USED) {
 		return lapic_xapic[LAPIC_XAPIC_ID_REG];
+	} else {
+		return 0;
 	}
 }
 
-//! @brief Enable LAPIC
-void lapic_enable(void) {
+//! @brief Enable interrupt controller on AP
+void ic_enable(void) {
 	// Enable LAPIC
-	if (lapic_x2apic_supported) {
+	if (lapic_state == LAPIC_X2APIC_USED) {
 		wrmsr(LAPIC_IA32_APIC_BASE, rdmsr(LAPIC_IA32_APIC_BASE) | (1ULL << 10ULL));
 		wrmsr(LAPIC_X2APIC_SPUR_REG, 0x100 | lapic_spur_irq);
-	} else {
+	} else if (lapic_state == LAPIC_XAPIC_USED) {
 		lapic_xapic[LAPIC_XAPIC_SPUR_REG] = 0x100 | lapic_spur_irq;
+	} else {
+		PANIC("lapic_enable in single-core mode got called");
 	}
 }
 
-//! @brief Initialize lapic on BSP
-static void lapic_bsp_init(void) {
+//! @brief Initialize interrupt controller on BSP
+static void ic_bsp_init(void) {
 	// First of all, let's determine if LAPIC is supported at all
 	struct cpuid cpuid1h;
 	cpuid(0x1, 0, &cpuid1h);
-	// Assert that LAPIC is available
 	if ((cpuid1h.edx & (1 << 9)) == 0) {
-		PANIC("No LAPIC support");
+		return;
 	}
+	lapic_state = LAPIC_XAPIC_USED;
 	// Query x2APIC support
-	lapic_x2apic_supported = (cpuid1h.ecx & (1 << 21)) != 0;
-	if (lapic_x2apic_supported) {
+	if ((cpuid1h.ecx & (1 << 21)) != 0) {
 		LOG_INFO("x2APIC support detected");
+		lapic_state = LAPIC_X2APIC_USED;
 	}
 	const uint64_t lapic_phys_base = rdmsr(LAPIC_IA32_APIC_BASE) & (~0xffffULL);
-	if (lapic_phys_base >= INIT_PHYS_MAPPING_SIZE && !lapic_x2apic_supported) {
+	if (lapic_phys_base >= INIT_PHYS_MAPPING_SIZE && !(lapic_state == LAPIC_X2APIC_USED)) {
 		PANIC("LAPIC unreachable until direct phys window set up");
 	}
 	lapic_xapic = (volatile uint32_t *)(mem_wb_phys_win_base + lapic_phys_base);
 	LOG_INFO("xAPIC address: 0x%p", lapic_xapic);
 	// Enable LAPIC
-	lapic_enable();
+	ic_enable();
 }
