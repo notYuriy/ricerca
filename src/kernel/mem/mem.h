@@ -26,4 +26,4 @@ struct mem_range {
 EXPORT_TARGET(mem_add_numa_ranges_target)
 
 //! @brief Export kernel memory management init target
-EXPORT_TARGET(mem_kern_init_target)
+EXPORT_TARGET(mem_all_target)

@@ -97,9 +97,6 @@ uintptr_t mem_phys_slub_alloc(struct mem_phys_slub *slub, size_t size) {
 	// 2. Return block from that free list if its not empty
 	// 3. Split blocks from higher order free lists if those are not empty
 	// 4. If all free lists are empty, attempt to allocate by incerasing slub->brk_base by size
-
-	// Find free list to query. Check that size is granular
-	ASSERT(size % PAGE_SIZE == 0, "Attempt to allocate %U bytes (not granular allocation)", size);
 	// Get block order
 	size_t order = mem_phys_slub_get_order(size);
 	// If block is larger than all orders we provide, return PHYS_NULL

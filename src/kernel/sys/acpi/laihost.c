@@ -14,7 +14,7 @@ MODULE("sys/acpi/lai")
 TARGET(lai_target, laihost_init,
        {
            acpi_target,
-           mem_kern_init_target,
+           mem_all_target,
        })
 
 //! @brief Allocate memory

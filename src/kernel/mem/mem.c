@@ -13,7 +13,7 @@
 
 MODULE("mem");
 TARGET(mem_add_numa_ranges_target, mem_add_numa_ranges, {numa_target, acpi_numa_target})
-TARGET(mem_kern_init_target, META_DUMMY, {mem_phys_target, mem_heap_target})
+TARGET(mem_all_target, META_DUMMY, {mem_phys_target, mem_heap_target})
 META_DEFINE_DUMMY()
 
 //! @brief Backing array for static mem_range pool

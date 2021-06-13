@@ -55,7 +55,7 @@ void thread_smp_locals_init(void) {
 	uint32_t count = acpi_get_max_cpus();
 	// Allocate memory for CPU-local data
 	uintptr_t backing_physmem = mem_phys_perm_alloc_on_behalf(
-	    sizeof(struct thread_smp_locals) * count, acpi_numa_boot_domain);
+	    align_up(sizeof(struct thread_smp_locals) * count, PAGE_SIZE), acpi_numa_boot_domain);
 	if (backing_physmem == PHYS_NULL) {
 		PANIC("Failed to allocate memory for CPU locals");
 	}
