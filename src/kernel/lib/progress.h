@@ -19,15 +19,18 @@ inline static void progress_bar(size_t val, size_t max, size_t size) {
 			return;
 		}
 		for (size_t i = 0; i < size + 2; ++i) {
-			log_write("\b", 1);
+			log_putc('\b');
 		}
 	}
 	log_write("[\033[32m", 6);
 	for (size_t i = 0; i < new_parts; ++i) {
-		log_write("*", 1);
+		log_putc('=');
 	}
-	for (size_t i = new_parts; i < size; ++i) {
-		log_write(" ", 1);
+	if (new_parts != size) {
+		log_putc('>');
+	}
+	for (size_t i = new_parts + 1; i < size; ++i) {
+		log_putc(' ');
 	}
 	log_write("\033[0m]", 5);
 }

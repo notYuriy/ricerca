@@ -50,9 +50,10 @@ static uintptr_t mem_phys_slub_dequeue(struct mem_phys_slub *slub, size_t order)
 	slub->free_lists[order] = next;
 	if (next == PHYS_NULL && slub->max_freed_order == order) {
 		size_t i = slub->max_freed_order - 1;
+		slub->max_freed_order = 0;
 		while (i-- > 0) {
-			if (slub->free_lists[order] != PHYS_NULL) {
-				slub->max_freed_order = order;
+			if (slub->free_lists[i] != PHYS_NULL) {
+				slub->max_freed_order = i;
 			}
 		}
 	}
@@ -106,7 +107,7 @@ uintptr_t mem_phys_slub_alloc(struct mem_phys_slub *slub, size_t size) {
 		return PHYS_NULL;
 	}
 	// 2 and 3. Iterate free from order to slub->max_freed_order
-	for (size_t i = order; i < slub->max_freed_order; ++i) {
+	for (size_t i = order; i <= slub->max_freed_order; ++i) {
 		if (slub->free_lists[i] != PHYS_NULL) {
 			uintptr_t block = mem_phys_slub_dequeue(slub, i);
 			mem_phys_slub_split_until_target(slub, block, i, order);

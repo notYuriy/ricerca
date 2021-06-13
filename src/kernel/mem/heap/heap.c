@@ -2,6 +2,7 @@
 //! @file File containing implementation of kernel heap allocator
 
 #include <lib/panic.h>
+#include <lib/string.h>
 #include <mem/heap/heap.h>
 #include <mem/heap/slub.h>
 #include <mem/misc.h>
@@ -95,9 +96,10 @@ static void mem_heap_add_slub(struct numa_node *node, size_t order) {
 
 //! @brief Calculate block size order
 //! @param size Size of the memory block
-//! @return Block size order if it is less than MEM_PHYS_SLUB_ORDERS_COUNT or
-//! MEM_PHYS_SLUB_ORDERS_COUNT
-static size_t mem_heap_get_size_order(size_t size) {
+//! @param max_order Biggest order
+//! @return Block size order if it is less than max_order or
+//! max_order
+static size_t mem_heap_get_size_order(size_t size, size_t max_order) {
 	if (size < 16) {
 		size = 16;
 	}
@@ -106,8 +108,8 @@ static size_t mem_heap_get_size_order(size_t size) {
 	while (size > test) {
 		size *= 2;
 		result += 1;
-		if (result == MEM_HEAP_SLUB_ORDERS) {
-			return result;
+		if (result == max_order) {
+			return max_order;
 		}
 	}
 	return result;
@@ -133,7 +135,7 @@ void *mem_heap_alloc(size_t size) {
 	// Get NUMA id
 	numa_id_t id = thread_smp_locals_get()->numa_id;
 	// Get size order
-	size_t order = mem_heap_get_size_order(size);
+	size_t order = mem_heap_get_size_order(size, MEM_HEAP_SLUB_ORDERS);
 	if (order == MEM_HEAP_SLUB_ORDERS) {
 		// Allocate directly using PMM and cast to upper half
 		uintptr_t res = mem_phys_perm_alloc_on_behalf(size, id);
@@ -184,8 +186,8 @@ void *mem_heap_alloc(size_t size) {
 //! @param size Size of the allocated memory
 void mem_heap_free(void *mem, size_t size) {
 	ASSERT(mem != NULL, "Attempt to free NULL");
-	size_t order = mem_heap_get_size_order(size);
-	if (order == MEM_PHYS_SLUB_ORDERS_COUNT) {
+	size_t order = mem_heap_get_size_order(size, MEM_HEAP_SLUB_ORDERS);
+	if (order == MEM_HEAP_SLUB_ORDERS) {
 		mem_phys_perm_free((uintptr_t)mem - mem_wb_phys_win_base);
 		return;
 	}
@@ -203,4 +205,35 @@ void mem_heap_free(void *mem, size_t size) {
 	data->slub_data.free_lists[order] = obj;
 	// 5. Free NUMA lock
 	numa_release(int_state);
+}
+
+//! @brief Reallocate memory to a new region with new size
+//! @param mem Pointer to the memory
+//! @param newsize New size
+//! @param oldsize Old size
+//! @return Pointer to the new memory or NULL if realloc failed
+void *mem_heap_realloc(void *mem, size_t newsize, size_t oldsize) {
+	// If mem == NULL, use mem_heap_alloc
+	if (mem == NULL) {
+		return mem_heap_alloc(newsize);
+	}
+	// If newsize = 0, use mem_heap_free
+	if (newsize == 0) {
+		mem_heap_free(mem, oldsize);
+	}
+	// If orders match, we can just reuse mem. If not, reallocate to a new region
+	size_t oldorder = mem_heap_get_size_order(oldsize, 64);
+	size_t neworder = mem_heap_get_size_order(newsize, 64);
+	if (oldorder == neworder) {
+		return mem;
+	}
+	size_t min = (oldsize < newsize) ? oldsize : newsize;
+	// Allocate a new region
+	void *result = mem_heap_alloc(newsize);
+	if (result == NULL) {
+		return NULL;
+	}
+	// Copy data from old region
+	memcpy(result, mem, min);
+	return result;
 }
