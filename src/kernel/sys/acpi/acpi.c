@@ -283,11 +283,11 @@ struct acpi_sdt_header *acpi_find_table(const char *name, size_t index) {
 		if (fadt == NULL) {
 			return NULL;
 		}
-		if (fadt->dsdt_ex != 0) {
+		if (fadt->dsdt_ex != 0 && acpi_platform_state == ACPI_REV_2) {
 			return (struct acpi_sdt_header *)(mem_wb_phys_win_base + fadt->dsdt_ex);
 		}
 		if (fadt->dsdt != 0) {
-			return (struct acpi_sdt_header *)(mem_wb_phys_win_base + fadt->dsdt);
+			return (struct acpi_sdt_header *)(mem_wb_phys_win_base + (uintptr_t)fadt->dsdt);
 		}
 		return NULL;
 	}
@@ -334,8 +334,8 @@ size_t acpi_query_phys_space_size(void) {
 	return result;
 }
 
-//! @brief True if ACPI is enabled
-bool acpi_enabled = false;
+//! @brief ACPI platform state
+enum acpi_state acpi_platform_state = ACPI_NO_ACPI;
 
 //! @brief Early ACPI subsystem init
 static void acpi_init(void) {
@@ -344,8 +344,6 @@ static void acpi_init(void) {
 		LOG_WARN("Machine does not support ACPI");
 		return;
 	}
-
-	acpi_enabled = true;
 
 	struct acpi_rsdp *rsdp = (struct acpi_rsdp *)rsdp_tag->rsdp;
 	LOG_INFO("RSDP at %p", rsdp);
@@ -358,10 +356,12 @@ static void acpi_init(void) {
 	// Walk boot ACPI tables
 	if (rsdp->rev == ACPI_RSDP_REV1) {
 		// RSDPv1 and hence RSDT detected
+		acpi_platform_state = ACPI_REV_1;
 		const uint64_t rsdt_addr = (uint64_t)rsdp->rsdt_addr;
 		acpi_boot_rsdt = (struct acpi_rsdt *)(mem_wb_phys_win_base + rsdt_addr);
 	} else if (rsdp->rev == ACPI_RSDP_REV2) {
 		// RSDPv2 and hence XSDT detected
+		acpi_platform_state = ACPI_REV_2;
 		struct acpi_rsdpv2 *rsdpv2 = (struct acpi_rsdpv2 *)rsdp;
 		if (!acpi_validate_checksum(rsdp, sizeof(struct acpi_rsdp))) {
 			LOG_ERR("RSDPv2 checksum validation failed");

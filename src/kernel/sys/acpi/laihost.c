@@ -130,7 +130,7 @@ void laihost_panic(const char *msg) {
 
 //! @brief Initialize LAI
 static void laihost_init(void) {
-	if (!acpi_enabled) {
+	if (acpi_platform_state == ACPI_NO_ACPI) {
 		return;
 	}
 	lai_create_namespace();

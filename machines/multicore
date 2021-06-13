@@ -1,0 +1,1 @@
+-machine q35 -smp 8 -m 1G

@@ -1,0 +1,7 @@
+-machine q35
+-m size=4G,slots=4,maxmem=8G
+-object memory-backend-ram,size=1G,id=m0
+-object memory-backend-ram,size=1G,id=m1
+-object memory-backend-ram,size=1G,id=m2
+-object memory-backend-ram,size=1G,id=m3
+-smp cpus=16,maxcpus=32

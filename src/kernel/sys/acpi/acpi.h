@@ -249,8 +249,15 @@ uint32_t acpi_get_max_cpus(void);
 //! @param index of the table
 struct acpi_sdt_header *acpi_find_table(const char *name, size_t index);
 
-//! @brief True if ACPI is enablede
-extern bool acpi_enabled;
+//! @brief ACPI platform state
+extern enum acpi_state {
+	//! @brief No  ACPI
+	ACPI_NO_ACPI = 0,
+	//! @brief ACPI rev 1
+	ACPI_REV_1 = 1,
+	//! @brief ACPI rev 2
+	ACPI_REV_2 = 2,
+} acpi_platform_state;
 
 //! @brief Export ACPI init target
 EXPORT_TARGET(acpi_target);
