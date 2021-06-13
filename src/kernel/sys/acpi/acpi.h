@@ -171,5 +171,10 @@ uint32_t acpi_madt_convert_ids(enum acpi_madt_lapic_entry_prop matched,
 //! @return Maximum possible number of CPUs
 uint32_t acpi_get_max_cpus(void);
 
+//! @brief Search for the specific table
+//! @param name Name of the table
+//! @param index of the table
+struct acpi_sdt_header *acpi_find_table(const char *name, size_t index);
+
 //! @brief Export ACPI init target
 EXPORT_TARGET(acpi_target);

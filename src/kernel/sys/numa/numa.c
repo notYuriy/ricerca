@@ -144,6 +144,7 @@ static void numa_init(void) {
 	struct numa_node *iter = numa_nodes;
 	while (iter != NULL) {
 		numa_fill_neighbours_lists(iter);
+		numa_sort_neighbours(iter->node_id, iter->neighbours, iter->used_entries);
 		numa_sort_neighbours(iter->node_id, iter->permanent_neighbours,
 		                     iter->permanent_used_entries);
 		iter = iter->next;

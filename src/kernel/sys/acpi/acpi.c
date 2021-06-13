@@ -70,6 +70,12 @@ struct acpi_madt *acpi_boot_madt = NULL;
 //! @brief Nullable pointer to SLIT. Set by acpi_init if found
 struct acpi_slit *acpi_boot_slit = NULL;
 
+//! @brief Nullable pointer to RSDT. Set by acpi_init if fount
+static struct acpi_rsdt *acpi_boot_rsdt = NULL;
+
+//! @brief Nullable pointer to XSDT. Set by acpi_init if found
+static struct acpi_xsdt *acpi_boot_xsdt = NULL;
+
 //! @brief Validate SLIT
 //! @param slit Pointer to the SLIT table
 //! @note Used to guard against bioses that fill SLIT with 10s everywhere
@@ -216,67 +222,66 @@ void acpi_dump_madt(struct acpi_madt *madt) {
 	}
 }
 
-//! @brief Visit a given ACPI table
-//! @param table_phys Physical table address
-static void acpi_visit_table(uint64_t table_phys) {
-	const struct acpi_sdt_header *header =
-	    (struct acpi_sdt_header *)(table_phys + mem_wb_phys_win_base);
-	// Check a few common tables
-	if (memcmp(header->signature, "SRAT", 4) == 0) {
-		if (acpi_boot_srat != NULL) {
-			PANIC("Duplicate SRAT");
-		}
-		LOG_SUCCESS("SRAT ACPI table found");
-		acpi_boot_srat = (struct acpi_srat *)header;
-	} else if (memcmp(header->signature, "APIC", 4) == 0) {
-		if (acpi_boot_madt != NULL) {
-			PANIC("Duplicate MADT");
-		}
-		LOG_SUCCESS("MADT (APIC) ACPI table found");
-		acpi_boot_madt = (struct acpi_madt *)header;
-	} else if (memcmp(header->signature, "SLIT", 4) == 0) {
-		if (acpi_boot_slit != NULL) {
-			PANIC("Duplicate SLIT");
-		}
-		LOG_SUCCESS("SLIT ACPI table found");
-		struct acpi_slit *slit = (struct acpi_slit *)header;
-		if (acpi_validate_slit(slit)) {
-			acpi_boot_slit = slit;
-		} else {
-			LOG_ERR("SLIT is of a poor quality, discarding");
-		}
-	}
-}
-
-//! @brief Walk RSDT
-//! @param rsdt_phys Physical address of RSDT
-static void acpi_walk_rsdt(uint64_t rsdt_phys) {
-	struct acpi_rsdt *rsdt = (struct acpi_rsdt *)(rsdt_phys + mem_wb_phys_win_base);
-	if (!acpi_validate_checksum(rsdt, rsdt->hdr.length)) {
-		LOG_ERR("RSDT checksum validation failed");
-	}
+//! @brief Walk RSDT in search of a specific table
+//! @param rsdt Pointer to RSDT
+//! @param name Name of the table
+//! @param index Index of the table
+//! @return Pointer to the table or NULL if not found
+static struct acpi_sdt_header *acpi_find_in_rsdt(struct acpi_rsdt *rsdt, const char *name,
+                                                 size_t index) {
 	// Get tables count
 	const size_t tables_count = (rsdt->hdr.length - sizeof(struct acpi_sdt_header)) / 4;
-	LOG_INFO("%U tables found in RSDT", tables_count);
 	// Visit tables
+	size_t to_skip = index;
 	for (size_t i = 0; i < tables_count; ++i) {
-		acpi_visit_table((uint64_t)rsdt->tables[i]);
+		uintptr_t table_phys = (uintptr_t)rsdt->tables[i];
+		struct acpi_sdt_header *header =
+		    (struct acpi_sdt_header *)(table_phys + mem_wb_phys_win_base);
+		if (memcmp(header->signature, name, 4) == 0) {
+			if (to_skip == 0) {
+				return header;
+			}
+			to_skip--;
+		}
 	}
+	return NULL;
 }
 
-//! @brief Walk XSDT
-//! @param rsdt_phys Physical address of XSDT
-static void acpi_walk_xsdt(uint64_t xsdt_phys) {
-	struct acpi_xsdt *xsdt = (struct acpi_xsdt *)(xsdt_phys + mem_wb_phys_win_base);
-	if (!acpi_validate_checksum(xsdt, xsdt->hdr.length)) {
-		LOG_ERR("XSDT checksum validation failed");
-	}
+//! @brief Walk XSDT in search of a specific table
+//! @param rsdt Pointer to XSDT
+//! @param name Name of the table
+//! @param index Index of the table
+//! @return Pointer to the table or NULL if not found
+static struct acpi_sdt_header *acpi_find_in_xsdt(struct acpi_xsdt *xsdt, const char *name,
+                                                 size_t index) {
 	// Get tables count
 	const size_t tables_count = (xsdt->hdr.length - sizeof(struct acpi_sdt_header)) / 8;
-	LOG_INFO("%U tables found in XSDT", tables_count);
 	// Visit tables
+	size_t to_skip = index;
 	for (size_t i = 0; i < tables_count; ++i) {
-		acpi_visit_table(xsdt->tables[i]);
+		uintptr_t table_phys = xsdt->tables[i];
+		struct acpi_sdt_header *header =
+		    (struct acpi_sdt_header *)(table_phys + mem_wb_phys_win_base);
+		if (memcmp(header->signature, name, 4) == 0) {
+			if (to_skip == 0) {
+				return header;
+			}
+			to_skip--;
+		}
+	}
+	return NULL;
+}
+
+//! @brief Search for the specific table
+//! @param name Name of the table
+//! @param index of the table
+struct acpi_sdt_header *acpi_find_table(const char *name, size_t index) {
+	if (acpi_boot_xsdt == NULL) {
+		// Assert RSDT presence
+		ASSERT(acpi_boot_rsdt != NULL, "Attempt to query tables in non-acpi mode");
+		return acpi_find_in_rsdt(acpi_boot_rsdt, name, index);
+	} else {
+		return acpi_find_in_xsdt(acpi_boot_xsdt, name, index);
 	}
 }
 
@@ -334,8 +339,7 @@ static void acpi_init(void) {
 	if (rsdp->rev == ACPI_RSDP_REV1) {
 		// RSDPv1 and hence RSDT detected
 		const uint64_t rsdt_addr = (uint64_t)rsdp->rsdt_addr;
-		LOG_INFO("RSDT detected at %p", rsdt_addr);
-		acpi_walk_rsdt(rsdt_addr);
+		acpi_boot_rsdt = (struct acpi_rsdt *)(mem_wb_phys_win_base + rsdt_addr);
 	} else if (rsdp->rev == ACPI_RSDP_REV2) {
 		// RSDPv2 and hence XSDT detected
 		struct acpi_rsdpv2 *rsdpv2 = (struct acpi_rsdpv2 *)rsdp;
@@ -343,10 +347,23 @@ static void acpi_init(void) {
 			LOG_ERR("RSDPv2 checksum validation failed");
 		}
 		const uint64_t xsdt_addr = (uint64_t)rsdpv2->xsdt_addr;
-		LOG_INFO("XSDT detected at %p", xsdt_addr);
-		acpi_walk_xsdt(xsdt_addr);
+		acpi_boot_xsdt = (struct acpi_xsdt *)(mem_wb_phys_win_base + xsdt_addr);
 	} else {
 		PANIC("Unknown XSDT revision");
+	}
+
+	// Find a few useful tables
+	acpi_boot_madt = (struct acpi_madt *)acpi_find_table("APIC", 0);
+	acpi_boot_slit = (struct acpi_slit *)acpi_find_table("SLIT", 0);
+	acpi_boot_srat = (struct acpi_srat *)acpi_find_table("SRAT", 0);
+
+	// Validate SLIT
+	if (acpi_boot_slit != NULL) {
+		acpi_dump_slit(acpi_boot_slit);
+		if (!acpi_validate_slit(acpi_boot_slit)) {
+			LOG_ERR("SLIT is of a poor quality. Discarding");
+			acpi_boot_slit = NULL;
+		}
 	}
 }
 
