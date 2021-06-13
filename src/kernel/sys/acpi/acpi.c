@@ -444,9 +444,6 @@ uint32_t acpi_madt_convert_ids(enum acpi_madt_lapic_entry_prop matched,
 		case ACPI_MADT_XAPIC_ENTRY: {
 			logical_id++;
 			struct acpi_madt_xapic_entry *xapic = (struct acpi_madt_xapic_entry *)entry;
-			if ((xapic->flags & 0b11U) == 0) {
-				break;
-			}
 			uint32_t matched_val = acpi_madt_xapic_load_prop(xapic, matched, logical_id);
 			if (matched_val == expected) {
 				return acpi_madt_xapic_load_prop(xapic, returned, logical_id);
@@ -456,9 +453,6 @@ uint32_t acpi_madt_convert_ids(enum acpi_madt_lapic_entry_prop matched,
 		case ACPI_MADT_X2APIC_ENTRY: {
 			logical_id++;
 			struct acpi_madt_x2apic_entry *x2apic = (struct acpi_madt_x2apic_entry *)entry;
-			if ((x2apic->flags & 0b11U) == 0) {
-				break;
-			}
 			uint32_t matched_val = acpi_madt_x2apic_load_prop(x2apic, matched, logical_id);
 			if (matched_val == expected) {
 				return acpi_madt_x2apic_load_prop(x2apic, returned, logical_id);

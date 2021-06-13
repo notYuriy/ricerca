@@ -13,12 +13,12 @@
 MODULE("sys/ic");
 TARGET(ic_bsp_target, ic_bsp_init, {pic_remap_target, mem_misc_collect_info_target})
 
-//! @brief LAPIC state
+//! @brief Interrupt controller state
 static enum {
-	LAPIC_X2APIC_USED,
-	LAPIC_XAPIC_USED,
-	LAPIC_PIC_USED,
-} lapic_state = LAPIC_PIC_USED;
+	IC_X2APIC_USED,
+	IC_XAPIC_USED,
+	IC_PIC_USED,
+} lapic_state = IC_PIC_USED;
 
 //! @brief Pointer to LAPIC registers
 static volatile uint32_t *lapic_xapic;
@@ -47,9 +47,9 @@ enum {
 
 //! @brief Get interrupt controller ID
 uint32_t ic_get_apic_id(void) {
-	if (lapic_state == LAPIC_X2APIC_USED) {
+	if (lapic_state == IC_X2APIC_USED) {
 		return rdmsr(LAPIC_X2APIC_ID_REG);
-	} else if (lapic_state == LAPIC_XAPIC_USED) {
+	} else if (lapic_state == IC_XAPIC_USED) {
 		return lapic_xapic[LAPIC_XAPIC_ID_REG];
 	} else {
 		return 0;
@@ -59,10 +59,10 @@ uint32_t ic_get_apic_id(void) {
 //! @brief Enable interrupt controller on AP
 void ic_enable(void) {
 	// Enable LAPIC
-	if (lapic_state == LAPIC_X2APIC_USED) {
+	if (lapic_state == IC_X2APIC_USED) {
 		wrmsr(LAPIC_IA32_APIC_BASE, rdmsr(LAPIC_IA32_APIC_BASE) | (1ULL << 10ULL));
 		wrmsr(LAPIC_X2APIC_SPUR_REG, 0x100 | lapic_spur_irq);
-	} else if (lapic_state == LAPIC_XAPIC_USED) {
+	} else if (lapic_state == IC_XAPIC_USED) {
 		lapic_xapic[LAPIC_XAPIC_SPUR_REG] = 0x100 | lapic_spur_irq;
 	} else {
 		PANIC("lapic_enable in single-core mode got called");
@@ -77,14 +77,14 @@ static void ic_bsp_init(void) {
 	if ((cpuid1h.edx & (1 << 9)) == 0) {
 		return;
 	}
-	lapic_state = LAPIC_XAPIC_USED;
+	lapic_state = IC_XAPIC_USED;
 	// Query x2APIC support
 	if ((cpuid1h.ecx & (1 << 21)) != 0) {
 		LOG_INFO("x2APIC support detected");
-		lapic_state = LAPIC_X2APIC_USED;
+		lapic_state = IC_X2APIC_USED;
 	}
 	const uint64_t lapic_phys_base = rdmsr(LAPIC_IA32_APIC_BASE) & (~0xffffULL);
-	if (lapic_phys_base >= INIT_PHYS_MAPPING_SIZE && !(lapic_state == LAPIC_X2APIC_USED)) {
+	if (lapic_phys_base >= INIT_PHYS_MAPPING_SIZE && !(lapic_state == IC_X2APIC_USED)) {
 		PANIC("LAPIC unreachable until direct phys window set up");
 	}
 	lapic_xapic = (volatile uint32_t *)(mem_wb_phys_win_base + lapic_phys_base);

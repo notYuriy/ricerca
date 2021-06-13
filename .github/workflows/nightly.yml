@@ -24,10 +24,10 @@ jobs:
         run: make build-debug
 
       - name: Untag last nightly release
-        run: ( git push --delete origin nightly || true ) && ( git tag --delete nightly || true )
+        run: git push origin :refs/tags/nightly
 
       - name: Tag new nightly release
-        run: git tag nightly && git push --tags
+        run: git tag nightly && git push origin nightly
 
       - name: Create nightly release
         uses: softprops/action-gh-release@v1
