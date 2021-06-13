@@ -6,6 +6,7 @@
 #include <lib/target.h>
 #include <mem/heap/slub.h>
 #include <mem/rc.h>
+#include <thread/spinlock.h>
 
 //! @brief Type of NUMA node ID
 typedef uint8_t numa_id_t;
@@ -47,6 +48,8 @@ struct numa_node {
 	struct mem_heap_slub_data slub_data;
 	//! @brief True if node is permanent
 	bool permanent;
+	//! @brief Node's lock
+	struct thread_spinlock lock;
 };
 
 //! @brief Head of NUMA nodes list
@@ -64,8 +67,7 @@ bool numa_acquire(void);
 void numa_release(bool state);
 
 //! @brief Query NUMA node data by ID without borrowing reference
-//! @return Borrowed RC reference to the numa data
-//! @note Use only at boot
+//! @return Weak reference to the data
 struct numa_node *numa_query_data_no_borrow(numa_id_t data);
 
 //! @brief Export ACPI init target

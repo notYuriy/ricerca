@@ -47,8 +47,8 @@ static void mem_phys_store_info(uintptr_t addr, size_t size, struct mem_range *r
 //! @return Physical address of the allocated area, PHYS_NULL otherwise
 uintptr_t mem_phys_perm_alloc_specific_nolock(size_t size, numa_id_t id) {
 	// Iterate permanent rages belonging to the node
-	const struct numa_node *neighbour = numa_query_data_no_borrow(id);
-	for (struct mem_range *range = neighbour->permanent_ranges; range != NULL;
+	const struct numa_node *node = numa_query_data_no_borrow(id);
+	for (struct mem_range *range = node->permanent_ranges; range != NULL;
 	     range = range->next_range) {
 		// Try to allocate from range slub allocator
 		uintptr_t result = mem_phys_slub_alloc(&range->slub, size);
@@ -62,34 +62,15 @@ uintptr_t mem_phys_perm_alloc_specific_nolock(size_t size, numa_id_t id) {
 }
 
 //! @brief Allocate permanent physical memory in the specific NUMA node
-//! lock
 //! @param size Size of the memory area to be allocated
 //! @param id Numa node in which memory should be allocated
 //! @return Physical address of the allocated area, PHYS_NULL otherwise
 uintptr_t mem_phys_perm_alloc_specific(size_t size, numa_id_t id) {
-	const bool int_state = numa_acquire();
+	struct numa_node *node = numa_query_data_no_borrow(id);
+	const bool int_state = thread_spinlock_lock(&node->lock);
 	uintptr_t result = mem_phys_perm_alloc_specific_nolock(size, id);
-	numa_release(int_state);
+	thread_spinlock_unlock(&node->lock, int_state);
 	return result;
-}
-
-//! @brief Allocate permanent physical memory on behalf of the given NUMA node wihtout taking NUMA
-//! lock
-//! @param size Size of the memory area to be allocated
-//! @param id Numa node on behalf of which memory will be allocated
-//! @return Physical address of the allocated area, PHYS_NULL otherwise
-uintptr_t mem_phys_perm_alloc_on_behalf_nolock(size_t size, numa_id_t id) {
-	// Get NUMA node data
-	const struct numa_node *data = numa_query_data_no_borrow(id);
-	// Iterate over all permanent neighbours
-	for (size_t i = 0; i < data->permanent_used_entries; ++i) {
-		const numa_id_t neighbour_id = data->permanent_neighbours[i];
-		uintptr_t result = mem_phys_perm_alloc_specific_nolock(size, neighbour_id);
-		if (result != PHYS_NULL) {
-			return result;
-		}
-	}
-	return PHYS_NULL;
 }
 
 //! @brief Allocate permanent physical memory on behalf of the given NUMA node
@@ -97,29 +78,33 @@ uintptr_t mem_phys_perm_alloc_on_behalf_nolock(size_t size, numa_id_t id) {
 //! @param id Numa node on behalf of which memory will be allocated
 //! @return Physical address of the allocated area, PHYS_NULL otherwise
 uintptr_t mem_phys_perm_alloc_on_behalf(size_t size, numa_id_t id) {
-	const bool int_state = numa_acquire();
-	const uintptr_t result = mem_phys_perm_alloc_on_behalf_nolock(size, id);
-	numa_release(int_state);
-	return result;
-}
-
-//! @brief Free permanent physical memory without taking NUMA lock
-//! @param addr Address returned from mem_phys_perm_alloc_on_behalf
-void mem_phys_perm_free_nolock(uintptr_t addr) {
-	// Get allocation data
-	struct mem_phys_object_data *obj = mem_phys_objects_info + (addr / PAGE_SIZE);
-	// Free memory back to the memory region
-	mem_phys_slub_free(&obj->range->slub, addr, obj->size);
-	// Drop reference to the memory region
-	REF_DROP(obj->range);
+	// Get NUMA node data
+	const struct numa_node *data = numa_query_data_no_borrow(id);
+	// Iterate over all permanent neighbours
+	for (size_t i = 0; i < data->permanent_used_entries; ++i) {
+		const numa_id_t neighbour_id = data->permanent_neighbours[i];
+		uintptr_t result = mem_phys_perm_alloc_specific(size, neighbour_id);
+		if (result != PHYS_NULL) {
+			return result;
+		}
+	}
+	return PHYS_NULL;
 }
 
 //! @brief Free permanent physical memory
 //! @param addr Address returned from mem_phys_perm_alloc_on_behalf
 void mem_phys_perm_free(uintptr_t addr) {
-	const bool int_state = numa_acquire();
-	mem_phys_perm_free_nolock(addr);
-	numa_release(int_state);
+	// Get allocation data
+	struct mem_phys_object_data *obj = mem_phys_objects_info + (addr / PAGE_SIZE);
+	// Lock owning NUMA node
+	struct numa_node *data = numa_query_data_no_borrow(obj->node_id);
+	const bool int_state = thread_spinlock_lock(&data->lock);
+	// Free memory back to the memory region
+	mem_phys_slub_free(&obj->range->slub, addr, obj->size);
+	// Unlock NUMA node
+	thread_spinlock_unlock(&data->lock, int_state);
+	// Drop reference to the memory region
+	REF_DROP(obj->range);
 }
 
 //! @brief Get access to physical regions's data

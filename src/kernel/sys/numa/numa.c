@@ -132,6 +132,7 @@ static void numa_init(void) {
 			node->hotpluggable_ranges = NULL;
 			node->permanent_ranges = NULL;
 			node->slub_data = MEM_HEAP_SLUB_DATA_INIT;
+			node->lock = THREAD_SPINLOCK_INIT;
 			if (node == NULL) {
 				PANIC("Bootstrap NUMA node allocation failed");
 			}
@@ -155,7 +156,6 @@ static void numa_init(void) {
 
 //! @brief Query NUMA node data by ID without borrowing reference
 //! @return Borrowed RC reference to the numa data
-//! @note Use only at boot
 struct numa_node *numa_query_data_no_borrow(numa_id_t data) {
 	if (numa_table.handles[data] != NULL) {
 		return (struct numa_node *)numa_table.handles[data];

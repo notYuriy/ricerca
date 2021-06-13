@@ -16,7 +16,9 @@ struct thread_spinlock {
 
 //! @brief Spinlock initialization value. Can be assigned to a spinlock variable to initialize it
 #define THREAD_SPINLOCK_INIT                                                                       \
-	{ 0, 0 }
+	(struct thread_spinlock) {                                                                     \
+		0, 0                                                                                       \
+	}
 
 //! @brief Lock spinlock
 //! @param spinlock Pointer to the spinlock

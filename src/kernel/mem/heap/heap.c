@@ -145,37 +145,38 @@ void *mem_heap_alloc(size_t size) {
 		return (void *)(mem_wb_phys_win_base + res);
 	}
 	// Allocate using slubs. Its a bit more intricate here
-	// 1. Acquire NUMA lock
-	const bool int_state = numa_acquire();
-	// 2. Get NUMA node data
+	// 1. Get NUMA node data
 	struct numa_node *data = numa_query_data_no_borrow(id);
-	// 3. Iterate ove all permanent neighbours
+	// 2. Iterate ove all permanent neighbours
 	for (size_t i = 0; i < data->permanent_used_entries; ++i) {
 		const numa_id_t neighbour_id = data->permanent_neighbours[i];
 		struct numa_node *neighbour = numa_query_data_no_borrow(neighbour_id);
-		// 4. Check if corresponding free list has anything for us
+		// 3. Take node lock
+		const bool int_state = thread_spinlock_lock(&neighbour->lock);
+		// 3. Check if corresponding free list has anything for us
 		if (neighbour->slub_data.free_lists[order] != NULL) {
 			// Cool, let's give that as a result
 			struct mem_heap_obj *obj = neighbour->slub_data.free_lists[order];
 			neighbour->slub_data.free_lists[order] = obj->next;
-			numa_release(int_state);
+			thread_spinlock_unlock(&neighbour->lock, int_state);
 			return (void *)obj;
 		}
-		// 5. Okey, time to make a new slub
+		// 4. Okey, time to make a new slub
 		if (neighbour->slub_data.slubs != NULL) {
 			// There are some empty slubs, just use them
 			mem_heap_add_slub(neighbour, order);
 			struct mem_heap_obj *obj = mem_allocate_from_slub(neighbour, order);
-			numa_release(int_state);
+			thread_spinlock_unlock(&neighbour->lock, int_state);
 			return (void *)obj;
 		}
 		// 5. Alright, let's allocate a new chunk
 		if (!mem_allocate_new_slubs_chunk(neighbour)) {
+			thread_spinlock_unlock(&neighbour->lock, int_state);
 			continue;
 		}
 		mem_heap_add_slub(neighbour, order);
 		struct mem_heap_obj *obj = mem_allocate_from_slub(neighbour, order);
-		numa_release(int_state);
+		thread_spinlock_unlock(&neighbour->lock, int_state);
 		return (void *)obj;
 	}
 	return NULL;
@@ -191,20 +192,20 @@ void mem_heap_free(void *mem, size_t size) {
 		mem_phys_perm_free((uintptr_t)mem - mem_wb_phys_win_base);
 		return;
 	}
-	// 1. Acquire NUMA lock
-	const bool int_state = numa_acquire();
-	// 2. Get pointer to slub header
+	// 1. Get pointer to slub header
 	uintptr_t slub_hdr_addr = align_down((uintptr_t)mem, MEM_HEAP_SLUB_SIZE);
 	struct mem_heap_slub_hdr *hdr = (struct mem_heap_slub_hdr *)slub_hdr_addr;
-	// 3. Get owning NUMA node data
+	// 2. Get owning NUMA node data
 	numa_id_t owner_id = hdr->owner;
 	struct numa_node *data = numa_query_data_no_borrow(owner_id);
+	// 3. Acquire node's lock
+	const bool int_state = thread_spinlock_lock(&data->lock);
 	// 4. Enqueue node
 	struct mem_heap_obj *obj = (struct mem_heap_obj *)mem;
 	obj->next = data->slub_data.free_lists[order];
 	data->slub_data.free_lists[order] = obj;
 	// 5. Free NUMA lock
-	numa_release(int_state);
+	thread_spinlock_unlock(&data->lock, int_state);
 }
 
 //! @brief Reallocate memory to a new region with new size
@@ -222,6 +223,7 @@ void *mem_heap_realloc(void *mem, size_t newsize, size_t oldsize) {
 		mem_heap_free(mem, oldsize);
 	}
 	// If orders match, we can just reuse mem. If not, reallocate to a new region
+	// NOTE: We assume here that PMM also allocates orders of 2
 	size_t oldorder = mem_heap_get_size_order(oldsize, 64);
 	size_t neworder = mem_heap_get_size_order(newsize, 64);
 	if (oldorder == neworder) {
