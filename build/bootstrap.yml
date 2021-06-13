@@ -20,6 +20,12 @@ sources:
     tag: "v2.16-binary"
     subdir: build-tools
 
+  - name: lai
+    git: "https://github.com/managarm/lai"
+    branch: "master"
+    commit: a8d130357175df4515fb24ba3f114b4a66033790
+    subdir: libraries
+
   - name: kernel
     subdir: ../src
 
@@ -101,6 +107,8 @@ packages:
       - gcc
     pkgs_required:
       - system-files
+    sources_required:
+      - lai
     build:
       - args: ["mkdir", "-p", "@THIS_COLLECT_DIR@/boot"]
       - args:
@@ -108,6 +116,7 @@ packages:
           - "-j@PARALLELISM@"
           - "release"
           - "DESTDIR=@THIS_COLLECT_DIR@/boot"
+          - "LAIPATH=@SOURCE_ROOT@/libraries/lai"
           - "CC=x86_64-elf-gcc"
         workdir: "@THIS_SOURCE_DIR@"
 
@@ -117,6 +126,8 @@ packages:
       - gcc
     pkgs_required:
       - system-files
+    sources_required:
+      - lai
     build:
       - args: ["mkdir", "-p", "@THIS_COLLECT_DIR@/boot"]
       - args:
@@ -124,6 +135,7 @@ packages:
           - "-j@PARALLELISM@"
           - "debug"
           - "DESTDIR=@THIS_COLLECT_DIR@/boot"
+          - "LAIPATH=@SOURCE_ROOT@/libraries/lai"
           - "CC=x86_64-elf-gcc"
         workdir: "@THIS_SOURCE_DIR@"
 

@@ -276,6 +276,21 @@ static struct acpi_sdt_header *acpi_find_in_xsdt(struct acpi_xsdt *xsdt, const c
 //! @param name Name of the table
 //! @param index of the table
 struct acpi_sdt_header *acpi_find_table(const char *name, size_t index) {
+	// Handle a few special cases
+	if (memcmp(name, "DSDT", 4) == 0) {
+		// Find FADT
+		struct acpi_fadt *fadt = (struct acpi_fadt *)acpi_find_table("FACP", index);
+		if (fadt == NULL) {
+			return NULL;
+		}
+		if (fadt->dsdt_ex != 0) {
+			return (struct acpi_sdt_header *)(mem_wb_phys_win_base + fadt->dsdt_ex);
+		}
+		if (fadt->dsdt != 0) {
+			return (struct acpi_sdt_header *)(mem_wb_phys_win_base + fadt->dsdt);
+		}
+		return NULL;
+	}
 	if (acpi_boot_xsdt == NULL) {
 		// Assert RSDT presence
 		ASSERT(acpi_boot_rsdt != NULL, "Attempt to query tables in non-acpi mode");
@@ -319,6 +334,9 @@ size_t acpi_query_phys_space_size(void) {
 	return result;
 }
 
+//! @brief True if ACPI is enabled
+bool acpi_enabled = false;
+
 //! @brief Early ACPI subsystem init
 static void acpi_init(void) {
 	struct stivale2_struct_tag_rsdp *rsdp_tag = init_rsdp_tag;
@@ -326,6 +344,8 @@ static void acpi_init(void) {
 		LOG_WARN("Machine does not support ACPI");
 		return;
 	}
+
+	acpi_enabled = true;
 
 	struct acpi_rsdp *rsdp = (struct acpi_rsdp *)rsdp_tag->rsdp;
 	LOG_INFO("RSDP at %p", rsdp);

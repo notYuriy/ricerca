@@ -140,6 +140,79 @@ struct acpi_slit {
 //! @brief Nullable pointer to SLIT. Set by acpi_init if found
 extern struct acpi_slit *acpi_boot_slit;
 
+//! @brief FADT Generic address structure
+struct acpi_fadt_gas {
+	uint8_t address_space;
+	uint8_t bit_width;
+	uint8_t bit_offset;
+	uint8_t access_size;
+	uint64_t address;
+} attribute_packed;
+
+//! @brief FADT table
+struct acpi_fadt {
+	struct acpi_sdt_header hdr;
+	uint32_t firmware_ctl;
+	uint32_t dsdt;
+
+	uint8_t reserved;
+
+	uint8_t preffered_pm_profile;
+	uint16_t sci_interrupt;
+	uint32_t smi_cmd_port;
+	uint8_t acpi_enable;
+	uint8_t acpi_disable;
+	uint8_t s4bios_req;
+	uint8_t pstate_ctrl;
+	uint32_t pm1a_ev_blk;
+	uint32_t pm1b_ev_blk;
+	uint32_t pm1a_ctrl_blk;
+	uint32_t pm1b_ctrl_blk;
+	uint32_t pm2_ctrl_blk;
+	uint32_t pm_timer_blk;
+	uint32_t gpe0_blk;
+	uint32_t gpe1_blk;
+	uint8_t pm1_ev_len;
+	uint8_t pm1_ctrl_len;
+	uint8_t pm2_ctrl_len;
+	uint8_t pm_timer_len;
+	uint8_t gpe0_len;
+	uint8_t gpe1_len;
+	uint8_t gpe1_base;
+	uint8_t cstate_ctrl;
+	uint16_t worst_c2_latency;
+	uint16_t worst_c3_latency;
+	uint16_t flush_size;
+	uint16_t flush_stride;
+	uint8_t duty_offset;
+	uint8_t duty_width;
+	uint8_t day_alarm;
+	uint8_t month_alarm;
+	uint8_t century;
+
+	uint16_t boot_arch_flags;
+
+	uint8_t reserved2;
+	uint32_t flags;
+
+	struct acpi_fadt_gas reset_reg;
+
+	uint8_t reset_value;
+	uint8_t reserved3[3];
+
+	uint64_t firmware_ctl_ex;
+	uint64_t dsdt_ex;
+
+	struct acpi_fadt_gas pm1a_ev_blk_ex;
+	struct acpi_fadt_gas pm1b_ev_blk_ex;
+	struct acpi_fadt_gas pm1a_ctrl_blk_ex;
+	struct acpi_fadt_gas pm1b_ctrl_blk_ex;
+	struct acpi_fadt_gas pm2_ctrl_blk_ex;
+	struct acpi_fadt_gas pm_timer_blk_ex;
+	struct acpi_fadt_gas gpe0_blk_ex;
+	struct acpi_fadt_gas gpe1_blk_ex;
+} attribute_packed;
+
 //! @brief Validate ACPI table checksum
 //! @param table ACPI table
 //! @param len ACPI table length
@@ -175,6 +248,9 @@ uint32_t acpi_get_max_cpus(void);
 //! @param name Name of the table
 //! @param index of the table
 struct acpi_sdt_header *acpi_find_table(const char *name, size_t index);
+
+//! @brief True if ACPI is enablede
+extern bool acpi_enabled;
 
 //! @brief Export ACPI init target
 EXPORT_TARGET(acpi_target);

@@ -30,8 +30,9 @@ LD = $(CC)
 # usually enable it by default, as they generate ASLR compatible
 # executables
 # -nostdlib - do not link with any standard libraries (including libgcc and libc)
+# -I$(LAIPATH)/include - include LAI header files
 C_HARD_FLAGS := -c -mgeneral-regs-only -mno-red-zone -mcmodel=kernel \
-		-ffreestanding -nostdlib -fno-stack-protector -fno-pic
+		-ffreestanding -nostdlib -fno-stack-protector -fno-pic -I$(LAIPATH)/include
 
 # Common C flags, that are not essential for correct
 # compilation, but useful anyways. Value of this variable can be changed from the command line
@@ -95,7 +96,7 @@ DEBUG_PATH = $(DESTDIR)/ricerca-kernel.elf
 ### Source files and object lists ###
 
 # List of all C source files for the kernel
-C_SOURCES = $(shell find . -type f -name '*.c')
+C_SOURCES = $(shell find . -type f -name '*.c') $(shell find $(LAIPATH) -type f -name '*.c')
 
 # List of all Assembly files for the kernel
 AS_SOURCES = $(shell find . -type f -name '*.asm')

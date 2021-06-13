@@ -11,8 +11,7 @@
 #include <mem/heap/heap.h>
 #include <mem/mem.h>
 #include <misc/misc.h>
-#include <sys/cr.h>
-#include <test/tests.h>
+#include <sys/acpi/laihost.h>
 
 MODULE("init")
 
@@ -114,14 +113,11 @@ void kernel_init(struct stivale2_struct *info) {
 	    (struct stivale2_struct_tag_memmap *)stivale2_query(info, STIVALE2_STRUCT_TAG_MEMMAP_ID);
 
 	// Compute init plan to initialize memory management
-	struct target *plan = target_compute_plan(mem_kern_init_target);
+	struct target *plan = target_compute_plan(lai_target);
 
 	// Execute plan
 	target_plan_dump(plan);
 	target_execute_plan(plan);
-
-	// Run heap integrity test
-	test_heap_integrity();
 
 	// Nothing more for now
 	LOG_SUCCESS("Kernel initialization finished!");
