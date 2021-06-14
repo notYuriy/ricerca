@@ -2,6 +2,7 @@
 //! @brief File containing implementations of ACPI timing functions
 
 #include <lai/drivers/timer.h>
+#include <lib/log.h>
 #include <sys/acpi/laihost.h>
 #include <sys/timers/acpi.h>
 #include <sys/timers/timer.h>
@@ -18,7 +19,7 @@ static bool acpi_timer_wait_callback(struct timer *timer, uint32_t ms) {
 
 static void acpi_timer_init() {
 	if (lai_start_pm_timer() != LAI_ERROR_NONE) {
-		LOG_ERROR("ACPI timer unsupported");
+		LOG_ERR("ACPI timer unsupported");
 		return;
 	}
 	acpi_timer.wait_callback = acpi_timer_wait_callback;
