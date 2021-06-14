@@ -10,6 +10,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+        with:
+          fetch_depth: 0
 
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install build-essential python3 fuse rsync qemu-system xorriso
