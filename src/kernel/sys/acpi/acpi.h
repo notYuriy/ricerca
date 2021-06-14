@@ -28,7 +28,8 @@ struct acpi_srat {
 } attribute_packed;
 
 //! @brief SRAT entry type
-enum {
+enum
+{
 	//! @brief SRAT xAPIC entry
 	ACPI_SRAT_XAPIC_ENTRY = 0,
 	//! @brief SRAT x2APIC entry
@@ -89,7 +90,8 @@ struct acpi_madt {
 	uint32_t pic_installed;
 } attribute_packed;
 
-enum {
+enum
+{
 	//! @brief MADT Processor xAPIC entry type
 	ACPI_MADT_XAPIC_ENTRY = 0,
 	//! @brief MADT Processor x2APIC entry type
@@ -223,7 +225,8 @@ bool acpi_validate_checksum(void *table, size_t len);
 size_t acpi_query_phys_space_size(void);
 
 //! @brief MADT lapic entry property
-enum acpi_madt_lapic_entry_prop {
+enum acpi_madt_lapic_entry_prop
+{
 	// Local ID
 	ACPI_MADT_LAPIC_PROP_LOGICAL_ID = 0,
 	// ACPI ID
@@ -250,7 +253,8 @@ uint32_t acpi_get_max_cpus(void);
 struct acpi_sdt_header *acpi_find_table(const char *name, size_t index);
 
 //! @brief ACPI platform state
-extern enum acpi_state {
+extern enum acpi_state
+{
 	//! @brief No  ACPI
 	ACPI_NO_ACPI = 0,
 	//! @brief ACPI rev 1

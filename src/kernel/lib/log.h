@@ -6,7 +6,8 @@
 #include <misc/types.h>
 
 //! @brief Log type
-enum log_type {
+enum log_type
+{
 	//! @brief Generic log
 	LOG_TYPE_INFO,
 	//! @brief Success

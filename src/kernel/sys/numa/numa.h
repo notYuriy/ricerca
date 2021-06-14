@@ -14,7 +14,8 @@ typedef uint8_t numa_id_t;
 //! @brief Type of NUMA distance between two nodes
 typedef uint8_t numa_distance_t;
 
-enum {
+enum
+{
 	//! @brief Max NUMA nodes count.
 	NUMA_MAX_NODES = 256
 };

@@ -13,7 +13,8 @@ MODULE("sys/acpi")
 TARGET(acpi_target, acpi_init, {mem_misc_collect_info_target})
 
 //! @brief ACPI RSDP revisions
-enum {
+enum
+{
 	//! @brief First ACPI RSDP revision with pointer to RSDT
 	ACPI_RSDP_REV1 = 0,
 	//! @brief Second ACPI RSDP revision with pointer to XSDT

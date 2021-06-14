@@ -14,7 +14,8 @@ MODULE("sys/ic");
 TARGET(ic_bsp_target, ic_bsp_init, {pic_remap_target, mem_misc_collect_info_target})
 
 //! @brief Interrupt controller state
-static enum {
+static enum
+{
 	IC_X2APIC_USED,
 	IC_XAPIC_USED,
 	IC_PIC_USED,
@@ -30,7 +31,8 @@ static const uint32_t LAPIC_IA32_APIC_BASE = 0x000000001b;
 static const uint8_t lapic_spur_irq = 127;
 
 //! @brief xAPIC registers
-enum {
+enum
+{
 	//! @brief Spurious interrupt vector register
 	LAPIC_XAPIC_SPUR_REG = 0x3c,
 	//! @brief Local LAPIC id register
@@ -38,7 +40,8 @@ enum {
 };
 
 //! @brief x2APIC MSRs
-enum {
+enum
+{
 	//! @brief Spurious interrupt vector MSR
 	LAPIC_X2APIC_SPUR_REG = 0x80f,
 	//! @brief Local LAPIC id register
