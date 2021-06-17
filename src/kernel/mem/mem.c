@@ -3,6 +3,7 @@
 
 #include <init/init.h>
 #include <lib/log.h>
+#include <mem/bootstrap.h>
 #include <mem/heap/heap.h>
 #include <mem/mem.h>
 #include <mem/misc.h>
@@ -12,25 +13,17 @@
 #include <sys/numa/numa.h>
 
 MODULE("mem");
-TARGET(mem_add_numa_ranges_target, mem_add_numa_ranges, {numa_target, acpi_numa_target})
-TARGET(mem_all_target, META_DUMMY, {mem_phys_target, mem_heap_target})
+TARGET(mem_add_numa_ranges_available, mem_add_numa_ranges,
+       {numa_available, acpi_numa_available, mem_bootstrap_alloc_available})
+TARGET(mem_all_available, META_DUMMY, {mem_phys_available, mem_heap_available})
 META_DEFINE_DUMMY()
 
-//! @brief Backing array for static mem_range pool
-static struct mem_range mem_range_backer[MEM_MAX_RANGES_STATIC];
-
-//! @brief Static mem_range pool
-static struct mem_rc_static_pool mem_ranges_pool =
-    STATIC_POOL_INIT(struct mem_range, mem_range_backer);
-
-//! @brief Initialize NUMA nodes with memory ranges
-//! @param memmap Stivale2 memory map tag
-static void mem_add_numa_ranges(void) {
-	if (init_memmap_tag == NULL) {
-		LOG_PANIC("No memory map");
-	}
+//! @brief Estimate maximum number of memory region entries
+//! @note This function does a pivot parsing pass that effectively duplicates that in
+//! mem_add_numa_ranges
+static size_t mem_estimate_boot_ranges_upper_bound(void) {
+	size_t result = 0;
 	struct stivale2_struct_tag_memmap *memmap = init_memmap_tag;
-	LOG_INFO("Number of memory map entries: %U", memmap->entries);
 	// Enumerate all usable memory map entries
 	for (size_t i = 0; i < memmap->entries; ++i) {
 		if (memmap->memmap[i].type != STIVALE2_MMAP_USABLE) {
@@ -38,12 +31,44 @@ static void mem_add_numa_ranges(void) {
 		}
 		uintptr_t start = memmap->memmap[i].base;
 		const uintptr_t end = start + memmap->memmap[i].length;
-		// Ignore low memory
-		if (end <= PHYS_LOW) {
+		struct acpi_numa_phys_range_iter iter = ACPI_NUMA_PHYS_RANGE_ITER_INIT(start, end);
+		struct acpi_numa_memory_range buf;
+		// Iterate all subregions of this memory range
+		while (acpi_numa_get_memory_range(&iter, &buf)) {
+			result++;
+		}
+	}
+	return result;
+}
+
+//! @brief Initialize NUMA nodes with memory ranges
+//! @param memmap Stivale2 memory map tag
+static void mem_add_numa_ranges(void) {
+	if (init_memmap_tag == NULL) {
+		LOG_PANIC("No memory map");
+	}
+	// Allocate memory pool for boot memory ranges
+	size_t entries = mem_estimate_boot_ranges_upper_bound();
+	size_t size = sizeof(struct mem_range) * entries;
+	struct mem_range *backer = mem_bootstrap_alloc(size);
+	struct mem_rc_static_pool *pool = mem_bootstrap_alloc(sizeof(struct mem_rc_static_pool));
+	*pool = MEM_RC_STATIC_POOL_POINTER_INIT(struct mem_range, backer, entries);
+	// Terminate bootstrap allocator and get border of bootstrap allocated memory
+	uintptr_t border = mem_bootstrap_terminate_allocator();
+	// Enumerate all usable memory map entries
+	struct stivale2_struct_tag_memmap *memmap = init_memmap_tag;
+	LOG_INFO("Number of memory map entries: %U", memmap->entries);
+	for (size_t i = 0; i < memmap->entries; ++i) {
+		if (memmap->memmap[i].type != STIVALE2_MMAP_USABLE) {
 			continue;
 		}
-		if (start < PHYS_LOW) {
-			start = end;
+		uintptr_t start = memmap->memmap[i].base;
+		const uintptr_t end = start + memmap->memmap[i].length;
+		if (end <= border) {
+			continue;
+		}
+		if (start < border) {
+			start = border;
 		}
 		struct acpi_numa_phys_range_iter iter = ACPI_NUMA_PHYS_RANGE_ITER_INIT(start, end);
 		struct acpi_numa_memory_range buf;
@@ -52,7 +77,7 @@ static void mem_add_numa_ranges(void) {
 			LOG_INFO("Usable memory range %p - %p belongs to domain %u", buf.start, buf.end,
 			         (uint32_t)buf.node_id);
 			// Allocate memory range object for this physical region
-			struct mem_range *range = STATIC_POOL_ALLOC(&mem_ranges_pool, struct mem_range);
+			struct mem_range *range = MEM_RC_STATIC_POOL_ALLOC(pool, struct mem_range);
 			if (range == NULL) {
 				LOG_PANIC("Failed to statically allocate memory range object");
 			}
@@ -78,5 +103,4 @@ static void mem_add_numa_ranges(void) {
 			}
 		}
 	}
-	LOG_SUCCESS("Initialization finished!");
 }

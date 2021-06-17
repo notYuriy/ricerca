@@ -8,7 +8,7 @@
 #include <sys/timers/timer.h>
 
 MODULE("sys/timer/acpi")
-TARGET(acpi_timer_detection_target, acpi_timer_init, {lai_target})
+TARGET(acpi_timer_available, acpi_timer_init, {lai_available})
 
 static struct timer acpi_timer;
 

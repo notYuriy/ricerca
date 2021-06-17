@@ -7,7 +7,7 @@
 #include <sys/timers/timer.h>
 
 MODULE("sys/timer")
-TARGET(timers_target, META_DUMMY, {acpi_timer_detection_target})
+TARGET(timers_available, META_DUMMY, {acpi_timer_available})
 META_DEFINE_DUMMY()
 
 //! @brief Singly linked list of timers
@@ -30,7 +30,7 @@ void timer_register(struct timer *timer) {
 
 //! @brief Wait for a given number of milliseconds
 //! @param ms Number of milliseconds
-void timer_wait_ms(uint32_t ms) {
+void timer_busy_wait_ms(uint32_t ms) {
 	struct timer *current = &timer_list_head;
 	while (current->next != NULL) {
 		if (current->next->wait_callback(current->next, ms)) {

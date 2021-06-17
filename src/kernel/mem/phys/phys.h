@@ -50,4 +50,4 @@ void mem_phys_perm_free(uintptr_t addr);
 struct mem_phys_object_data *mem_phys_get_data(uintptr_t addr);
 
 //! @brief Export PMM initializaton target
-EXPORT_TARGET(mem_phys_target)
+EXPORT_TARGET(mem_phys_available)

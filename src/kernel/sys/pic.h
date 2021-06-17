@@ -6,4 +6,4 @@
 #include <lib/target.h>
 
 //! @brief Export PIC remap target
-EXPORT_TARGET(pic_remap_target)
+EXPORT_TARGET(pic_remap_available)

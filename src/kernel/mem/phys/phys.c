@@ -13,9 +13,9 @@
 #include <sys/numa/numa.h>
 
 MODULE("mem/phys")
-TARGET(mem_phys_target, mem_phys_init,
-       {mem_add_numa_ranges_target, numa_target, mem_misc_collect_info_target,
-        mem_phys_space_size_target})
+TARGET(mem_phys_available, mem_phys_init,
+       {mem_add_numa_ranges_available, numa_available, mem_misc_collect_info_available,
+        mem_phys_space_size_available})
 
 //! @brief Pointer to array of mem_phys_object_data structures.
 //! @note Used to store information about allocated physical objects
@@ -35,7 +35,7 @@ static void mem_phys_store_info(uintptr_t addr, size_t size, struct mem_range *r
 	// Get allocation object
 	struct mem_phys_object_data *obj = mem_phys_objects_info + (addr / PAGE_SIZE);
 	// Store reference to the memory pool in it
-	obj->range = REF_BORROW(range);
+	obj->range = MEM_REF_BORROW(range);
 	obj->size = size;
 	obj->node_id = id;
 }
@@ -104,7 +104,7 @@ void mem_phys_perm_free(uintptr_t addr) {
 	// Unlock NUMA node
 	thread_spinlock_unlock(&data->lock, int_state);
 	// Drop reference to the memory region
-	REF_DROP(obj->range);
+	MEM_REF_DROP(obj->range);
 }
 
 //! @brief Get access to physical regions's data

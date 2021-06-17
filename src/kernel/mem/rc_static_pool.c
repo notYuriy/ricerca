@@ -30,7 +30,7 @@ struct mem_rc *mem_rc_static_pool_alloc(struct mem_rc_static_pool *pool) {
 	if (pool->free_list != NULL) {
 		struct mem_rc_static_pool_free_node *node = pool->free_list;
 		pool->free_list = node->next;
-		REF_INIT(node, mem_rc_static_pool_dispose, pool);
+		MEM_REF_INIT(node, mem_rc_static_pool_dispose, pool);
 		return (struct mem_rc *)node;
 	} else {
 		if (pool->brk_addr == pool->max_addr) {
@@ -38,7 +38,7 @@ struct mem_rc *mem_rc_static_pool_alloc(struct mem_rc_static_pool *pool) {
 		}
 		struct mem_rc *res = (struct mem_rc *)pool->brk_addr;
 		pool->brk_addr += pool->size;
-		REF_INIT(res, mem_rc_static_pool_dispose, pool);
+		MEM_REF_INIT(res, mem_rc_static_pool_dispose, pool);
 		return res;
 	}
 }

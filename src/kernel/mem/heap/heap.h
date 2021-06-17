@@ -26,4 +26,4 @@ void mem_heap_free(void *mem, size_t size);
 void *mem_heap_realloc(void *mem, size_t newsize, size_t oldsize);
 
 //! @brief Target to initialize kernel heap
-EXPORT_TARGET(mem_heap_target)
+EXPORT_TARGET(mem_heap_available)

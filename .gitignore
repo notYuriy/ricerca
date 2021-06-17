@@ -1,6 +1,7 @@
 **/*.o
 **/*.elf
 **/*.hdd
+**/*.bin
 build/build-tools/**
 build/packages/**
 build/pkg-builds/**

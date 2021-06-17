@@ -4,6 +4,7 @@
 #include <lib/log.h>
 #include <lib/panic.h>
 #include <lib/static_handle_table.h>
+#include <mem/bootstrap.h>
 #include <mem/rc.h>
 #include <mem/rc_static_pool.h>
 #include <sys/acpi/numa.h>
@@ -11,14 +12,7 @@
 #include <thread/spinlock.h>
 
 MODULE("sys/numa")
-TARGET(numa_target, numa_init, {acpi_numa_target})
-
-//! @brief Backing memory for NUMA nodes static memory pool
-static struct numa_node numa_node_pool_backer[NUMA_MAX_NODES];
-
-//! @brief NUMA nodes static RC pool
-struct mem_rc_static_pool numa_node_pool =
-    STATIC_POOL_INIT(struct numa_node, numa_node_pool_backer);
+TARGET(numa_available, numa_init, {acpi_numa_available, mem_bootstrap_alloc_available})
 
 //! @brief Backing memory for NUMA nodes handle tables
 static struct mem_rc *numa_table_backer[NUMA_MAX_NODES] = {NULL};
@@ -111,8 +105,9 @@ static void numa_init(void) {
 	while (acpi_numa_enumerate_at_boot(&buf)) {
 		if (numa_table.handles[buf] == NULL) {
 			LOG_INFO("Allocating NUMA node %u", (uint32_t)buf);
-			// Allocate node from the static pool
-			struct numa_node *node = STATIC_POOL_ALLOC(&numa_node_pool, struct numa_node);
+			// Allocate node object from bootstrap allocator
+			struct numa_node *node = MEM_BOOTSTRAP_OBJ_ALLOC(struct numa_node);
+
 			// Add node to the list of active nodes
 			node->next = NULL;
 			node->next_permanent = NULL;
@@ -151,7 +146,6 @@ static void numa_init(void) {
 		iter = iter->next;
 	}
 	numa_dump_nodes();
-	LOG_SUCCESS("Initialization finished!");
 }
 
 //! @brief Query NUMA node data by ID without borrowing reference

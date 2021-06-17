@@ -26,14 +26,22 @@ struct mem_rc_static_pool {
 //! @return RC reference to the allocated object
 struct mem_rc *mem_rc_static_pool_alloc(struct mem_rc_static_pool *pool);
 
+//! @brief Initialize static RC pool from a pointer to the backing array
+//! @param T Type to be stored in the pool
+//! @param pointer Pointer to the backing array
+//! @param length Length of the backing array (in sizeof(T)s)
+#define MEM_RC_STATIC_POOL_POINTER_INIT(T, pointer, length)                                        \
+	(struct mem_rc_static_pool) {                                                                  \
+		(uintptr_t) pointer, ((uintptr_t)pointer + length * sizeof(T)), sizeof(T), NULL            \
+	}
+
 //! @brief Declare static pool for the type
 //! @param T Type to be stored in the pool
-//! @param pool Pointer to the pool to be initialzied
 //! @param array Array of T
 //! @note Type should be refcounted
-#define STATIC_POOL_INIT(T, array)                                                                 \
-	{ (uintptr_t) array, ((uintptr_t)array + ARRAY_SIZE(array) * sizeof(T)), sizeof(T), NULL }
+#define MEM_RC_STATIC_POOL_INIT(T, array)                                                          \
+	MEM_RC_STATIC_POOL_POINTER_INIT(T, array, ARRAY_SIZE(array))
 
 //! @brief Allocate type from the static pool configured for that type
 //! @note Type should be refcounted
-#define STATIC_POOL_ALLOC(pool, T) (T *)mem_rc_static_pool_alloc(pool)
+#define MEM_RC_STATIC_POOL_ALLOC(pool, T) (T *)mem_rc_static_pool_alloc(pool)

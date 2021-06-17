@@ -25,8 +25,8 @@
 // TODO: maybe its a good idea to reclaim memory for slubs? We have slub headers anyway
 
 MODULE("mem/heap")
-TARGET(mem_heap_target, META_DUMMY,
-       {mem_phys_target, mem_misc_collect_info_target, thread_smp_locals_target})
+TARGET(mem_heap_available, META_DUMMY,
+       {mem_phys_available, mem_misc_collect_info_available, thread_smp_locals_available})
 META_DEFINE_DUMMY()
 
 //! @brief Slub size

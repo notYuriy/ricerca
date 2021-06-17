@@ -62,4 +62,4 @@ bool acpi_numa_get_memory_range(struct acpi_numa_phys_range_iter *iter,
 numa_id_t acpi_numa_apic2numa_id(uint32_t apic_id);
 
 //! @brief Export ACPI NUMA wrappers init target
-EXPORT_TARGET(acpi_numa_target)
+EXPORT_TARGET(acpi_numa_available)

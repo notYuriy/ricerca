@@ -3,4 +3,4 @@
 
 #include <lib/target.h>
 
-EXPORT_TARGET(acpi_timer_detection_target)
+EXPORT_TARGET(acpi_timer_available)

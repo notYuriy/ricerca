@@ -53,17 +53,17 @@ static inline void mem_rc_init(struct mem_rc *obj, mem_rc_dispose_t callback, vo
 //! @brief Borrow refcounted reference to the object
 //! @param x Reference to the object
 //! @note Requires mem_rc to be right at the start of the pointed object
-#define REF_BORROW(x) ((__typeof__(x))mem_rc_borrow((struct mem_rc *)x))
+#define MEM_REF_BORROW(x) ((__typeof__(x))mem_rc_borrow((struct mem_rc *)x))
 
 //! @brief Drop reference to the object
 //! @param x Reference to the object
 //! @note Requires mem_rc to be right at the start of the pointed object
-#define REF_DROP(x) mem_rc_drop((struct mem_rc *)x)
+#define MEM_REF_DROP(x) mem_rc_drop((struct mem_rc *)x)
 
 //! @brief Initialize refcounted object
 //! @param x Pointer to the object
 //! @param callback Destructor callback. null if no deallocation is needed
 //! @param opaque OPaque pointer passed to destructor
 //! @note Requires mem_rc to be right at the start of the pointed object
-#define REF_INIT(x, callback, opaque)                                                              \
+#define MEM_REF_INIT(x, callback, opaque)                                                          \
 	mem_rc_init((struct mem_rc *)x, (mem_rc_dispose_t)callback, opaque)

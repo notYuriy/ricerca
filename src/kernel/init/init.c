@@ -11,7 +11,7 @@
 #include <mem/heap/heap.h>
 #include <mem/mem.h>
 #include <misc/misc.h>
-#include <sys/timers/timer.h>
+#include <thread/smp/boot_bringup.h>
 
 MODULE("init")
 
@@ -112,16 +112,12 @@ void kernel_init(struct stivale2_struct *info) {
 	init_memmap_tag =
 	    (struct stivale2_struct_tag_memmap *)stivale2_query(info, STIVALE2_STRUCT_TAG_MEMMAP_ID);
 
-	// Compute init plan to initialize timers
-	struct target *plan = target_compute_plan(timers_target);
+	// Compute init plan to bootup APs
+	struct target *plan = target_compute_plan(thread_smp_ap_boot_bringup_available);
 
 	// Execute plan
 	target_plan_dump(plan);
 	target_execute_plan(plan);
-
-	LOG_INFO("This should sleep for exactly one second");
-	timer_wait_ms(1000);
-	LOG_INFO("Here I am, one second after!");
 
 	// Nothing more for now
 	LOG_SUCCESS("Kernel initialization finished!");

@@ -23,7 +23,7 @@ struct mem_range {
 };
 
 //! @brief Export "add memory ranges to NUMA nodes" target
-EXPORT_TARGET(mem_add_numa_ranges_target)
+EXPORT_TARGET(mem_add_numa_ranges_available)
 
 //! @brief Export kernel memory management init target
-EXPORT_TARGET(mem_all_target)
+EXPORT_TARGET(mem_all_available)

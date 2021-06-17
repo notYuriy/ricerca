@@ -82,7 +82,7 @@ LD_DEBUG_FLAGS_ALL := $(LD_DEBUG_FLAGS) $(LDFLAGS) $(LD_HARD_FLAGS)
 LD_SCRIPT = link.ld
 
 # Assembly flags (same for debug and release)
-ASFLAGS := -f elf64
+AS_FLAGS := -f elf64
 
 # Destination directory
 DESTDIR = .
@@ -118,6 +118,12 @@ RELEASE_OBJS = $(C_RELEASE_OBJS) $(AS_OBJS)
 
 ### Rules for assembling/compiling files ###
 
+# Rule for assembling SMP trampoline code
+trampoline: thread/smp/trampoline.real
+# Assemble trampoline
+# -f bin - Assemble to binary
+	$(AS) -f bin -o thread/smp/trampoline.bin thread/smp/trampoline.real
+
 # Release C code compilation rule
 # This rule matches all dependencies names that end with .c.release.o.
 # This extension is used by C object files in release mode
@@ -150,7 +156,8 @@ RELEASE_OBJS = $(C_RELEASE_OBJS) $(AS_OBJS)
 # This rule matches all dependencies names that end with .asm.o.
 # This extension is used by ASM object files
 # Extension ".asm.o" is substituted with ".asm" to get source file name
-%.asm.o: %.asm
+# This rule also depends on trampoline code to make sure it gets built first
+%.asm.o: %.asm trampoline
 # Assemble .asm file
 # $(AS_FLAGS) - Flags passed to assembler
 # "$<" - name of the first (and in this case, the only one) dependency. In this case,
@@ -189,6 +196,7 @@ debug: $(DEBUG_OBJS)
 # Object clean rule that deletes all object files, but keeps kernel binaries
 obj_clean:
 	rm -f $(RELEASE_OBJS) $(DEBUG_OBJS)
+	rm -f thread/smp/trampoline.bin
 
 # Clean rule that cleans everything, along with kernel binaries
 clean: obj_clean

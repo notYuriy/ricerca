@@ -72,4 +72,4 @@ void numa_release(bool state);
 struct numa_node *numa_query_data_no_borrow(numa_id_t data);
 
 //! @brief Export ACPI init target
-EXPORT_TARGET(numa_target)
+EXPORT_TARGET(numa_available)

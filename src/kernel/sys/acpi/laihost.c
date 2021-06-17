@@ -11,10 +11,10 @@
 #include <sys/ports.h>
 
 MODULE("sys/acpi/lai")
-TARGET(lai_target, laihost_init,
+TARGET(lai_available, laihost_init,
        {
-           acpi_target,
-           mem_all_target,
+           acpi_available,
+           mem_all_available,
        })
 
 //! @brief Allocate memory

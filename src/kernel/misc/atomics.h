@@ -16,3 +16,8 @@
 //! @brief Atomic acquire load
 //! @param ptr Pointer to the value to be loaded
 #define ATOMIC_ACQUIRE_LOAD(ptr) __atomic_load_n(ptr, __ATOMIC_ACQUIRE)
+
+//! @brief Atomic release store
+//! @param ptr Pointer to the store location
+//! @param val Value to be stored
+#define ATOMIC_RELEASE_STORE(ptr, val) __atomic_store_n(ptr, val, __ATOMIC_RELEASE)

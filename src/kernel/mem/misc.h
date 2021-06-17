@@ -32,8 +32,8 @@ extern size_t mem_phys_space_size;
 //! @brief Export boot memory-related info detection routine
 //! @note Required as a dependency to use mem_wb_phys_win_base
 //! @note Required as a dependency to use mem_5level_paging_enabled
-EXPORT_TARGET(mem_misc_collect_info_target)
+EXPORT_TARGET(mem_misc_collect_info_available)
 
 //! @brief Export phys space size calculation target
 //! @note Required as a dependency to use mem_phys_space_size
-EXPORT_TARGET(mem_phys_space_size_target)
+EXPORT_TARGET(mem_phys_space_size_available)

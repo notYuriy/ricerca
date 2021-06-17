@@ -5,7 +5,7 @@
 #include <sys/pic.h>
 #include <sys/ports.h>
 
-TARGET(pic_remap_target, pic_remap, {})
+TARGET(pic_remap_available, pic_remap, {})
 
 //! @brief Wait for IO completition
 static void iowait(void) {

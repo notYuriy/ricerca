@@ -5,6 +5,7 @@
 
 #include <lib/target.h>
 #include <misc/types.h>
+#include <thread/spinlock.h>
 
 //! @brief Coolness value for ACPI timer
 #define TIMER_ACPI_COOLNESS 1
@@ -26,7 +27,10 @@ void timer_register(struct timer *timer);
 
 //! @brief Wait for a given number of milliseconds
 //! @param ms Number of milliseconds
-void timer_wait_ms(uint32_t ms);
+void timer_busy_wait_ms(uint32_t ms);
+
+//! @brief Timer subsystem lock
+extern struct thread_spinlock lock;
 
 //! @brief Timer initialization target
-EXPORT_TARGET(timers_target)
+EXPORT_TARGET(timers_available)

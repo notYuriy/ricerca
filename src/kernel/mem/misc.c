@@ -10,8 +10,8 @@
 #include <sys/cr.h>
 
 MODULE("mem/misc")
-TARGET(mem_misc_collect_info_target, mem_misc_collect_info, {});
-TARGET(mem_phys_space_size_target, mem_calculate_phys_space_size, {acpi_target});
+TARGET(mem_misc_collect_info_available, mem_misc_collect_info, {});
+TARGET(mem_phys_space_size_available, mem_calculate_phys_space_size, {acpi_available});
 
 //! @brief Writeback physical window base
 uintptr_t mem_wb_phys_win_base;

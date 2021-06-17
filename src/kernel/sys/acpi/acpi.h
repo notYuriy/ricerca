@@ -215,6 +215,15 @@ struct acpi_fadt {
 	struct acpi_fadt_gas gpe1_blk_ex;
 } attribute_packed;
 
+//! @brief DMAR table
+struct acpi_dmar {
+	struct acpi_sdt_header hdr;
+	uint8_t host_addr_width;
+	uint8_t flags;
+	uint8_t reserved[10];
+	uintptr_t remapping_structures;
+} attribute_packed;
+
 //! @brief Validate ACPI table checksum
 //! @param table ACPI table
 //! @param len ACPI table length
@@ -239,13 +248,11 @@ enum acpi_madt_lapic_entry_prop
 //! @param matched Property of MADT lapic entries to match with expected
 //! @param returned Property of MADT lapic entries to return
 //! @param expected Expected value of matched property
+//! @param ignore_disabled Ignore disabled MADT entries
 //! @return Value of returned property
 uint32_t acpi_madt_convert_ids(enum acpi_madt_lapic_entry_prop matched,
-                               enum acpi_madt_lapic_entry_prop returned, uint32_t expected);
-
-//! @brief Calculate max CPUs count
-//! @return Maximum possible number of CPUs
-uint32_t acpi_get_max_cpus(void);
+                               enum acpi_madt_lapic_entry_prop returned, uint32_t expected,
+                               bool ignore_disabled);
 
 //! @brief Search for the specific table
 //! @param name Name of the table
@@ -264,4 +271,4 @@ extern enum acpi_state
 } acpi_platform_state;
 
 //! @brief Export ACPI init target
-EXPORT_TARGET(acpi_target);
+EXPORT_TARGET(acpi_available);

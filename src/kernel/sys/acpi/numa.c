@@ -10,7 +10,7 @@
 #include <sys/ic.h>
 
 MODULE("sys/acpi/numa")
-TARGET(acpi_numa_target, acpi_numa_init, {ic_bsp_target, acpi_target})
+TARGET(acpi_numa_available, acpi_numa_init, {ic_bsp_available, acpi_available})
 
 //! @brief Current SRAT offset
 static uintptr_t acpi_numa_current_srat_offset = 0;
