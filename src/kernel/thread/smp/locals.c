@@ -10,6 +10,7 @@
 #include <sys/acpi/smp.h>
 #include <sys/ic.h>
 #include <sys/msr.h>
+#include <sys/tables/tables.h>
 #include <thread/smp/locals.h>
 
 MODULE("thread/smp/locals")
@@ -52,20 +53,17 @@ struct thread_smp_locals *thread_smp_locals_get_for(uint32_t id) {
 	return thread_smp_locals_array + id;
 }
 
-//! @brief Initialize CPU local storage for a given ACPI ID
+//! @brief Initialize CPU local storage on AP
 //! @note To be used on AP bootup
-void thread_smp_locals_init_on_ap(void) {
-	// Get APIC ID
-	uint32_t apic_id = ic_get_apic_id();
-	// Query logical id
-	uint32_t logical_id = acpi_madt_convert_ids(ACPI_MADT_LAPIC_PROP_APIC_ID,
-	                                            ACPI_MADT_LAPIC_PROP_LOGICAL_ID, apic_id, true);
+//! @note Requires LAPIC to be enabled
+//! @param logical_id Logical ID of the current AP
+void thread_smp_locals_init_on_ap(uint32_t logical_id) {
 	// Get point to CPU local data
 	struct thread_smp_locals *this_cpu_locals = thread_smp_locals_array + logical_id;
-	// Lookup proximity domain
-	this_cpu_locals->numa_id = acpi_numa_apic2numa_id(apic_id);
 	// Set pointer to local storage
 	thread_smp_locals_set_raw((uintptr_t)(this_cpu_locals));
+	// Initialize amd64 tables
+	tables_init();
 }
 
 //! @brief Initialize thread-local storage
@@ -92,12 +90,31 @@ void thread_smp_locals_init(void) {
 	while (acpi_smp_iterate_over_cpus(&iter, &buf)) {
 		ASSERT(buf.logical_id < thread_smp_locals_max_cpus, "CPU logical ID out of range");
 		struct thread_smp_locals *this_cpu_locals = thread_smp_locals_array + buf.logical_id;
+		// Set IDs
 		this_cpu_locals->acpi_id = buf.acpi_id;
 		this_cpu_locals->apic_id = buf.apic_id;
 		this_cpu_locals->logical_id = buf.logical_id;
+		this_cpu_locals->numa_id = acpi_numa_apic2numa_id(this_cpu_locals->apic_id);
+		uintptr_t interrupt_stack = mem_phys_perm_alloc_on_behalf(THREAD_SMP_LOCALS_CPU_STACK_SIZE,
+		                                                          this_cpu_locals->numa_id);
+		uintptr_t scheduler_stack = mem_phys_perm_alloc_on_behalf(THREAD_SMP_LOCALS_CPU_STACK_SIZE,
+		                                                          this_cpu_locals->numa_id);
+		if (interrupt_stack == PHYS_NULL || scheduler_stack == PHYS_NULL) {
+			PANIC("Failed to allocate CPU stacks");
+		}
+		this_cpu_locals->interrupt_stack_top =
+		    mem_wb_phys_win_base + interrupt_stack + THREAD_SMP_LOCALS_CPU_STACK_SIZE;
+		this_cpu_locals->scheduler_stack_top =
+		    mem_wb_phys_win_base + scheduler_stack + THREAD_SMP_LOCALS_CPU_STACK_SIZE;
 		ATOMIC_RELEASE_STORE(&this_cpu_locals->status, THREAD_SMP_LOCALS_STATUS_ASLEEP);
 	}
-	// Let's pretend we are AP for a moment
-	thread_smp_locals_init_on_ap();
+	// Get APIC ID
+	uint32_t apic_id = ic_get_apic_id();
+	// Query logical id
+	uint32_t logical_id = acpi_madt_convert_ids(ACPI_MADT_LAPIC_PROP_APIC_ID,
+	                                            ACPI_MADT_LAPIC_PROP_LOGICAL_ID, apic_id, true);
+	thread_smp_locals_init_on_ap(logical_id);
 	ATOMIC_RELEASE_STORE(&thread_smp_locals_get()->status, THREAD_SMP_LOCALS_STATUS_RUNNING_TASK);
+	// Run amd64 tables init
+	tables_init();
 }

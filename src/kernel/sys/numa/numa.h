@@ -9,10 +9,10 @@
 #include <thread/spinlock.h>
 
 //! @brief Type of NUMA node ID
-typedef uint8_t numa_id_t;
+typedef uint32_t numa_id_t;
 
 //! @brief Type of NUMA distance between two nodes
-typedef uint8_t numa_distance_t;
+typedef uint32_t numa_distance_t;
 
 enum
 {

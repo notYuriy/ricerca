@@ -26,7 +26,7 @@ static enum
 static volatile uint32_t *lapic_xapic;
 
 //! @brief IA32_APIC_BASE register as defined in Intel Software Developer's Manual
-static const uint32_t LAPIC_IA32_APIC_BASE = 0x000000001b;
+static const uint32_t LAPIC_IA32_APIC_BASE = 0x0000001b;
 
 //! @brief Spurious LAPIC irq
 static const uint8_t lapic_spur_irq = 127;
@@ -147,7 +147,7 @@ static void ic_bsp_init(void) {
 		LOG_INFO("x2APIC support detected");
 		ic_state = IC_X2APIC_USED;
 	}
-	const uint64_t lapic_phys_base = rdmsr(LAPIC_IA32_APIC_BASE) & (~0xffffULL);
+	const uint64_t lapic_phys_base = rdmsr(LAPIC_IA32_APIC_BASE) & (~0xfffULL);
 	if (lapic_phys_base >= INIT_PHYS_MAPPING_SIZE && !(ic_state == IC_X2APIC_USED)) {
 		PANIC("LAPIC unreachable until direct phys window set up");
 	}
