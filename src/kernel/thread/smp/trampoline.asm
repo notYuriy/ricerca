@@ -1,9 +1,9 @@
-bits 64
+format ELF64
 
-extern thread_smp_trampoline_code_start
-extern thread_smp_trampoline_code_end
+public thread_smp_trampoline_code_start
+public thread_smp_trampoline_code_end
 
-section .text
+section '.text' executable
 thread_smp_trampoline_code_start:
-    incbin "thread/smp/trampoline.bin"
+    file "thread/smp/trampoline.bin"
 thread_smp_trampoline_code_end:

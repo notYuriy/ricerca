@@ -5,7 +5,7 @@
 CC = gcc
 
 # Assembler used to assemble kernel asm files
-AS = nasm
+AS = fasm
 
 # Linker used to generate kernel binary from object files
 # We use gcc itself for linking
@@ -81,9 +81,6 @@ LD_DEBUG_FLAGS_ALL := $(LD_DEBUG_FLAGS) $(LDFLAGS) $(LD_HARD_FLAGS)
 # Path to linker script
 LD_SCRIPT = link.ld
 
-# Assembly flags (same for debug and release)
-AS_FLAGS := -f elf64
-
 # Destination directory
 DESTDIR = .
 
@@ -122,7 +119,7 @@ RELEASE_OBJS = $(C_RELEASE_OBJS) $(AS_OBJS)
 trampoline: thread/smp/trampoline.real
 # Assemble trampoline
 # -f bin - Assemble to binary
-	$(AS) -f bin -o thread/smp/trampoline.bin thread/smp/trampoline.real
+	$(AS) thread/smp/trampoline.real thread/smp/trampoline.bin
 
 # Release C code compilation rule
 # This rule matches all dependencies names that end with .c.release.o.
@@ -159,12 +156,11 @@ trampoline: thread/smp/trampoline.real
 # This rule also depends on trampoline code to make sure it gets built first
 %.asm.o: %.asm trampoline
 # Assemble .asm file
-# $(AS_FLAGS) - Flags passed to assembler
 # "$<" - name of the first (and in this case, the only one) dependency. In this case,
 # its simply name of the asm file to be assembled
 # "$@" - name of the output of this rule ("%.asm.o"). In this case,
 # its simply name of the object file that we should build in this rule
-	$(AS) $(AS_FLAGS) -o $@ $<
+	$(AS) $< $@
 
 # Object clean rule that can be used to delete 
 

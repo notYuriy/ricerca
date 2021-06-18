@@ -144,20 +144,8 @@ static void ic_bsp_init(void) {
 	ic_state = IC_XAPIC_USED;
 	// Query x2APIC support
 	if ((cpuid1h.ecx & (1 << 21)) != 0) {
-		// See VT-d specification 8.1 DMA Remapping Reporting Structure definition. If bits 0 or 1
-		// in flags set, IOMMU can only be used with xAPIC
-		struct acpi_dmar *dmar = (struct acpi_dmar *)acpi_find_table("DMAR", 0);
-		bool enabled = true;
-		if (dmar != NULL) {
-			enabled = (dmar->flags & 0b11) != 0b11;
-			if (!enabled) {
-				LOG_ERR("x2APIC support blocked due to bits 0 and 1 in DMAR flags being set");
-			}
-		}
-		if (enabled) {
-			LOG_INFO("x2APIC support detected");
-			ic_state = IC_X2APIC_USED;
-		}
+		LOG_INFO("x2APIC support detected");
+		ic_state = IC_X2APIC_USED;
 	}
 	const uint64_t lapic_phys_base = rdmsr(LAPIC_IA32_APIC_BASE) & (~0xffffULL);
 	if (lapic_phys_base >= INIT_PHYS_MAPPING_SIZE && !(ic_state == IC_X2APIC_USED)) {

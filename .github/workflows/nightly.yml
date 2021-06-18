@@ -14,7 +14,7 @@ jobs:
           fetch_depth: 0
 
       - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install build-essential python3 fuse rsync qemu-system xorriso
+        run: sudo apt-get update && sudo apt-get install build-essential python3 rsync qemu-system xorriso fasm
 
       - name: Install xbstrap
         run: pip3 install xbstrap

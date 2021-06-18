@@ -10,7 +10,14 @@ If you don't want to build ricerca, you can download latest images from nightly 
 
 # Building
 
-Install `python3`, `bison`, `flex`, `libgmp3-dev`, `libmpc-dev`, `libmpfr-dev`, `texinfo`, `rsync`, `qemu-system-x86_64`, `xorriso` and `build-essential` packages.
+Install `python3`, `rsync`, `qemu-system`, `xorriso`, `fasm` and `build-essential` packages.
+
+On systems with `apt` installed
+
+```bash
+sudo apt update
+sudo apt install rsync qemu-system xorriso fasm build-essential
+```
 
 Install xbstrap from pip: `pip3 install xbstrap`.
 

@@ -1,8 +1,5 @@
-bits 16
-
-org 0x0000
-
-jmp 0x7100:start16
+org 0h
+use16
 
 start16:
 	xor ax, ax
@@ -11,11 +8,5 @@ start16:
 	mov fs, ax
 	mov gs, ax
 	mov ss, ax
-
-	mov eax, 10100000b
-	mov cr4, eax
- 
-	mov edx, dword [0x7ff8]
-	mov cr3, edx
 
 	jmp $
