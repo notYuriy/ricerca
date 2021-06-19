@@ -2,7 +2,7 @@
 //! @brief Physical memory management
 
 #include <init/stivale2.h>
-#include <mem/phys/slub.h>
+#include <mem/phys/slab.h>
 #include <misc/types.h>
 #include <sys/numa/numa.h>
 

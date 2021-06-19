@@ -89,7 +89,7 @@ static void mem_add_numa_ranges(void) {
 			// Initialize range info
 			range->offlined = false;
 			range->next_range = range->prev_range = NULL;
-			mem_phys_slub_init(&range->slub, buf.start, buf.end - buf.start);
+			mem_phys_slab_init(&range->slab, buf.start, buf.end - buf.start);
 			// Add range to node's hotpluggable/permanent ranges list
 			range->prev_range = NULL;
 			if (buf.hotpluggable) {

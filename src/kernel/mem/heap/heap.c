@@ -4,97 +4,97 @@
 #include <lib/panic.h>
 #include <lib/string.h>
 #include <mem/heap/heap.h>
-#include <mem/heap/slub.h>
+#include <mem/heap/slab.h>
 #include <mem/misc.h>
 #include <mem/phys/phys.h>
 #include <sys/numa/numa.h>
 #include <thread/smp/locals.h>
 
 // Overview
-// 1. Slubs are aligned 64k regions for objects that are smaller that one page size. Each slub has a
-// special area reserved for slub header, that stores owner NUMA id
+// 1. Slabs are aligned 64k regions for objects that are smaller that one page size. Each slab has a
+// special area reserved for slab header, that stores owner NUMA id
 // 2. Since physical memory allocation subsystem does not guarantee alignment above 4k, and heap
-// slubs need 64k alignment (to calculate slub header address), slubs are allocated in a big chunks
-// (64 slubs in a chunk in the best case, 63 in the worst) and padding is then leaked.
+// slabs need 64k alignment (to calculate slab header address), slabs are allocated in a big chunks
+// (64 slabs in a chunk in the best case, 63 in the worst) and padding is then leaked.
 // 3. For each neighbour proximity domain (including self :^) allocator will first try to allocate
-// from slubs, and then it will try to allocate new chunk
+// from slabs, and then it will try to allocate new chunk
 // 4. If there is no good block in free list, allocator will ask PMM for a new chunk. However, new
-// slubs from the chunk are added to the node which PMM picked for allocation, not to the node ID of
+// slabs from the chunk are added to the node which PMM picked for allocation, not to the node ID of
 // which was passed to mem_heap_alloc call
 // 5. For objects larger than 4k, allocator will directly call PMM to satisfy allocation request
-// TODO: maybe its a good idea to reclaim memory for slubs? We have slub headers anyway
+// TODO: maybe its a good idea to reclaim memory for slabs? We have slab headers anyway
 
 MODULE("mem/heap")
 TARGET(mem_heap_available, META_DUMMY,
        {mem_phys_available, mem_misc_collect_info_available, thread_smp_locals_available})
 META_DEFINE_DUMMY()
 
-//! @brief Slub size
-#define MEM_HEAP_SLUB_SIZE 65536
+//! @brief Slab size
+#define MEM_HEAP_SLAB_SIZE 65536
 
-//! @brief Slub chunk size
-#define MEM_HEAP_CHUNK_SIZE (64 * MEM_HEAP_SLUB_SIZE)
+//! @brief Slab chunk size
+#define MEM_HEAP_CHUNK_SIZE (64 * MEM_HEAP_SLAB_SIZE)
 
-//! @brief Free object in the slub
+//! @brief Free object in the slab
 struct mem_heap_obj {
 	//! @brief Next free object
 	struct mem_heap_obj *next;
 };
 
-//! @brief Slub header
-struct mem_heap_slub_hdr {
+//! @brief Slab header
+struct mem_heap_slab_hdr {
 	//! @brief NUMA domain of the owner
 	numa_id_t owner;
-	//! @brief Pointer to the next free slub
-	struct mem_heap_slub_hdr *next_free;
+	//! @brief Pointer to the next free slab
+	struct mem_heap_slab_hdr *next_free;
 };
 
-//! @brief Allocate a new slubs chunk
+//! @brief Allocate a new slabs chunk
 //! @param owner NUMA node in which allocation should be placed
 //! @note NUMA lock should be acquired
-static bool mem_allocate_new_slubs_chunk(struct numa_node *owner) {
+static bool mem_allocate_new_slabs_chunk(struct numa_node *owner) {
 	// Allocate backing memory on the given node
 	uintptr_t backing_physmem =
 	    mem_phys_perm_alloc_specific_nolock(MEM_HEAP_CHUNK_SIZE, owner->node_id);
 	if (backing_physmem == PHYS_NULL) {
 		return false;
 	}
-	// Align begin and end to slub size
-	uintptr_t backing_begin = align_up(backing_physmem, MEM_HEAP_SLUB_SIZE);
-	uintptr_t backing_end = align_down(backing_physmem + MEM_HEAP_CHUNK_SIZE, MEM_HEAP_SLUB_SIZE);
-	// Iterate over new slubs in backing memory
+	// Align begin and end to slab size
+	uintptr_t backing_begin = align_up(backing_physmem, MEM_HEAP_SLAB_SIZE);
+	uintptr_t backing_end = align_down(backing_physmem + MEM_HEAP_CHUNK_SIZE, MEM_HEAP_SLAB_SIZE);
+	// Iterate over new slabs in backing memory
 	for (uintptr_t physaddr = backing_begin; physaddr < backing_end;
-	     physaddr += MEM_HEAP_SLUB_SIZE) {
-		// Get higher half pointer to the slub
-		ASSERT(physaddr % MEM_HEAP_SLUB_SIZE == 0, "Slub is not aligned");
-		struct mem_heap_slub_hdr *new_slub =
-		    (struct mem_heap_slub_hdr *)(mem_wb_phys_win_base + physaddr);
+	     physaddr += MEM_HEAP_SLAB_SIZE) {
+		// Get higher half pointer to the slab
+		ASSERT(physaddr % MEM_HEAP_SLAB_SIZE == 0, "Slab is not aligned");
+		struct mem_heap_slab_hdr *new_slab =
+		    (struct mem_heap_slab_hdr *)(mem_wb_phys_win_base + physaddr);
 		// Add it to the list
-		new_slub->next_free = owner->slub_data.slubs;
-		owner->slub_data.slubs = new_slub;
+		new_slab->next_free = owner->slab_data.slabs;
+		owner->slab_data.slabs = new_slab;
 	}
 	return true;
 }
 
-//! @brief Create a new slub for a given order on the node
+//! @brief Create a new slab for a given order on the node
 //! @param node Weak reference to the node
 //! @param order Block size order
-//! @note Requires empty slub list to be non-empty (lol)
-static void mem_heap_add_slub(struct numa_node *node, size_t order) {
-	ASSERT(node->slub_data.slubs != NULL, "Slub list should be non-empty");
-	// Take one slub
-	struct mem_heap_slub_hdr *new_slub = node->slub_data.slubs;
-	node->slub_data.slubs = new_slub->next_free;
-	new_slub->owner = node->node_id;
+//! @note Requires empty slab list to be non-empty (lol)
+static void mem_heap_add_slab(struct numa_node *node, size_t order) {
+	ASSERT(node->slab_data.slabs != NULL, "Slab list should be non-empty");
+	// Take one slab
+	struct mem_heap_slab_hdr *new_slab = node->slab_data.slabs;
+	node->slab_data.slabs = new_slab->next_free;
+	new_slab->owner = node->node_id;
 	const uintptr_t start =
-	    align_up((uintptr_t)new_slub + sizeof(struct mem_heap_slub_hdr), (1ULL << order));
-	const uintptr_t end = (uintptr_t)new_slub + MEM_HEAP_SLUB_SIZE;
+	    align_up((uintptr_t)new_slab + sizeof(struct mem_heap_slab_hdr), (1ULL << order));
+	const uintptr_t end = (uintptr_t)new_slab + MEM_HEAP_SLAB_SIZE;
 	for (uintptr_t addr = start; addr < end; addr += (1ULL << order)) {
-		ASSERT(align_down(addr, MEM_HEAP_SLUB_SIZE) == (uintptr_t)new_slub,
-		       "Object at addr does not belong to slub");
+		ASSERT(align_down(addr, MEM_HEAP_SLAB_SIZE) == (uintptr_t)new_slab,
+		       "Object at addr does not belong to slab");
 		struct mem_heap_obj *obj = (struct mem_heap_obj *)addr;
-		obj->next = node->slub_data.free_lists[order];
-		node->slub_data.free_lists[order] = obj;
+		obj->next = node->slab_data.free_lists[order];
+		node->slab_data.free_lists[order] = obj;
 	}
 }
 
@@ -119,14 +119,14 @@ static size_t mem_heap_get_size_order(size_t size, size_t max_order) {
 	return result;
 }
 
-//! @brief Allocate object of a given order from slub
+//! @brief Allocate object of a given order from slab
 //! @param node Pointer to owning NUMA node
 //! @param order Order of the block to allocate
 //! @return Pointer to allocated object
-static struct mem_heap_obj *mem_allocate_from_slub(struct numa_node *node, size_t order) {
-	ASSERT(node->slub_data.free_lists[order] != NULL, "Free-list is empty");
-	struct mem_heap_obj *obj = node->slub_data.free_lists[order];
-	node->slub_data.free_lists[order] = obj->next;
+static struct mem_heap_obj *mem_allocate_from_slab(struct numa_node *node, size_t order) {
+	ASSERT(node->slab_data.free_lists[order] != NULL, "Free-list is empty");
+	struct mem_heap_obj *obj = node->slab_data.free_lists[order];
+	node->slab_data.free_lists[order] = obj->next;
 	return obj;
 }
 
@@ -139,8 +139,8 @@ void *mem_heap_alloc(size_t size) {
 	// Get NUMA id
 	numa_id_t id = thread_smp_locals_get()->numa_id;
 	// Get size order
-	size_t order = mem_heap_get_size_order(size, MEM_HEAP_SLUB_ORDERS);
-	if (order == MEM_HEAP_SLUB_ORDERS) {
+	size_t order = mem_heap_get_size_order(size, MEM_HEAP_SLAB_ORDERS);
+	if (order == MEM_HEAP_SLAB_ORDERS) {
 		// Allocate directly using PMM and cast to upper half
 		uintptr_t res = mem_phys_perm_alloc_on_behalf(size, id);
 		if (res == PHYS_NULL) {
@@ -148,7 +148,7 @@ void *mem_heap_alloc(size_t size) {
 		}
 		return (void *)(mem_wb_phys_win_base + res);
 	}
-	// Allocate using slubs. Its a bit more intricate here
+	// Allocate using slabs. Its a bit more intricate here
 	// 1. Get NUMA node data
 	struct numa_node *data = numa_query_data_no_borrow(id);
 	// 2. Iterate ove all permanent neighbours
@@ -158,28 +158,28 @@ void *mem_heap_alloc(size_t size) {
 		// 3. Take node lock
 		const bool int_state = thread_spinlock_lock(&neighbour->lock);
 		// 3. Check if corresponding free list has anything for us
-		if (neighbour->slub_data.free_lists[order] != NULL) {
+		if (neighbour->slab_data.free_lists[order] != NULL) {
 			// Cool, let's give that as a result
-			struct mem_heap_obj *obj = neighbour->slub_data.free_lists[order];
-			neighbour->slub_data.free_lists[order] = obj->next;
+			struct mem_heap_obj *obj = neighbour->slab_data.free_lists[order];
+			neighbour->slab_data.free_lists[order] = obj->next;
 			thread_spinlock_unlock(&neighbour->lock, int_state);
 			return (void *)obj;
 		}
-		// 4. Okey, time to make a new slub
-		if (neighbour->slub_data.slubs != NULL) {
-			// There are some empty slubs, just use them
-			mem_heap_add_slub(neighbour, order);
-			struct mem_heap_obj *obj = mem_allocate_from_slub(neighbour, order);
+		// 4. Okey, time to make a new slab
+		if (neighbour->slab_data.slabs != NULL) {
+			// There are some empty slabs, just use them
+			mem_heap_add_slab(neighbour, order);
+			struct mem_heap_obj *obj = mem_allocate_from_slab(neighbour, order);
 			thread_spinlock_unlock(&neighbour->lock, int_state);
 			return (void *)obj;
 		}
 		// 5. Alright, let's allocate a new chunk
-		if (!mem_allocate_new_slubs_chunk(neighbour)) {
+		if (!mem_allocate_new_slabs_chunk(neighbour)) {
 			thread_spinlock_unlock(&neighbour->lock, int_state);
 			continue;
 		}
-		mem_heap_add_slub(neighbour, order);
-		struct mem_heap_obj *obj = mem_allocate_from_slub(neighbour, order);
+		mem_heap_add_slab(neighbour, order);
+		struct mem_heap_obj *obj = mem_allocate_from_slab(neighbour, order);
 		thread_spinlock_unlock(&neighbour->lock, int_state);
 		return (void *)obj;
 	}
@@ -191,14 +191,14 @@ void *mem_heap_alloc(size_t size) {
 //! @param size Size of the allocated memory
 void mem_heap_free(void *mem, size_t size) {
 	ASSERT(mem != NULL, "Attempt to free NULL");
-	size_t order = mem_heap_get_size_order(size, MEM_HEAP_SLUB_ORDERS);
-	if (order == MEM_HEAP_SLUB_ORDERS) {
+	size_t order = mem_heap_get_size_order(size, MEM_HEAP_SLAB_ORDERS);
+	if (order == MEM_HEAP_SLAB_ORDERS) {
 		mem_phys_perm_free((uintptr_t)mem - mem_wb_phys_win_base);
 		return;
 	}
-	// 1. Get pointer to slub header
-	uintptr_t slub_hdr_addr = align_down((uintptr_t)mem, MEM_HEAP_SLUB_SIZE);
-	struct mem_heap_slub_hdr *hdr = (struct mem_heap_slub_hdr *)slub_hdr_addr;
+	// 1. Get pointer to slab header
+	uintptr_t slab_hdr_addr = align_down((uintptr_t)mem, MEM_HEAP_SLAB_SIZE);
+	struct mem_heap_slab_hdr *hdr = (struct mem_heap_slab_hdr *)slab_hdr_addr;
 	// 2. Get owning NUMA node data
 	numa_id_t owner_id = hdr->owner;
 	struct numa_node *data = numa_query_data_no_borrow(owner_id);
@@ -206,8 +206,8 @@ void mem_heap_free(void *mem, size_t size) {
 	const bool int_state = thread_spinlock_lock(&data->lock);
 	// 4. Enqueue node
 	struct mem_heap_obj *obj = (struct mem_heap_obj *)mem;
-	obj->next = data->slub_data.free_lists[order];
-	data->slub_data.free_lists[order] = obj;
+	obj->next = data->slab_data.free_lists[order];
+	data->slab_data.free_lists[order] = obj;
 	// 5. Free NUMA lock
 	thread_spinlock_unlock(&data->lock, int_state);
 }

@@ -126,7 +126,7 @@ static void numa_init(void) {
 			node->permanent = true;
 			node->hotpluggable_ranges = NULL;
 			node->permanent_ranges = NULL;
-			node->slub_data = MEM_HEAP_SLUB_DATA_INIT;
+			node->slab_data = MEM_HEAP_SLAB_DATA_INIT;
 			node->lock = THREAD_SPINLOCK_INIT;
 			if (node == NULL) {
 				PANIC("Bootstrap NUMA node allocation failed");

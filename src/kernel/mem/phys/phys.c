@@ -50,8 +50,8 @@ uintptr_t mem_phys_perm_alloc_specific_nolock(size_t size, numa_id_t id) {
 	const struct numa_node *node = numa_query_data_no_borrow(id);
 	for (struct mem_range *range = node->permanent_ranges; range != NULL;
 	     range = range->next_range) {
-		// Try to allocate from range slub allocator
-		uintptr_t result = mem_phys_slub_alloc(&range->slub, size);
+		// Try to allocate from range slab allocator
+		uintptr_t result = mem_phys_slab_alloc(&range->slab, size);
 		ASSERT(result < mem_wb_phys_win_base, "Block in higher half");
 		if (result != PHYS_NULL) {
 			mem_phys_store_info(result, size, range, id);
@@ -100,7 +100,7 @@ void mem_phys_perm_free(uintptr_t addr) {
 	struct numa_node *data = numa_query_data_no_borrow(obj->node_id);
 	const bool int_state = thread_spinlock_lock(&data->lock);
 	// Free memory back to the memory region
-	mem_phys_slub_free(&obj->range->slub, addr, obj->size);
+	mem_phys_slab_free(&obj->range->slab, addr, obj->size);
 	// Unlock NUMA node
 	thread_spinlock_unlock(&data->lock, int_state);
 	// Drop reference to the memory region

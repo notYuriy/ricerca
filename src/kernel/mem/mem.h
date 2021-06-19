@@ -5,7 +5,7 @@
 
 #include <init/stivale2.h>
 #include <lib/target.h>
-#include <mem/phys/slub.h>
+#include <mem/phys/slab.h>
 #include <mem/rc.h>
 
 //! @brief Physical memory range
@@ -16,8 +16,8 @@ struct mem_range {
 	struct mem_range *next_range;
 	//! @brief Previous memory range for this ndoe
 	struct mem_range *prev_range;
-	//! @brief Physical memory slub
-	struct mem_phys_slub slub;
+	//! @brief Physical memory slab
+	struct mem_phys_slab slab;
 	//! @brief True if memory range was offlined
 	bool offlined;
 };

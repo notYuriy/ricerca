@@ -5,11 +5,11 @@
 
 #include <lib/target.h>
 
-//! @brief Physical slub granularity as power of 2
-#define PHYS_SLUB_GRAN 12ULL
+//! @brief Physical slab granularity as power of 2
+#define PHYS_SLAB_GRAN 12ULL
 
 //! @brief Page size
-#define PAGE_SIZE (1ULL << PHYS_SLUB_GRAN)
+#define PAGE_SIZE (1ULL << PHYS_SLAB_GRAN)
 
 //! @brief End of low physical memory
 #define PHYS_LOW (2 * 1024 * 1024)
