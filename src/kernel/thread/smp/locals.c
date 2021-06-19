@@ -8,9 +8,9 @@
 #include <sys/acpi/acpi.h>
 #include <sys/acpi/numa.h>
 #include <sys/acpi/smp.h>
+#include <sys/arch/arch.h>
 #include <sys/ic.h>
 #include <sys/msr.h>
-#include <sys/tables/tables.h>
 #include <thread/smp/locals.h>
 
 MODULE("thread/smp/locals")
@@ -62,8 +62,6 @@ void thread_smp_locals_init_on_ap(uint32_t logical_id) {
 	struct thread_smp_locals *this_cpu_locals = thread_smp_locals_array + logical_id;
 	// Set pointer to local storage
 	thread_smp_locals_set_raw((uintptr_t)(this_cpu_locals));
-	// Initialize amd64 tables
-	tables_init();
 }
 
 //! @brief Initialize thread-local storage
@@ -116,6 +114,4 @@ void thread_smp_locals_init(void) {
 	// Initialize thread-local storage on BSP
 	thread_smp_locals_init_on_ap(logical_id);
 	thread_smp_locals_get()->status = THREAD_SMP_LOCALS_STATUS_RUNNING_TASK;
-	// Run amd64 tables init
-	tables_init();
 }

@@ -4,6 +4,7 @@
 #pragma once
 
 #include <lib/target.h>
+#include <sys/arch/arch.h>
 #include <sys/numa/numa.h>
 
 //! @brief Per-CPU stack size
@@ -48,6 +49,8 @@ struct thread_smp_locals {
 		//! @brief Top of the scheduler stack for this CPU
 		uintptr_t scheduler_stack_top;
 	} attribute_packed;
+	// Architecture-specific CPU state
+	struct arch_core_state arch_state;
 };
 
 //! @brief Pointer to CPU local data structures

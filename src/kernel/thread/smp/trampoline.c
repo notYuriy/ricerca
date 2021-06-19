@@ -42,12 +42,15 @@ struct thread_smp_trampoline_args {
 //! @brief Long mode trampoline code
 //! @param logical_id Logical ID of the CPU
 static void thread_smp_trampoline_ap_init(uint32_t logical_id) {
+	// TODO: Die properly instead of hangs
 	thread_smp_locals_init_on_ap(logical_id);
 	// If kernel gave up on us, hang
 	struct thread_smp_locals *locals = thread_smp_locals_get();
 	if (ATOMIC_ACQUIRE_LOAD(&locals->status) == THREAD_SMP_LOCALS_STATUS_GAVE_UP) {
 		hang();
 	}
+	// Initialize architecture layer
+	arch_init();
 	// Update status
 	ATOMIC_RELEASE_STORE(&locals->status, THREAD_SMP_LOCALS_STATUS_WAITING);
 	LOG_INFO("Hello from core %u", logical_id);
