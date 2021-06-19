@@ -106,15 +106,16 @@ void thread_smp_locals_init(void) {
 		    mem_wb_phys_win_base + interrupt_stack + THREAD_SMP_LOCALS_CPU_STACK_SIZE;
 		this_cpu_locals->scheduler_stack_top =
 		    mem_wb_phys_win_base + scheduler_stack + THREAD_SMP_LOCALS_CPU_STACK_SIZE;
-		ATOMIC_RELEASE_STORE(&this_cpu_locals->status, THREAD_SMP_LOCALS_STATUS_ASLEEP);
+		this_cpu_locals->status = THREAD_SMP_LOCALS_STATUS_ASLEEP;
 	}
 	// Get APIC ID
 	uint32_t apic_id = ic_get_apic_id();
 	// Query logical id
 	uint32_t logical_id = acpi_madt_convert_ids(ACPI_MADT_LAPIC_PROP_APIC_ID,
 	                                            ACPI_MADT_LAPIC_PROP_LOGICAL_ID, apic_id, true);
+	// Initialize thread-local storage on BSP
 	thread_smp_locals_init_on_ap(logical_id);
-	ATOMIC_RELEASE_STORE(&thread_smp_locals_get()->status, THREAD_SMP_LOCALS_STATUS_RUNNING_TASK);
+	thread_smp_locals_get()->status = THREAD_SMP_LOCALS_STATUS_RUNNING_TASK;
 	// Run amd64 tables init
 	tables_init();
 }

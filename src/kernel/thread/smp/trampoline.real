@@ -31,7 +31,7 @@ struc trampoline_args_struct {
 spur_vec = 127
 
 ; Asleep status
-THREAD_SMP_LOCALS_STATUS_ASLEEP = 1
+THREAD_SMP_LOCALS_STATUS_WAKEUP_INITIATED = 2
 
 ; CPU starts at address 0x71000 in real mode. However, we load cs to 0x7100, so org 0x0000 would
 ; work
@@ -178,7 +178,7 @@ start64:
 
 	; Check that CPU entry has asleep status
 	mov rdx, qword [rdi + pc_status]
-	cmp rdx, THREAD_SMP_LOCALS_STATUS_ASLEEP
+	cmp rdx, THREAD_SMP_LOCALS_STATUS_WAKEUP_INITIATED
 
 	jne .lookup_loop_next
 

@@ -28,29 +28,42 @@ void thread_smp_ap_boot_bringup() {
 	for (size_t i = 0; i < thread_smp_locals_max_cpus; ++i) {
 		struct thread_smp_locals *locals = thread_smp_locals_array + i;
 		if (locals->status == THREAD_SMP_LOCALS_STATUS_ASLEEP) {
+			ATOMIC_RELEASE_STORE(&locals->status, THREAD_SMP_LOCALS_STATUS_WAKEUP_INITIATED);
 			ic_send_startup_ipi(locals->apic_id, THREAD_SMP_TRAMPOLINE_ADDR);
 		}
 	}
 	// Wait for 10 ms more
 	timer_busy_wait_ms(10);
 	// Check if CPUs have booted up
+	bool everyone_started = true;
 	for (size_t i = 0; i < thread_smp_locals_max_cpus; ++i) {
 		struct thread_smp_locals *locals = thread_smp_locals_array + i;
 		uint64_t status = ATOMIC_ACQUIRE_LOAD(&(locals->status));
-		if (status == THREAD_SMP_LOCALS_STATUS_ASLEEP) {
+		if (status == THREAD_SMP_LOCALS_STATUS_WAKEUP_INITIATED) {
 			// Resend startup IPI
 			ic_send_startup_ipi(locals->apic_id, THREAD_SMP_TRAMPOLINE_ADDR);
+			everyone_started = false;
 		}
 	}
-	// Wait for 40 ms
-	timer_busy_wait_ms(40);
+	if (everyone_started) {
+		return;
+	}
+	LOG_WARN("Failed to boot CPUs from the first SIPI round. Waiting for 100ms to give CPUs a "
+	         "second chance");
+	// Wait for 100 ms
+	timer_busy_wait_ms(100);
 	// Ok, now everyone should have started,
+	everyone_started = true;
 	for (size_t i = 0; i < thread_smp_locals_max_cpus; ++i) {
 		struct thread_smp_locals *locals = thread_smp_locals_array + i;
-		uint64_t status = ATOMIC_ACQUIRE_LOAD(&(locals->status));
-		if (status == THREAD_SMP_LOCALS_STATUS_ASLEEP) {
-			// Resend startup IPI
-			ic_send_startup_ipi(locals->apic_id, THREAD_SMP_TRAMPOLINE_ADDR);
+		uint64_t status = ATOMIC_ACQUIRE_LOAD(&locals->status);
+		if (status == THREAD_SMP_LOCALS_STATUS_WAKEUP_INITIATED) {
+			// Give up on this CPU, it takes too long to start
+			ATOMIC_RELEASE_STORE(&locals->status, THREAD_SMP_LOCALS_STATUS_GAVE_UP);
+			everyone_started = false;
 		}
+	}
+	if (!everyone_started) {
+		LOG_ERR("Some CPUS have not booted up, giving up on them");
 	}
 }

@@ -19,13 +19,13 @@ enum
 	//! @brief Startup IPI was sent
 	THREAD_SMP_LOCALS_STATUS_WAKEUP_INITIATED = 2,
 	//! @brief CPU is online, waiting for tasks to run
-	THREAD_SMP_LOCALS_STATUS_WAITING = 4,
+	THREAD_SMP_LOCALS_STATUS_WAITING = 3,
 	//! @brief CPU is online and runs a task
-	THREAD_SMP_LOCALS_STATUS_RUNNING_TASK = 5,
+	THREAD_SMP_LOCALS_STATUS_RUNNING_TASK = 4,
 	//! @brief CPU was put asleep forcefully
-	THREAD_SMP_LOCALS_STATUS_PUT_ASLEEP = 6,
+	THREAD_SMP_LOCALS_STATUS_PUT_ASLEEP = 5,
 	//! @brief CPU boot timeouted, so kernel gave up on it
-	THREAD_SMP_LOCALS_STATUS_GAVE_UP = 7,
+	THREAD_SMP_LOCALS_STATUS_GAVE_UP = 6,
 };
 
 //! @brief CPU-local area

@@ -66,6 +66,7 @@ static bool mem_allocate_new_slubs_chunk(struct numa_node *owner) {
 	for (uintptr_t physaddr = backing_begin; physaddr < backing_end;
 	     physaddr += MEM_HEAP_SLUB_SIZE) {
 		// Get higher half pointer to the slub
+		ASSERT(physaddr % MEM_HEAP_SLUB_SIZE == 0, "Slub is not aligned");
 		struct mem_heap_slub_hdr *new_slub =
 		    (struct mem_heap_slub_hdr *)(mem_wb_phys_win_base + physaddr);
 		// Add it to the list
@@ -82,12 +83,15 @@ static bool mem_allocate_new_slubs_chunk(struct numa_node *owner) {
 static void mem_heap_add_slub(struct numa_node *node, size_t order) {
 	ASSERT(node->slub_data.slubs != NULL, "Slub list should be non-empty");
 	// Take one slub
-	const struct mem_heap_slub_hdr *new_slub = node->slub_data.slubs;
+	struct mem_heap_slub_hdr *new_slub = node->slub_data.slubs;
 	node->slub_data.slubs = new_slub->next_free;
+	new_slub->owner = node->node_id;
 	const uintptr_t start =
 	    align_up((uintptr_t)new_slub + sizeof(struct mem_heap_slub_hdr), (1ULL << order));
 	const uintptr_t end = (uintptr_t)new_slub + MEM_HEAP_SLUB_SIZE;
 	for (uintptr_t addr = start; addr < end; addr += (1ULL << order)) {
+		ASSERT(align_down(addr, MEM_HEAP_SLUB_SIZE) == (uintptr_t)new_slub,
+		       "Object at addr does not belong to slub");
 		struct mem_heap_obj *obj = (struct mem_heap_obj *)addr;
 		obj->next = node->slub_data.free_lists[order];
 		node->slub_data.free_lists[order] = obj;
@@ -106,7 +110,7 @@ static size_t mem_heap_get_size_order(size_t size, size_t max_order) {
 	size_t test = 16;
 	size_t result = 4;
 	while (size > test) {
-		size *= 2;
+		test *= 2;
 		result += 1;
 		if (result == max_order) {
 			return max_order;
