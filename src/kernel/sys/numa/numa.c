@@ -9,7 +9,7 @@
 #include <mem/rc_static_pool.h>
 #include <sys/acpi/numa.h>
 #include <sys/numa/numa.h>
-#include <thread/spinlock.h>
+#include <thread/locking/spinlock.h>
 
 MODULE("sys/numa")
 TARGET(numa_available, numa_init, {acpi_numa_available, mem_bootstrap_alloc_available})

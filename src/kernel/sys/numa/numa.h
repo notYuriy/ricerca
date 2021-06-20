@@ -6,7 +6,7 @@
 #include <lib/target.h>
 #include <mem/heap/slab.h>
 #include <mem/rc.h>
-#include <thread/spinlock.h>
+#include <thread/locking/spinlock.h>
 
 //! @brief Type of NUMA node ID
 typedef uint32_t numa_id_t;

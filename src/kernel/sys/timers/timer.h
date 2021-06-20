@@ -5,7 +5,7 @@
 
 #include <lib/target.h>
 #include <misc/types.h>
-#include <thread/spinlock.h>
+#include <thread/locking/spinlock.h>
 
 //! @brief Coolness value for ACPI timer
 #define TIMER_ACPI_COOLNESS 1

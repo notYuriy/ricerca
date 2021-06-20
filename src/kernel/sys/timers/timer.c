@@ -5,7 +5,7 @@
 #include <lib/panic.h>
 #include <sys/timers/acpi.h>
 #include <sys/timers/timer.h>
-#include <thread/spinlock.h>
+#include <thread/locking/spinlock.h>
 
 MODULE("sys/timer")
 TARGET(timers_available, META_DUMMY, {acpi_timer_available})

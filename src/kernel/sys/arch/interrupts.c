@@ -8,7 +8,7 @@
 #include <sys/arch/interrupts.h>
 #include <sys/arch/tss.h>
 #include <sys/cr.h>
-#include <thread/spinlock.h>
+#include <thread/locking/spinlock.h>
 
 MODULE("sys/arch/interrupts")
 TARGET(idt_available, idt_fill, {})

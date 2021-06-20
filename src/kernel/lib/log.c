@@ -5,7 +5,7 @@
 #include <lib/log.h>
 #include <lib/string.h>
 #include <sys/ports.h>
-#include <thread/spinlock.h>
+#include <thread/locking/spinlock.h>
 
 //! @brief Maximum length of the buffer for log_printf
 #define LOG_BUFFER_SIZE 4096
