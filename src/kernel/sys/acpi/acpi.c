@@ -77,6 +77,9 @@ static struct acpi_rsdt *acpi_boot_rsdt = NULL;
 //! @brief Nullable pointer to XSDT. Set by acpi_init if found
 static struct acpi_xsdt *acpi_boot_xsdt = NULL;
 
+//! @brief Nullable pointer to FADT. Set by acpi_init if found
+struct acpi_fadt *acpi_boot_fadt = NULL;
+
 //! @brief Validate SLIT
 //! @param slit Pointer to the SLIT table
 //! @note Used to guard against bioses that fill SLIT with 10s everywhere
@@ -283,16 +286,16 @@ static struct acpi_sdt_header *acpi_find_in_xsdt(struct acpi_xsdt *xsdt, const c
 struct acpi_sdt_header *acpi_find_table(const char *name, size_t index) {
 	// Handle a few special cases
 	if (memcmp(name, "DSDT", 4) == 0) {
-		// Find FADT
-		struct acpi_fadt *fadt = (struct acpi_fadt *)acpi_find_table("FACP", index);
-		if (fadt == NULL) {
+		ASSERT(index == 0, "Attempt to request DSDT with non-zero index");
+		if (acpi_boot_fadt == NULL) {
 			return NULL;
 		}
-		if (fadt->dsdt_ex != 0 && acpi_platform_state == ACPI_REV_2) {
-			return (struct acpi_sdt_header *)(mem_wb_phys_win_base + fadt->dsdt_ex);
+		if (acpi_boot_fadt->dsdt_ex != 0 && acpi_revision >= 2) {
+			return (struct acpi_sdt_header *)(mem_wb_phys_win_base + acpi_boot_fadt->dsdt_ex);
 		}
-		if (fadt->dsdt != 0) {
-			return (struct acpi_sdt_header *)(mem_wb_phys_win_base + (uintptr_t)fadt->dsdt);
+		if (acpi_boot_fadt->dsdt != 0) {
+			return (struct acpi_sdt_header *)(mem_wb_phys_win_base +
+			                                  (uintptr_t)acpi_boot_fadt->dsdt);
 		}
 		return NULL;
 	}
@@ -339,8 +342,8 @@ size_t acpi_query_phys_space_size(void) {
 	return result;
 }
 
-//! @brief ACPI platform state
-enum acpi_state acpi_platform_state = ACPI_NO_ACPI;
+//! @brief ACPI revision or 0 if ACPI is not supported
+size_t acpi_revision = 0;
 
 //! @brief Early ACPI subsystem init
 static void acpi_init(void) {
@@ -361,26 +364,25 @@ static void acpi_init(void) {
 	// Walk boot ACPI tables
 	if (rsdp->rev == ACPI_RSDP_REV1) {
 		// RSDPv1 and hence RSDT detected
-		acpi_platform_state = ACPI_REV_1;
+		acpi_revision = 1;
 		const uint64_t rsdt_addr = (uint64_t)rsdp->rsdt_addr;
 		acpi_boot_rsdt = (struct acpi_rsdt *)(mem_wb_phys_win_base + rsdt_addr);
-	} else if (rsdp->rev == ACPI_RSDP_REV2) {
+	} else {
 		// RSDPv2 and hence XSDT detected
-		acpi_platform_state = ACPI_REV_2;
+		acpi_revision = rsdp->rev;
 		struct acpi_rsdpv2 *rsdpv2 = (struct acpi_rsdpv2 *)rsdp;
 		if (!acpi_validate_checksum(rsdp, sizeof(struct acpi_rsdp))) {
 			LOG_ERR("RSDPv2 checksum validation failed");
 		}
 		const uint64_t xsdt_addr = (uint64_t)rsdpv2->xsdt_addr;
 		acpi_boot_xsdt = (struct acpi_xsdt *)(mem_wb_phys_win_base + xsdt_addr);
-	} else {
-		PANIC("Unknown XSDT revision");
 	}
 
 	// Find a few useful tables
 	acpi_boot_madt = (struct acpi_madt *)acpi_find_table("APIC", 0);
 	acpi_boot_slit = (struct acpi_slit *)acpi_find_table("SLIT", 0);
 	acpi_boot_srat = (struct acpi_srat *)acpi_find_table("SRAT", 0);
+	acpi_boot_fadt = (struct acpi_fadt *)acpi_find_table("FACP", 0);
 
 	// Validate SLIT
 	if (acpi_boot_slit != NULL) {

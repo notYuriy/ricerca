@@ -130,8 +130,11 @@ void laihost_panic(const char *msg) {
 
 //! @brief Initialize LAI
 static void laihost_init(void) {
-	if (acpi_platform_state == ACPI_NO_ACPI) {
+	if (acpi_revision == 0) {
 		return;
 	}
+	// LAI expects ACPI revision from RSDP, but we have already converted it to the sane number
+	// Convert it back
+	lai_set_acpi_revision(acpi_revision == 1 ? 0 : acpi_revision);
 	lai_create_namespace();
 }

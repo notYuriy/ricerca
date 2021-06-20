@@ -4,8 +4,8 @@
 #include <lib/log.h>
 #include <lib/panic.h>
 #include <sys/timers/acpi.h>
-#include <thread/spinlock.h>
 #include <sys/timers/timer.h>
+#include <thread/spinlock.h>
 
 MODULE("sys/timer")
 TARGET(timers_available, META_DUMMY, {acpi_timer_available})

@@ -142,6 +142,15 @@ struct acpi_slit {
 //! @brief Nullable pointer to SLIT. Set by acpi_init if found
 extern struct acpi_slit *acpi_boot_slit;
 
+//! @brief GAS address space types
+enum
+{
+	//! @brief Memory mapped IO address space
+	ACPI_GAS_MMIO_ADDRESS_SPACE = 0,
+	//! @brief Port IO address space
+	ACPI_GAS_PORT_IO_ADDRESS_SPACE = 1,
+};
+
 //! @brief FADT Generic address structure
 struct acpi_fadt_gas {
 	uint8_t address_space;
@@ -215,6 +224,9 @@ struct acpi_fadt {
 	struct acpi_fadt_gas gpe1_blk_ex;
 } attribute_packed;
 
+//! @brief Nullable pointer to FADT. Set by acpi_init if found
+extern struct acpi_fadt *acpi_boot_fadt;
+
 //! @brief DMAR table
 struct acpi_dmar {
 	struct acpi_sdt_header hdr;
@@ -259,16 +271,8 @@ uint32_t acpi_madt_convert_ids(enum acpi_madt_lapic_entry_prop matched,
 //! @param index of the table
 struct acpi_sdt_header *acpi_find_table(const char *name, size_t index);
 
-//! @brief ACPI platform state
-extern enum acpi_state
-{
-	//! @brief No  ACPI
-	ACPI_NO_ACPI = 0,
-	//! @brief ACPI rev 1
-	ACPI_REV_1 = 1,
-	//! @brief ACPI rev 2
-	ACPI_REV_2 = 2,
-} acpi_platform_state;
+//! @brief ACPI revision or 0 if ACPI is not supported
+extern size_t acpi_revision;
 
 //! @brief Export ACPI init target
 EXPORT_TARGET(acpi_available);
