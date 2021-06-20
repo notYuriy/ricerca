@@ -12,3 +12,4 @@ build/libraries/**
 **/*.xbstrap
 **/*.link
 .vscode
+qemu.log

@@ -10,6 +10,8 @@
 struct arch_core_state {
 	//! @brief Pointer to the GDT
 	struct gdt *gdt;
+	//! @brief Pointer to the TSS
+	struct tss *tss;
 };
 
 //! @brief Preallocate arch state for the given core before bootup

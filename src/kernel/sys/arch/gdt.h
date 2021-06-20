@@ -4,9 +4,10 @@
 #pragma once
 
 #include <misc/types.h>
+#include <sys/arch/tss.h>
 
 //! @brief Number of GDT descriptors
-#define GDT_DESCRIPTORS 9
+#define GDT_DESCRIPTORS 11
 
 //! @brief 64-bit code desciptor
 #define GDT_CODE64 0x28
@@ -21,3 +22,8 @@ struct gdt {
 //! @brief Initialize and load GDT
 //! @param gdt Pointer to uninitialized GDT
 void gdt_init(struct gdt *gdt);
+
+//! @brief Load TSS
+//! @param gdt Pointer to the GDT
+//! @param tss Pointer to the TSS
+void gdt_load_tss(struct gdt *gdt, struct tss *tss);

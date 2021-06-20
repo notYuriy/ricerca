@@ -38,8 +38,8 @@ void interrupt_handle(struct interrupt_frame *frame) {
 	if (interrupt_callbacks[frame->intno] != NULL) {
 		interrupt_callbacks[frame->intno](frame, interrupt_contexts[frame->intno]);
 	} else {
-		LOG_INFO("Unhandled interrupt v=%U, e=0x%p, rip=0x%p, cr2=0x%p", frame->intno,
-		         frame->errcode, frame->rip, rdcr2());
+		PANIC("Unhandled interrupt v=%U, e=0x%p, rip=0x%p, cr2=0x%p", frame->intno, frame->errcode,
+		      frame->rip, rdcr2());
 	}
 }
 
@@ -53,15 +53,15 @@ static void interrupt_encode_idt_gate(struct idt_descriptor *descr, interrupt_ca
                                       uint8_t dpl, uint8_t ist, bool noints) {
 	uint16_t flags = 0;
 	flags |= (uint16_t)ist;
-	flags |= ((uint16_t)dpl) << 13;
-	flags |= (uint16_t)1 << 15;
-	flags |= (uint16_t)(noints ? 1110 : 1111) << 8;
+	flags |= ((uint16_t)(noints ? 0b1110 : 0b1111) << 8);
+	flags |= (((uint16_t)dpl) << 13);
+	flags |= ((uint16_t)1 << 15);
 
 	descr->offset_low = (uint16_t)((uintptr_t)callback & 0xffffULL);
 	descr->segment_selector = GDT_CODE64;
 	descr->flags = flags;
-	descr->offset_mid = (uint32_t)(((uintptr_t)callback >> 16) & 0xffffffffULL);
-	descr->offset_high = (uint16_t)(((uintptr_t)callback >> 24) & 0xffffULL);
+	descr->offset_mid = (uint16_t)(((uintptr_t)callback >> 16) & 0xffffULL);
+	descr->offset_high = (uint32_t)(((uintptr_t)callback >> 32) & 0xffffffffULL);
 	descr->reserved = 0;
 }
 
@@ -86,8 +86,7 @@ void interrupt_register_handler(uint8_t intno, interrupt_callback_t callback, vo
 
 static void idt_fill() {
 	for (size_t i = 0; i < INTERRUPT_VECTORS_MAX; ++i) {
-		interrupt_encode_idt_gate(idt_descriptors + i, interrupt_raw_callbacks[i], 0, TSS_INT_IST,
-		                          false);
+		interrupt_encode_idt_gate(idt_descriptors + i, interrupt_raw_callbacks[i], 0, 0, false);
 	}
 }
 

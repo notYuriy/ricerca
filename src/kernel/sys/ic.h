@@ -6,6 +6,12 @@
 #include <lib/target.h>
 #include <misc/types.h>
 
+//! @brief Spurious interrupt vector
+extern uint8_t ic_spur_vec;
+
+//! @brief Handle spurious irq
+void ic_handle_spur_irq(void);
+
 //! @brief Enable interrupt controller on AP
 void ic_enable(void);
 

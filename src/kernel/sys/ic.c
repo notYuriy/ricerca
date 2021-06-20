@@ -29,7 +29,7 @@ static volatile uint32_t *lapic_xapic;
 static const uint32_t LAPIC_IA32_APIC_BASE = 0x0000001b;
 
 //! @brief Spurious LAPIC irq
-static const uint8_t lapic_spur_irq = 127;
+uint8_t ic_spur_vec = 127;
 
 //! @brief xAPIC registers
 enum
@@ -55,6 +55,10 @@ enum
 	LAPIC_X2APIC_ICR_REG = 0x830,
 };
 
+//! @brief Handle spurious irq
+void ic_handle_spur_irq(void) {
+}
+
 //! @brief Get interrupt controller ID
 uint32_t ic_get_apic_id(void) {
 	if (ic_state == IC_X2APIC_USED) {
@@ -71,9 +75,9 @@ void ic_enable(void) {
 	// Enable LAPIC
 	if (ic_state == IC_X2APIC_USED) {
 		wrmsr(LAPIC_IA32_APIC_BASE, rdmsr(LAPIC_IA32_APIC_BASE) | (1ULL << 10ULL));
-		wrmsr(LAPIC_X2APIC_SPUR_REG, 0x100 | lapic_spur_irq);
+		wrmsr(LAPIC_X2APIC_SPUR_REG, 0x100 | ic_spur_vec);
 	} else if (ic_state == IC_XAPIC_USED) {
-		lapic_xapic[LAPIC_XAPIC_SPUR_REG] = 0x100 | lapic_spur_irq;
+		lapic_xapic[LAPIC_XAPIC_SPUR_REG] = 0x100 | ic_spur_vec;
 	} else {
 		PANIC("lapic_enable in single-core mode got called");
 	}
