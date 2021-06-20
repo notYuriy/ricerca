@@ -25,7 +25,7 @@ sources:
   - name: lai
     git: "https://github.com/managarm/lai.git"
     branch: "master"
-    commit: a8d130357175df4515fb24ba3f114b4a66033790
+    commit: 48e1596fd0e08214bf9fb66ad49f281d7f1df15d
     subdir: libraries
 
   - name: kernel
