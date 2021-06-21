@@ -35,3 +35,11 @@ static void pic_remap(void) {
 	outb(0xa1, 0xff);
 	iowait();
 }
+
+//! @brief Acknowledge PIC interrupt
+void pic_irq_ack(uint8_t irq) {
+	if (irq >= 8) {
+		outb(0xa0, 0x20);
+	}
+	outb(0x20, 0x20);
+}

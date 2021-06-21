@@ -11,6 +11,8 @@
 #include <mem/heap/heap.h>
 #include <mem/mem.h>
 #include <misc/misc.h>
+#include <sys/arch/interrupts.h>
+#include <sys/ic.h>
 #include <thread/smp/boot_bringup.h>
 
 MODULE("init")
@@ -97,6 +99,13 @@ void kernel_unload_stivale2_term(void) {
 	}
 }
 
+//! @brief Test timer callback
+void kernel_timer_test_callback(struct interrupt_frame *frame, void *ctx) {
+	(void)frame;
+	(void)ctx;
+	ic_timer_ack();
+}
+
 //! @brief Kernel entrypoint
 //! @param info Info passed from bootloader
 void kernel_init(struct stivale2_struct *info) {
@@ -118,6 +127,25 @@ void kernel_init(struct stivale2_struct *info) {
 	// Execute plan
 	target_plan_dump(plan);
 	target_execute_plan(plan);
+
+	interrupt_register_handler(ic_timer_vec, kernel_timer_test_callback, NULL, 0, 0, true);
+
+	// Run timer in a loop
+	asm volatile("sti");
+	while (true) {
+		ic_timer_one_shot(125);
+		asm volatile("hlt");
+		LOG_INFO("125 ms after");
+		ic_timer_one_shot(250);
+		asm volatile("hlt");
+		LOG_INFO("250 ms after");
+		ic_timer_one_shot(500);
+		asm volatile("hlt");
+		LOG_INFO("500 ms after");
+		ic_timer_one_shot(1000);
+		asm volatile("hlt");
+		LOG_INFO("1 s after");
+	}
 
 	// Nothing more for now
 	LOG_SUCCESS("Kernel initialization finished!");

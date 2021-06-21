@@ -16,7 +16,6 @@ struct interrupt_frame {
 	uint64_t gs;
 	uint64_t ds;
 	uint64_t es;
-	uint64_t cr3;
 	uint64_t r15;
 	uint64_t r14;
 	uint64_t r13;

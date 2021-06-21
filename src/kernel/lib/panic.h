@@ -36,3 +36,6 @@ static inline _Noreturn void hang() {
 //! @param cond Condition to be asserted (should be == true)
 //! @note Requires MODULE to be defined
 #define ASSERT(cond, ...) ASSERT_IMPL(__FILE__, __LINE__, cond, __VA_ARGS__)
+
+//! @brief TODO macro
+#define TODO() ASSERT(false, "Unimplemented")

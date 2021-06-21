@@ -52,14 +52,15 @@ void arch_init(void) {
 	gdt_load_tss(locals->arch_state.gdt, locals->arch_state.tss);
 	// Set CPU stacks
 	tss_set_int_stack(locals->arch_state.tss, locals->interrupt_stack_top);
-	tss_set_int_stack(locals->arch_state.tss, locals->scheduler_stack_top);
-	// Register spurious interrupt vector
-	interrupt_register_handler(ic_spur_vec, arch_dummy_int_vec, NULL, 0, TSS_INT_IST, true);
+	tss_set_sched_stack(locals->arch_state.tss, locals->scheduler_stack_top);
 }
 
 //! @brief Initialize amd64 tables on BSP
 static void arch_bsp_init(void) {
 	ASSERT(arch_prealloc(thread_smp_locals_get()->logical_id),
 	       "Failed to allocate arch core state for BSP");
+	// Register spurious interrupt vector
+	interrupt_register_handler(ic_spur_vec, arch_dummy_int_vec, NULL, 0, TSS_INT_IST, true);
+	// Initalize tables on BSP
 	arch_init();
 }

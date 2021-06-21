@@ -5,9 +5,22 @@
 
 #include <lib/target.h>
 #include <misc/types.h>
+#include <sys/timers/timer.h>
+
+//! @brief Timer calibration period in milliseconds
+#define IC_TIMER_CALIBRATION_PERIOD 10
+
+//! @brief Per-cpu interrupt controller state
+struct ic_core_state {
+	//! @brief Number of ticks in one millisecond for IC timer
+	uint32_t timer_ticks_per_ms;
+};
 
 //! @brief Spurious interrupt vector
 extern uint8_t ic_spur_vec;
+
+//! @brief Timer interrupt vector
+extern uint8_t ic_timer_vec;
 
 //! @brief Handle spurious irq
 void ic_handle_spur_irq(void);
@@ -32,6 +45,26 @@ void ic_send_startup_ipi(uint32_t id, uint32_t addr);
 //! @param vec Interrupt vector to be triggered when message is recieved
 //! @note IPIs to the current core are ignored
 void ic_send_ipi(uint32_t id, uint8_t vec);
+
+//! @brief Initiate timer calibration process
+void ic_timer_start_calibration(void);
+
+//! @brief Finish timer calibration process. Should be called after IC_TIMER_CALIBRATION_PERIOD
+//! millseconds passed from ic_timer_start_calibration call
+void ic_timer_end_calibration(void);
+
+//! @brief Prepare timer for one shot event
+//! @param ms Number of milliseconds to wait
+void ic_timer_one_shot(uint32_t ms);
+
+//! @brief Acknowledge timer interrupt
+void ic_timer_ack(void);
+
+//! @brief Cancel one-shot timer event
+void ic_timer_cancel_one_shot();
+
+//! @brief Get timer counter delta.
+//! @note Value of delta is reset after every ic_timer_one_shot
 
 //! @brief Export interrupt controller BSP init target
 EXPORT_TARGET(ic_bsp_available)

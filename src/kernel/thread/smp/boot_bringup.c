@@ -50,7 +50,7 @@ void thread_smp_ap_boot_bringup() {
 		}
 	}
 	if (everyone_started) {
-		return;
+		goto calibration;
 	}
 	LOG_WARN("Failed to boot CPUs from the first SIPI round. Waiting for 100ms to give CPUs a "
 	         "second chance");
@@ -70,4 +70,12 @@ void thread_smp_ap_boot_bringup() {
 	if (!everyone_started) {
 		LOG_ERR("Some CPUS have not booted up, giving up on them");
 	}
+calibration:
+	LOG_INFO("Timer calibration process initiated");
+	ic_timer_start_calibration();
+	ATOMIC_RELEASE_STORE(&thread_smp_trampoline_state, THREAD_SMP_TRAMPOLINE_BEGIN_CALIBRATION);
+	timer_busy_wait_ms(IC_TIMER_CALIBRATION_PERIOD);
+	ATOMIC_RELEASE_STORE(&thread_smp_trampoline_state, THREAD_SMP_TRAMPOLINE_END_CALIBRATION);
+	ic_timer_end_calibration();
+	LOG_INFO("Timer calibration process finished");
 }

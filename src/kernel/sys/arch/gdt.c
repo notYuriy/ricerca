@@ -58,6 +58,9 @@ void gdt_init(struct gdt *gdt) {
 	gdtr_apply(&gdtr);
 }
 
+//! @brief ltr wrapper
+void gdt_ltr_48h(void);
+
 //! @brief Load TSS
 //! @param gdt Pointer to the GDT
 //! @param tss Pointer to the TSS
@@ -67,5 +70,5 @@ void gdt_load_tss(struct gdt *gdt, struct tss *tss) {
 	                 ((((uintptr_t)tss) & 0xffffffULL) << 16) | (0b1001ULL << 40) | (1ULL << 47) |
 	                 (((((uintptr_t)tss) >> 24) & 0xffULL) << 56);
 	gdt->descrs[10] = ((uintptr_t)tss) >> 32;
-	asm volatile("ltr %0" ::"r"((uint16_t)(9 * 8)));
+	gdt_ltr_48h();
 }

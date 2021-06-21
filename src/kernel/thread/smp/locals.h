@@ -5,6 +5,7 @@
 
 #include <lib/target.h>
 #include <sys/arch/arch.h>
+#include <sys/ic.h>
 #include <sys/numa/numa.h>
 
 //! @brief Per-CPU stack size
@@ -51,7 +52,12 @@ struct thread_smp_locals {
 	} attribute_packed;
 	// Architecture-specific CPU state
 	struct arch_core_state arch_state;
+	// IC timer state
+	struct ic_core_state ic_state;
 };
+
+//! @brief Macro to access per-cpu data
+#define PER_CPU(member) (thread_smp_locals_get()->member)
 
 //! @brief Pointer to CPU local data structures
 extern struct thread_smp_locals *thread_smp_locals_array;

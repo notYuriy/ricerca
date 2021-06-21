@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <misc/attributes.h>
 #include <misc/types.h>
 #include <sys/arch/tss.h>
 
@@ -17,7 +18,7 @@
 
 struct gdt {
 	uint64_t descrs[GDT_DESCRIPTORS];
-};
+} attribute_packed;
 
 //! @brief Initialize and load GDT
 //! @param gdt Pointer to uninitialized GDT

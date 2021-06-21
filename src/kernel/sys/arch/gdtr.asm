@@ -1,6 +1,7 @@
 format ELF64
 
 public gdtr_apply
+public gdt_ltr_48h
 
 section '.text' executable
 
@@ -25,5 +26,10 @@ gdtr_apply:
 	mov fs, ax
 	mov gs, ax
 	mov ss, ax
+	ret
 
+; Load TR from segment 0x48
+gdt_ltr_48h:
+	mov ax, 0x48
+	ltr ax
 	ret

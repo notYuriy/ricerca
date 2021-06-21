@@ -6,6 +6,7 @@
 #include <mem/misc.h>
 #include <misc/types.h>
 #include <sys/cr.h>
+#include <sys/ic.h>
 #include <thread/smp/locals.h>
 #include <thread/smp/trampoline.h>
 
@@ -18,6 +19,9 @@ extern char thread_smp_trampoline_code_start[1];
 
 //! @brief Trampoline code end symbol
 extern char thread_smp_trampoline_code_end[1];
+
+//! @brief Trampoline state
+enum thread_smp_trampoline_state thread_smp_trampoline_state;
 
 //! @brief Trampoline code max size
 #define THREAD_SMP_TRAMPOLINE_MAX_SIZE 0x7000
@@ -54,6 +58,17 @@ static void thread_smp_trampoline_ap_init(uint32_t logical_id) {
 	// Update status
 	ATOMIC_RELEASE_STORE(&locals->status, THREAD_SMP_LOCALS_STATUS_WAITING);
 	LOG_INFO("Hello from core %u", logical_id);
+	// Wait for trampoline status to update
+	while (ATOMIC_ACQUIRE_LOAD(&thread_smp_trampoline_state) !=
+	       THREAD_SMP_TRAMPOLINE_BEGIN_CALIBRATION)
+		;
+	// Begin IC timer calibration process
+	ic_timer_start_calibration();
+	// Wait for trampoline status to update
+	while (ATOMIC_ACQUIRE_LOAD(&thread_smp_trampoline_state) !=
+	       THREAD_SMP_TRAMPOLINE_END_CALIBRATION)
+		;
+	ic_timer_end_calibration();
 	hang();
 }
 

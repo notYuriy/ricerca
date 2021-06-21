@@ -40,17 +40,20 @@ interrupts_common:
 	push rax
 	mov rax, ds
 	push rax
-	push gs
-	push fs
+	mov rax, gs
+	push rax
+	mov rax, fs
+	push rax
 	mov rdi, rsp
 	call interrupt_handle
-	pop fs
-	pop gs
+	pop rax
+	mov fs, ax
+	pop rax
+	mov gs, ax
 	pop rax
 	mov ds, ax
 	pop rax
 	mov es, ax
-    pop rax
     pop r15
     pop r14
     pop r13
@@ -66,7 +69,7 @@ interrupts_common:
     pop rcx
     pop rbx
     pop rax
-    add rsp, 8
+    add rsp, 16
 	iretq
 
 ; Define raw handlers for all interrupt vectors

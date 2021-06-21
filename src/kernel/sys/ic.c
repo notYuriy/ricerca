@@ -9,6 +9,7 @@
 #include <sys/ic.h>
 #include <sys/msr.h>
 #include <sys/pic.h>
+#include <thread/smp/locals.h>
 
 MODULE("sys/ic");
 TARGET(ic_bsp_available, ic_bsp_init,
@@ -19,17 +20,20 @@ static enum
 {
 	IC_X2APIC_USED,
 	IC_XAPIC_USED,
-	IC_PIC_USED,
-} ic_state = IC_PIC_USED;
+	IC_PIC8259_USED,
+} ic_state = IC_PIC8259_USED;
 
 //! @brief Pointer to LAPIC registers
-static volatile uint32_t *lapic_xapic;
+static volatile uint32_t *ic_xapic_base;
 
 //! @brief IA32_APIC_BASE register as defined in Intel Software Developer's Manual
 static const uint32_t LAPIC_IA32_APIC_BASE = 0x0000001b;
 
-//! @brief Spurious LAPIC irq
+//! @brief Spurious LAPIC irq interrupt vector
 uint8_t ic_spur_vec = 127;
+
+//! @brief Timer interrupt vector
+uint8_t ic_timer_vec = 32;
 
 //! @brief xAPIC registers
 enum
@@ -42,6 +46,18 @@ enum
 	LAPIC_XAPIC_ICR_LOW_REG = 0xc0,
 	//! @brief ICR high register
 	LAPIC_XAPIC_ICR_HIGH_REG = 0xc4,
+	//! @brief LVT timer register
+	LAPIC_XAPIC_LVT_TIMER_REG = 0xc8,
+	//! @brief Initial count register
+	LAPIC_XAPIC_INIT_CNT_REG = 0xe0,
+	//! @brief Current count register
+	LAPIC_XAPIC_CNT_REG = 0xe4,
+	//! @brief Divide configuration register
+	LAPIC_XAPIC_DCR_REG = 0xf8,
+	//! @brief EOI register
+	LAPIC_XAPIC_EOI_REG = 0x2c,
+	//! @brief Task priority register
+	LAPIC_XAPIC_TPR_REG = 0x20,
 };
 
 //! @brief x2APIC MSRs
@@ -53,18 +69,83 @@ enum
 	LAPIC_X2APIC_ID_REG = 0x802,
 	//! @brief ICR register
 	LAPIC_X2APIC_ICR_REG = 0x830,
+	//! @brief LVT timer register
+	LAPIC_X2APIC_LVT_TIMER_REG = 0x832,
+	//! @brief Initial count register
+	LAPIC_X2APIC_INIT_CNT_REG = 0x838,
+	//! @brief Current count register,
+	LAPIC_X2APIC_CNT_REG = 0x839,
+	//! @brief Divide configuration register
+	LAPIC_X2APIC_DCR_REG = 0x83e,
+	//! @brief EOI register
+	LAPIC_X2APIC_EOI_REG = 0x80b,
+	//! @brief Task priority register
+	LAPIC_X2APIC_TPR_REG = 0x808,
 };
+
+enum
+{
+	//! @brief Enable bit in spurious register
+	LAPIC_ENABLE = 1 << 8,
+	//! @brief Enable X2APIC
+	X2APIC_ENABLE = 1 << 10,
+	//! @brief Init IPI mask
+	LAPIC_INIT_IPI = 0x4500,
+	//! @brief Startup IPI mask
+	LAPIC_STARTUP_IPI = 0x4600,
+	//! @brief Delievered bit for xAPIC
+	XAPIC_DELIEVERED = 1 << 12,
+	//! @brief LAPIC LVT disable mask
+	LAPIC_LVT_DISABLE_MASK = 1 << 16,
+	//! @brief One-shot LAPIC timer mode
+	LAPIC_TMR_ONE_SHOT = 0,
+	//! @brief TSC deadline LAPIC timer mode
+	LAPIC_TMR_TSC = 0b10 << 17,
+};
+
+//! @brief Generic LAPIC read function
+#define LAPIC_READ(reg)                                                                            \
+	({                                                                                             \
+		uint32_t val;                                                                              \
+		if (ic_state == IC_XAPIC_USED) {                                                           \
+			val = ic_xapic_base[LAPIC_XAPIC_##reg##_REG];                                          \
+		} else if (ic_state == IC_X2APIC_USED) {                                                   \
+			val = (uint32_t)rdmsr(LAPIC_X2APIC_##reg##_REG);                                       \
+		} else {                                                                                   \
+			PANIC("LAPIC_READ macro used in PIC8259 code");                                        \
+		};                                                                                         \
+		val;                                                                                       \
+	})
+
+//! @brief Generic LAPIC write function
+#define LAPIC_WRITE(reg, val)                                                                      \
+	do {                                                                                           \
+		if (ic_state == IC_XAPIC_USED) {                                                           \
+			ic_xapic_base[LAPIC_XAPIC_##reg##_REG] = (val);                                        \
+		} else if (ic_state == IC_X2APIC_USED) {                                                   \
+			wrmsr(LAPIC_X2APIC_##reg##_REG, (uint32_t)val);                                        \
+		} else {                                                                                   \
+			PANIC("LAPIC_READ macro used in PIC8259 code");                                        \
+		}                                                                                          \
+	} while (false)
+
+//! @brief Check if LAPIC is used
+//! @return True if LAPIC is used, false if IC driver should fallback to PIC8259
+static bool ic_is_lapic_used(void) {
+	return ic_state != IC_PIC8259_USED;
+}
 
 //! @brief Handle spurious irq
 void ic_handle_spur_irq(void) {
+	if (ic_is_lapic_used()) {
+		LAPIC_WRITE(EOI, 0);
+	}
 }
 
 //! @brief Get interrupt controller ID
 uint32_t ic_get_apic_id(void) {
-	if (ic_state == IC_X2APIC_USED) {
-		return rdmsr(LAPIC_X2APIC_ID_REG);
-	} else if (ic_state == IC_XAPIC_USED) {
-		return lapic_xapic[LAPIC_XAPIC_ID_REG];
+	if (ic_is_lapic_used()) {
+		return LAPIC_READ(ID);
 	} else {
 		return 0;
 	}
@@ -74,66 +155,107 @@ uint32_t ic_get_apic_id(void) {
 void ic_enable(void) {
 	// Enable LAPIC
 	if (ic_state == IC_X2APIC_USED) {
-		wrmsr(LAPIC_IA32_APIC_BASE, rdmsr(LAPIC_IA32_APIC_BASE) | (1ULL << 10ULL));
-		wrmsr(LAPIC_X2APIC_SPUR_REG, 0x100 | ic_spur_vec);
+		wrmsr(LAPIC_IA32_APIC_BASE, rdmsr(LAPIC_IA32_APIC_BASE) | X2APIC_ENABLE);
+		wrmsr(LAPIC_X2APIC_SPUR_REG, LAPIC_ENABLE | ic_spur_vec);
 	} else if (ic_state == IC_XAPIC_USED) {
-		lapic_xapic[LAPIC_XAPIC_SPUR_REG] = 0x100 | ic_spur_vec;
+		ic_xapic_base[LAPIC_XAPIC_SPUR_REG] = LAPIC_ENABLE | ic_spur_vec;
 	} else {
 		PANIC("lapic_enable in single-core mode got called");
+	}
+}
+
+//! @brief Send raw IPI
+//! @param id ID of the core message is being sent to
+//! @param msg Message contents
+static void ic_ipi_send_raw(uint32_t id, uint32_t msg) {
+	if (ic_state == IC_XAPIC_USED) {
+		ASSERT(id < 256, "Sending IPIs to the core with id > 256 in xAPIC mode");
+		ic_xapic_base[LAPIC_XAPIC_ICR_HIGH_REG] = id << 24;
+		ic_xapic_base[LAPIC_XAPIC_ICR_LOW_REG] = msg;
+		while ((ic_xapic_base[LAPIC_XAPIC_ICR_LOW_REG] & XAPIC_DELIEVERED) != 0) {
+			asm volatile("pause");
+		}
+	} else if (ic_state == IC_X2APIC_USED) {
+		wrmsr(LAPIC_X2APIC_ICR_REG, (((uint64_t)id) << 32ULL) | msg);
+	} else {
+		PANIC("SMP is not supported with legacy PIC8259");
 	}
 }
 
 //! @brief Send init IPI to the core with the given APIC ID
 //! @param id APIC id of the core to be waken up
 void ic_send_init_ipi(uint32_t id) {
-	if (ic_state == IC_PIC_USED) {
-		PANIC("Sending INIT IPIs is not implemented for legacy PIC8259");
-	} else if (ic_state == IC_XAPIC_USED) {
-		ASSERT(id < 256, "Sending IPIs to the core with id > 256 in xAPIC mode");
-		lapic_xapic[LAPIC_XAPIC_ICR_HIGH_REG] = id << 24;
-		lapic_xapic[LAPIC_XAPIC_ICR_LOW_REG] = 0x4500;
-		while ((lapic_xapic[LAPIC_XAPIC_ICR_LOW_REG] & (1 << 12)) != 0) {
-			asm volatile("pause");
-		}
-	} else if (ic_state == IC_X2APIC_USED) {
-		wrmsr(LAPIC_X2APIC_ICR_REG, (((uint64_t)id) << 32ULL) | 0x4500ULL);
-	}
+	ic_ipi_send_raw(id, LAPIC_INIT_IPI);
 }
 
 //! @brief Send startup IPI to the core with the given APIC ID
 //! @param id APIC id of the core to be waken up
 //! @param addr Trampoline address (should be <1MB and divisible by 0x1000)
 void ic_send_startup_ipi(uint32_t id, uint32_t addr) {
-	uint64_t page = addr / 0x1000;
-	if (ic_state == IC_PIC_USED) {
-		PANIC("Sending startup IPIs is not implemented for legacy PIC8259");
-	} else if (ic_state == IC_XAPIC_USED) {
-		ASSERT(id < 256, "Sending IPIs to the core with id > 256 in xAPIC mode");
-		lapic_xapic[LAPIC_XAPIC_ICR_HIGH_REG] = id << 24;
-		lapic_xapic[LAPIC_XAPIC_ICR_LOW_REG] = 0x4600 | page;
-		while ((lapic_xapic[LAPIC_XAPIC_ICR_LOW_REG] & (1 << 12)) != 0) {
-			asm volatile("pause");
-		}
-	} else if (ic_state == IC_X2APIC_USED) {
-		wrmsr(LAPIC_X2APIC_ICR_REG, (((uint64_t)id) << 32ULL) | 0x4600ULL | page);
-	}
+	ic_ipi_send_raw(id, LAPIC_STARTUP_IPI | (addr / 0x1000));
 }
 
 //! @brief Send IPI to the core with the given APIC ID
 //! @param id APIC id of the core
 //! @param vec Interrupt vector to be triggered when message is recieved
 void ic_send_ipi(uint32_t id, uint8_t vec) {
-	if (ic_state == IC_PIC_USED) {
-		PANIC("Sending IPIs is not implemented for legacy PIC8259");
-	} else if (ic_state == IC_XAPIC_USED) {
-		ASSERT(id < 256, "Sending IPIs to the core with id > 256 in xAPIC mode");
-		lapic_xapic[LAPIC_XAPIC_ICR_HIGH_REG] = id << 24;
-		lapic_xapic[LAPIC_XAPIC_ICR_LOW_REG] = (uint32_t)vec;
-		while ((lapic_xapic[LAPIC_XAPIC_ICR_LOW_REG] & (1 << 12)) != 0) {
-			asm volatile("pause");
-		}
-	} else if (ic_state == IC_X2APIC_USED) {
-		wrmsr(LAPIC_X2APIC_ICR_REG, (((uint64_t)id) << 32ULL) | (uint64_t)vec);
+	ic_ipi_send_raw(id, LAPIC_STARTUP_IPI | (uint32_t)vec);
+}
+
+//! @brief Initiate timer calibration process
+void ic_timer_start_calibration(void) {
+	if (ic_is_lapic_used()) {
+		// Set divider to 16
+		LAPIC_WRITE(DCR, 0b1010);
+		// Initialize timer LVT register
+		LAPIC_WRITE(LVT_TIMER, LAPIC_TMR_ONE_SHOT | ic_timer_vec);
+		// Initialize counter to 0xffffffff
+		LAPIC_WRITE(INIT_CNT, 0xffffffff);
+	} else {
+		TODO();
+	}
+}
+
+//! @brief Finish timer calibration process. Should be called after IC_TIMER_CALIBRATION_PERIOD
+//! millseconds passed from ic_timer_start_calibration call
+void ic_timer_end_calibration(void) {
+	if (ic_is_lapic_used()) {
+		// Calculate number of ticks per ms
+		uint32_t val = LAPIC_READ(CNT);
+		PER_CPU(ic_state).timer_ticks_per_ms = (0xffffffff - val) / IC_TIMER_CALIBRATION_PERIOD;
+		// Stop LAPIC timer
+		ic_timer_cancel_one_shot();
+	} else {
+		TODO();
+	}
+}
+
+//! @brief Prepare timer for one shot event
+//! @param ms Number of milliseconds to wait
+void ic_timer_one_shot(uint32_t ms) {
+	if (ic_is_lapic_used()) {
+		uint32_t ticks_per_ms = PER_CPU(ic_state).timer_ticks_per_ms;
+		uint32_t ticks_total = ticks_per_ms * ms;
+		LAPIC_WRITE(INIT_CNT, ticks_total);
+	} else {
+		TODO();
+	}
+}
+
+//! @brief Acknowledge timer interrupt
+void ic_timer_ack(void) {
+	if (ic_is_lapic_used()) {
+		LAPIC_WRITE(EOI, 0);
+	} else {
+		pic_irq_ack(0);
+	}
+}
+//! @brief Cancel one-shot timer event
+void ic_timer_cancel_one_shot() {
+	if (ic_is_lapic_used()) {
+		LAPIC_WRITE(INIT_CNT, 0);
+	} else {
+		TODO();
 	}
 }
 
@@ -155,8 +277,8 @@ static void ic_bsp_init(void) {
 	if (lapic_phys_base >= INIT_PHYS_MAPPING_SIZE && !(ic_state == IC_X2APIC_USED)) {
 		PANIC("LAPIC unreachable until direct phys window set up");
 	}
-	lapic_xapic = (volatile uint32_t *)(mem_wb_phys_win_base + lapic_phys_base);
-	LOG_INFO("xAPIC address: 0x%p", lapic_xapic);
+	ic_xapic_base = (volatile uint32_t *)(mem_wb_phys_win_base + lapic_phys_base);
+	LOG_INFO("xAPIC address: 0x%p", ic_xapic_base);
 	// Enable LAPIC
 	ic_enable();
 }

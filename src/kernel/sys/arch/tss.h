@@ -26,7 +26,7 @@ struct tss {
 	uint32_t reserved4;
 	uint16_t reserved5;
 	uint16_t io_map_base_addr;
-};
+} attribute_packed;
 
 //! @brief Initilaize TSS
 static inline void tss_fill(struct tss *tss) {
