@@ -15,3 +15,4 @@
 -numa dist,src=0,dst=3,val=20
 -numa dist,src=1,dst=2,val=20
 -numa dist,src=1,dst=3,val=20
+--enable-kvm -cpu host

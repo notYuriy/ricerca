@@ -14,6 +14,12 @@
 struct ic_core_state {
 	//! @brief Number of ticks in one millisecond for IC timer
 	uint32_t timer_ticks_per_ms;
+	//! @brief TSC deadline mode support
+	bool tsc_deadline_supported;
+	//! @brief Number of ticks in one millisecond for invariant TSC
+	uint64_t tsc_freq;
+	//! @brief TSC buffer. Used for timer initialization in TSC mode
+	uint64_t tsc_buf;
 };
 
 //! @brief Spurious interrupt vector

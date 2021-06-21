@@ -9,6 +9,7 @@
 #include <sys/ic.h>
 #include <sys/msr.h>
 #include <sys/pic.h>
+#include <sys/tsc.h>
 #include <thread/smp/locals.h>
 
 MODULE("sys/ic");
@@ -22,18 +23,6 @@ static enum
 	IC_XAPIC_USED,
 	IC_PIC8259_USED,
 } ic_state = IC_PIC8259_USED;
-
-//! @brief Pointer to LAPIC registers
-static volatile uint32_t *ic_xapic_base;
-
-//! @brief IA32_APIC_BASE register as defined in Intel Software Developer's Manual
-static const uint32_t LAPIC_IA32_APIC_BASE = 0x0000001b;
-
-//! @brief Spurious LAPIC irq interrupt vector
-uint8_t ic_spur_vec = 127;
-
-//! @brief Timer interrupt vector
-uint8_t ic_timer_vec = 32;
 
 //! @brief xAPIC registers
 enum
@@ -101,7 +90,20 @@ enum
 	LAPIC_TMR_ONE_SHOT = 0,
 	//! @brief TSC deadline LAPIC timer mode
 	LAPIC_TMR_TSC = 0b10 << 17,
+	//! @brief TSC deadline MSR
+	LAPIC_IA32_TSC_DEADLINE_MSR = 0x6e0,
+	//! @brief APIC base MSR
+	LAPIC_IA32_APIC_BASE = 0x1b,
 };
+
+//! @brief Pointer to LAPIC registers
+static volatile uint32_t *ic_xapic_base;
+
+//! @brief Spurious LAPIC irq interrupt vector
+uint8_t ic_spur_vec = 127;
+
+//! @brief Timer interrupt vector
+uint8_t ic_timer_vec = 32;
 
 //! @brief Generic LAPIC read function
 #define LAPIC_READ(reg)                                                                            \
@@ -202,15 +204,39 @@ void ic_send_ipi(uint32_t id, uint8_t vec) {
 	ic_ipi_send_raw(id, LAPIC_STARTUP_IPI | (uint32_t)vec);
 }
 
+//! @brief Detect TSC deadline mode support
+static void ic_timer_tsc_deadline_detect() {
+	PER_CPU(ic_state).tsc_deadline_supported = false;
+	// If TSC itself is not supported, don't bother
+	if (!tsc_supported()) {
+		return;
+	}
+	// Check TSC deadline support
+	struct cpuid buf;
+	cpuid(1, 0, &buf);
+	if ((buf.ecx & (1 << 24)) != 0) {
+		// Support is there
+		PER_CPU(ic_state).tsc_deadline_supported = true;
+	}
+}
+
 //! @brief Initiate timer calibration process
 void ic_timer_start_calibration(void) {
 	if (ic_is_lapic_used()) {
-		// Set divider to 16
-		LAPIC_WRITE(DCR, 0b1010);
-		// Initialize timer LVT register
-		LAPIC_WRITE(LVT_TIMER, LAPIC_TMR_ONE_SHOT | ic_timer_vec);
-		// Initialize counter to 0xffffffff
-		LAPIC_WRITE(INIT_CNT, 0xffffffff);
+		ic_timer_tsc_deadline_detect();
+		if (PER_CPU(ic_state).tsc_deadline_supported) {
+			// Initialize timer LVT register
+			LAPIC_WRITE(LVT_TIMER, LAPIC_TMR_TSC | ic_timer_vec);
+			// Read currrent timestamp
+			PER_CPU(ic_state).tsc_buf = tsc_read();
+		} else {
+			// Set divider to 16
+			LAPIC_WRITE(DCR, 0b1010);
+			// Initialize timer LVT register
+			LAPIC_WRITE(LVT_TIMER, LAPIC_TMR_ONE_SHOT | ic_timer_vec);
+			// Initialize counter to 0xffffffff
+			LAPIC_WRITE(INIT_CNT, 0xffffffff);
+		}
 	} else {
 		TODO();
 	}
@@ -220,11 +246,18 @@ void ic_timer_start_calibration(void) {
 //! millseconds passed from ic_timer_start_calibration call
 void ic_timer_end_calibration(void) {
 	if (ic_is_lapic_used()) {
-		// Calculate number of ticks per ms
-		uint32_t val = LAPIC_READ(CNT);
-		PER_CPU(ic_state).timer_ticks_per_ms = (0xffffffff - val) / IC_TIMER_CALIBRATION_PERIOD;
-		// Stop LAPIC timer
-		ic_timer_cancel_one_shot();
+		if (PER_CPU(ic_state).tsc_deadline_supported) {
+			// Read clock cycles difference
+			PER_CPU(ic_state).tsc_freq =
+			    (tsc_read() - PER_CPU(ic_state).tsc_buf) / IC_TIMER_CALIBRATION_PERIOD;
+
+		} else {
+			// Calculate number of ticks per ms
+			uint32_t val = LAPIC_READ(CNT);
+			PER_CPU(ic_state).timer_ticks_per_ms = (0xffffffff - val) / IC_TIMER_CALIBRATION_PERIOD;
+			// Stop LAPIC timer
+			ic_timer_cancel_one_shot();
+		}
 	} else {
 		TODO();
 	}
@@ -234,9 +267,11 @@ void ic_timer_end_calibration(void) {
 //! @param ms Number of milliseconds to wait
 void ic_timer_one_shot(uint32_t ms) {
 	if (ic_is_lapic_used()) {
-		uint32_t ticks_per_ms = PER_CPU(ic_state).timer_ticks_per_ms;
-		uint32_t ticks_total = ticks_per_ms * ms;
-		LAPIC_WRITE(INIT_CNT, ticks_total);
+		if (PER_CPU(ic_state).tsc_deadline_supported) {
+			wrmsr(LAPIC_IA32_TSC_DEADLINE_MSR, tsc_read() + PER_CPU(ic_state).tsc_freq * ms);
+		} else {
+			LAPIC_WRITE(INIT_CNT, PER_CPU(ic_state).timer_ticks_per_ms * ms);
+		}
 	} else {
 		TODO();
 	}
@@ -253,7 +288,11 @@ void ic_timer_ack(void) {
 //! @brief Cancel one-shot timer event
 void ic_timer_cancel_one_shot() {
 	if (ic_is_lapic_used()) {
-		LAPIC_WRITE(INIT_CNT, 0);
+		if (PER_CPU(ic_state).tsc_deadline_supported) {
+			wrmsr(LAPIC_IA32_TSC_DEADLINE_MSR, 0);
+		} else {
+			LAPIC_WRITE(INIT_CNT, 0);
+		}
 	} else {
 		TODO();
 	}

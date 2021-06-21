@@ -1,1 +1,2 @@
 -machine q35 -smp 8 -m 1G
+--enable-kvm -cpu host

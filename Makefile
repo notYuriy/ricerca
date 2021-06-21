@@ -63,10 +63,8 @@ run-release: ricerca-release.hdd
 # -debugcon stdio - Add debug connection, so that we can print logs to e9 port from the kernel
 # and see them in the terminal
 # -no-shutdown -no-reboot - Halt on fatal errrors
-	echo `cat machines/$(MACHINE) | tr '\n' ' '`
 	qemu-system-x86_64 \
 	-hda ricerca-release.hdd \
-	--enable-kvm -cpu host \
 	-debugcon stdio \
 	-no-shutdown -no-reboot \
 	`cat machines/$(MACHINE) | tr '\n' ' '`
@@ -81,10 +79,8 @@ run-release: ricerca-release.hdd
 # and see them in the terminal
 # -no-shutdown -no-reboot - Halt on fatal errrors
 run-safe: ricerca-debug.hdd
-	echo `cat machines/$(MACHINE) | tr '\n' ' '`
 	qemu-system-x86_64 \
 	-hda ricerca-debug.hdd \
-	--enable-kvm -cpu host \
 	-debugcon stdio \
 	-no-shutdown -no-reboot \
 	`cat machines/$(MACHINE) | tr '\n' ' '`
@@ -99,7 +95,6 @@ run-safe: ricerca-debug.hdd
 # and see them in the terminal
 # -no-shutdown -no-reboot - Halt on fatal errrors
 run-ci: ricerca-debug.hdd
-	echo `cat machines/$(MACHINE) | tr '\n' ' '`
 	qemu-system-x86_64 \
 	-hda ricerca-debug.hdd \
 	-debugcon stdio \
