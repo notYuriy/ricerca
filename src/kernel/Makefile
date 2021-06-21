@@ -115,12 +115,6 @@ RELEASE_OBJS = $(C_RELEASE_OBJS) $(AS_OBJS)
 
 ### Rules for assembling/compiling files ###
 
-# Rule for assembling SMP trampoline code
-trampoline: thread/smp/trampoline.real
-# Assemble trampoline
-# -f bin - Assemble to binary
-	$(AS) thread/smp/trampoline.real thread/smp/trampoline.bin
-
 # Release C code compilation rule
 # This rule matches all dependencies names that end with .c.release.o.
 # This extension is used by C object files in release mode
@@ -153,8 +147,7 @@ trampoline: thread/smp/trampoline.real
 # This rule matches all dependencies names that end with .asm.o.
 # This extension is used by ASM object files
 # Extension ".asm.o" is substituted with ".asm" to get source file name
-# This rule also depends on trampoline code to make sure it gets built first
-%.asm.o: %.asm trampoline
+%.asm.o: %.asm
 # Assemble .asm file
 # "$<" - name of the first (and in this case, the only one) dependency. In this case,
 # its simply name of the asm file to be assembled
