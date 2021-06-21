@@ -207,10 +207,6 @@ void ic_send_ipi(uint32_t id, uint8_t vec) {
 //! @brief Detect TSC deadline mode support
 static void ic_timer_tsc_deadline_detect() {
 	PER_CPU(ic_state).tsc_deadline_supported = false;
-	// If TSC itself is not supported, don't bother
-	if (!tsc_supported()) {
-		return;
-	}
 	// Check TSC deadline support
 	struct cpuid buf;
 	cpuid(1, 0, &buf);

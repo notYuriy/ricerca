@@ -12,16 +12,3 @@ inline static uint64_t tsc_read() {
 	asm volatile("rdtsc" : "=a"(lo), "=d"(hi));
 	return ((uint64_t)hi << 32) | lo;
 }
-
-//! @brief Check if TSC is supported
-static inline bool tsc_supported() {
-	struct cpuid buf;
-	// Check that highest CPUID function is at least 0x80000007
-	cpuid(0x80000000, 0, &buf);
-	if (buf.eax < 0x80000007) {
-		return false;
-	}
-	// Check if TSC is supported
-	cpuid(0x80000001, 0, &buf);
-	return (buf.edx & (1 << 4)) != 0;
-}
