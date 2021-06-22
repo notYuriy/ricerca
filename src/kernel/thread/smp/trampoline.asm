@@ -24,13 +24,11 @@ pc_interrupt_stack_top = 24
 pc_scheduler_stack_top = 32
 
 ; Arguments passed from the kernel
-struc trampoline_args_struct {
-	.kernel_cr3: rq 1
-	.cpu_locals: rq 1
-	.cpu_locals_size: rq 1
-	.max_cpus: rq 1
-	.callback: rq 1
-}
+ta_kernel_cr3 = 0x70000
+ta_cpu_locals = 0x70008
+ta_cpu_locals_size = 0x70010
+ta_max_cpus = 0x70018
+ta_callback = 0x70020
 
 ; LAPIC spurious interrupt vector
 spur_vec = 127
@@ -99,7 +97,7 @@ start32:
 .enabling_paging:
 
 	; Load CR3
-	mov eax, dword [trampoline_args.kernel_cr3]
+	mov eax, dword [ta_kernel_cr3]
 	mov cr3, eax
 
 	; Enable PAE
@@ -173,17 +171,17 @@ start64:
 
 .logical_id_lookup:
 	; Load per cpu array pointer from cpu_locals_pointer
-	mov rdi, qword [trampoline_args.cpu_locals]
+	mov rdi, qword [ta_cpu_locals]
 
 	; Load entry size in rbx
-	mov rbx, qword [trampoline_args.cpu_locals_size]
+	mov rbx, qword [ta_cpu_locals_size]
 
 	; Iterate over it. rdi will point to the current entry, and rcx tracks the index
 	mov rcx, 0
 
 .lookup_loop:
 	; If we reached end of per-cpu array, move on to the next entry
-	cmp rcx, qword [trampoline_args.max_cpus]
+	cmp rcx, qword [ta_max_cpus]
 	je .lookup_loop_end
 
 	; Check that CPU entry has asleep status
@@ -221,7 +219,7 @@ start64:
 	; Prepare registers for the call
 	mov edi, esi
 	; Get pointer to the bootstrap routine
-	mov rax, qword [trampoline_args.callback]
+	mov rax, qword [ta_callback]
 	jmp rax
 	; Hang
 	cli
@@ -259,7 +257,3 @@ gdt:
 relative_end = $ - 0x71000
 
 thread_smp_trampoline_code_end = thread_smp_trampoline_code_start + relative_end - relative_start
-
-; Put trampoline args at 0x70000
-org 0x70000
-trampoline_args trampoline_args_struct
