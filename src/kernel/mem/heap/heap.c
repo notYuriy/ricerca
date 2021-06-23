@@ -26,7 +26,7 @@
 
 MODULE("mem/heap")
 TARGET(mem_heap_available, META_DUMMY,
-       {mem_phys_available, mem_misc_collect_info_available, thread_smp_locals_available})
+       {mem_phys_available, mem_misc_collect_info_available, thread_smp_core_available})
 META_DEFINE_DUMMY()
 
 //! @brief Slab size

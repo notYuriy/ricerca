@@ -12,7 +12,7 @@
 
 MODULE("thread/smp/trampoline")
 TARGET(thread_smp_trampoline_available, thread_smp_trampoline_init,
-       {mem_misc_collect_info_available, thread_smp_locals_available})
+       {mem_misc_collect_info_available, thread_smp_core_available})
 
 //! @brief Trampoline code start symbol
 extern char thread_smp_trampoline_code_start[1];
@@ -47,16 +47,16 @@ struct thread_smp_trampoline_args {
 //! @param logical_id Logical ID of the CPU
 static void thread_smp_trampoline_ap_init(uint32_t logical_id) {
 	// TODO: Die properly instead of hangs
-	thread_smp_locals_init_on_ap(logical_id);
+	thread_smp_core_init_on_ap(logical_id);
 	// If kernel gave up on us, hang
-	struct thread_smp_locals *locals = thread_smp_locals_get();
-	if (ATOMIC_ACQUIRE_LOAD(&locals->status) == THREAD_SMP_LOCALS_STATUS_GAVE_UP) {
+	struct thread_smp_core *locals = thread_smp_core_get();
+	if (ATOMIC_ACQUIRE_LOAD(&locals->status) == THREAD_SMP_CORE_STATUS_GAVE_UP) {
 		hang();
 	}
 	// Initialize architecture layer
 	arch_init();
 	// Update status
-	ATOMIC_RELEASE_STORE(&locals->status, THREAD_SMP_LOCALS_STATUS_ONLINE);
+	ATOMIC_RELEASE_STORE(&locals->status, THREAD_SMP_CORE_STATUS_ONLINE);
 	LOG_INFO("Hello from core %u", logical_id);
 	// Wait for trampoline status to update
 	while (ATOMIC_ACQUIRE_LOAD(&thread_smp_trampoline_state) !=
@@ -95,8 +95,8 @@ void thread_smp_trampoline_init() {
 	    (struct thread_smp_trampoline_args *)(mem_wb_phys_win_base +
 	                                          THREAD_SMP_TRAMPOLINE_ARGS_PHYS);
 	args->cr3 = cr3;
-	args->cpu_locals = (uint64_t)thread_smp_locals_array;
-	args->cpu_locals_size = (uint64_t)sizeof(struct thread_smp_locals);
-	args->max_cpus = (uint64_t)thread_smp_locals_max_cpus;
+	args->cpu_locals = (uint64_t)thread_smp_core_array;
+	args->cpu_locals_size = (uint64_t)sizeof(struct thread_smp_core);
+	args->max_cpus = (uint64_t)thread_smp_core_max_cpus;
 	args->callback = (uint64_t)thread_smp_trampoline_ap_init;
 }

@@ -11,25 +11,25 @@
 
 MODULE("thread/smp/boot_bringup")
 TARGET(thread_smp_ap_boot_bringup_available, thread_smp_ap_boot_bringup,
-       {ic_bsp_available, thread_smp_locals_available, timers_available,
+       {ic_bsp_available, thread_smp_core_available, timers_available,
         thread_smp_trampoline_available, arch_available})
 
 //! @brief Bring up CPUs plugged on boot
 void thread_smp_ap_boot_bringup() {
 	// Preallocate arch state and send init IPIs
-	for (size_t i = 0; i < thread_smp_locals_max_cpus; ++i) {
-		struct thread_smp_locals *locals = thread_smp_locals_array + i;
-		if (locals->status == THREAD_SMP_LOCALS_STATUS_ASLEEP) {
-			ATOMIC_RELEASE_STORE(&locals->status, THREAD_SMP_LOCALS_STATUS_WAKEUP_INITIATED);
+	for (size_t i = 0; i < thread_smp_core_max_cpus; ++i) {
+		struct thread_smp_core *locals = thread_smp_core_array + i;
+		if (locals->status == THREAD_SMP_CORE_STATUS_ASLEEP) {
+			ATOMIC_RELEASE_STORE(&locals->status, THREAD_SMP_CORE_STATUS_WAKEUP_INITIATED);
 			ic_send_init_ipi(locals->apic_id);
 		}
 	}
 	// Wait 10 ms
 	timer_busy_wait_ms(10);
 	// Send startup IPIs
-	for (size_t i = 0; i < thread_smp_locals_max_cpus; ++i) {
-		struct thread_smp_locals *locals = thread_smp_locals_array + i;
-		if (locals->status == THREAD_SMP_LOCALS_STATUS_WAKEUP_INITIATED) {
+	for (size_t i = 0; i < thread_smp_core_max_cpus; ++i) {
+		struct thread_smp_core *locals = thread_smp_core_array + i;
+		if (locals->status == THREAD_SMP_CORE_STATUS_WAKEUP_INITIATED) {
 			ic_send_startup_ipi(locals->apic_id, THREAD_SMP_TRAMPOLINE_ADDR);
 		}
 	}
@@ -37,10 +37,10 @@ void thread_smp_ap_boot_bringup() {
 	timer_busy_wait_ms(10);
 	// Check if CPUs have booted up
 	bool everyone_started = true;
-	for (size_t i = 0; i < thread_smp_locals_max_cpus; ++i) {
-		struct thread_smp_locals *locals = thread_smp_locals_array + i;
+	for (size_t i = 0; i < thread_smp_core_max_cpus; ++i) {
+		struct thread_smp_core *locals = thread_smp_core_array + i;
 		uint64_t status = ATOMIC_ACQUIRE_LOAD(&(locals->status));
-		if (status == THREAD_SMP_LOCALS_STATUS_WAKEUP_INITIATED) {
+		if (status == THREAD_SMP_CORE_STATUS_WAKEUP_INITIATED) {
 			// Resend startup IPI
 			ic_send_startup_ipi(locals->apic_id, THREAD_SMP_TRAMPOLINE_ADDR);
 			everyone_started = false;
@@ -55,12 +55,12 @@ void thread_smp_ap_boot_bringup() {
 	timer_busy_wait_ms(100);
 	// Ok, now everyone should have started,
 	everyone_started = true;
-	for (size_t i = 0; i < thread_smp_locals_max_cpus; ++i) {
-		struct thread_smp_locals *locals = thread_smp_locals_array + i;
+	for (size_t i = 0; i < thread_smp_core_max_cpus; ++i) {
+		struct thread_smp_core *locals = thread_smp_core_array + i;
 		uint64_t status = ATOMIC_ACQUIRE_LOAD(&locals->status);
-		if (status == THREAD_SMP_LOCALS_STATUS_WAKEUP_INITIATED) {
+		if (status == THREAD_SMP_CORE_STATUS_WAKEUP_INITIATED) {
 			// Give up on this CPU, it takes too long to start
-			ATOMIC_RELEASE_STORE(&locals->status, THREAD_SMP_LOCALS_STATUS_GAVE_UP);
+			ATOMIC_RELEASE_STORE(&locals->status, THREAD_SMP_CORE_STATUS_GAVE_UP);
 			everyone_started = false;
 		}
 	}

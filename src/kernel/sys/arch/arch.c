@@ -12,14 +12,14 @@
 
 MODULE("arch")
 TARGET(arch_available, arch_bsp_init,
-       {mem_heap_available, thread_smp_locals_available, idt_available, ic_bsp_available})
+       {mem_heap_available, thread_smp_core_available, idt_available, ic_bsp_available})
 
 //! @brief Preallocate arch state for the given core before bootup
 //! @param logical_id Core logical id
 //! @param numa_id Core proximity domain ID
 //! @return True if allocation of core state succeeded
 bool arch_prealloc(uint32_t logical_id, numa_id_t numa_id) {
-	struct thread_smp_locals *locals = thread_smp_locals_array + logical_id;
+	struct thread_smp_core *locals = thread_smp_core_array + logical_id;
 	// Allocate space for GDT
 	locals->arch_state.gdt = mem_heap_alloc_on_behalf(sizeof(struct gdt), numa_id);
 	if (locals->arch_state.gdt == NULL) {
@@ -43,7 +43,7 @@ static void arch_dummy_int_vec(struct interrupt_frame *frame, void *ctx) {
 //! @brief Initialize amd64 tables on this core
 void arch_init(void) {
 	// Initialize GDT
-	struct thread_smp_locals *locals = thread_smp_locals_get();
+	struct thread_smp_core *locals = thread_smp_core_get();
 	gdt_init(locals->arch_state.gdt);
 	// Initialize IDT
 	idt_init();

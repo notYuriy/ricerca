@@ -9,23 +9,23 @@
 #include <sys/numa/numa.h>
 
 //! @brief Per-CPU stack size
-#define THREAD_SMP_LOCALS_CPU_STACK_SIZE 0x10000
+#define THREAD_SMP_CORE_CPU_STACK_SIZE 0x10000
 
 //! @brief CPU status
 enum
 {
 	//! @brief CPU is asleep
-	THREAD_SMP_LOCALS_STATUS_ASLEEP = 1,
+	THREAD_SMP_CORE_STATUS_ASLEEP = 1,
 	//! @brief Startup IPI was sent
-	THREAD_SMP_LOCALS_STATUS_WAKEUP_INITIATED = 2,
+	THREAD_SMP_CORE_STATUS_WAKEUP_INITIATED = 2,
 	//! @brief CPU is online, waiting for tasks to run
-	THREAD_SMP_LOCALS_STATUS_ONLINE = 3,
+	THREAD_SMP_CORE_STATUS_ONLINE = 3,
 	//! @brief Gave up status
-	THREAD_SMP_LOCALS_STATUS_GAVE_UP = 4,
+	THREAD_SMP_CORE_STATUS_GAVE_UP = 4,
 };
 
 //! @brief CPU-local area
-struct thread_smp_locals {
+struct thread_smp_core {
 	//! @brief Data accessible from SMP trampolie
 	//! @note Keep in sync with thread/smp/trampoline.real
 	struct {
@@ -51,23 +51,23 @@ struct thread_smp_locals {
 };
 
 //! @brief Macro to access per-cpu data
-#define PER_CPU(member) (thread_smp_locals_get()->member)
+#define PER_CPU(member) (thread_smp_core_get()->member)
 
 //! @brief Pointer to CPU local data structures
-extern struct thread_smp_locals *thread_smp_locals_array;
+extern struct thread_smp_core *thread_smp_core_array;
 
 //! @brief Size of CPU local structures array
-extern size_t thread_smp_locals_max_cpus;
+extern size_t thread_smp_core_max_cpus;
 
 //! @brief Get pointer to CPU local storage
-//! @return Pointer to the thread_smp_locals data structure
-struct thread_smp_locals *thread_smp_locals_get(void);
+//! @return Pointer to the thread_smp_core data structure
+struct thread_smp_core *thread_smp_core_get(void);
 
 //! @brief Initialize CPU local storage on AP
 //! @note To be used on AP bootup
 //! @note Requires LAPIC to be enabled
 //! @param logical_id Logical id of the current AP
-void thread_smp_locals_init_on_ap(uint32_t logical_id);
+void thread_smp_core_init_on_ap(uint32_t logical_id);
 
 //! @brief Export target to initialize CPU local areas
-EXPORT_TARGET(thread_smp_locals_available)
+EXPORT_TARGET(thread_smp_core_available)
