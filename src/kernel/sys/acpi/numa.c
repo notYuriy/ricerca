@@ -12,38 +12,33 @@
 MODULE("sys/acpi/numa")
 TARGET(acpi_numa_available, acpi_numa_init, {ic_bsp_available, acpi_available})
 
-//! @brief Current SRAT offset
-static uintptr_t acpi_numa_current_srat_offset = 0;
-
-//! @brief True if enumeration has been ended (used when SRAT is not available)
-static bool acpi_numa_enum_ended = false;
-
 //! @brief Proximity domain of boot CPU
 numa_id_t acpi_numa_boot_domain = 0;
 
-//! @brief Enumerate NUMA proximities at boot time
+//! @brief Enumerate NUMA proximities
+//! @param iter Pointer to acpi_numa_proximities_iter
 //! @param buf Buffer to store NUMA proxmities IDs in
 //! @return False if enumeration has ended, true otherwise
 //! @note Caller should guard against duplicate proximities on its own
-bool acpi_numa_enumerate_at_boot(numa_id_t *buf) {
+bool acpi_numa_enumerate_at_boot(struct acpi_numa_proximities_iter *iter, numa_id_t *buf) {
 	// Check if SRAT is there
 	if (acpi_boot_srat == NULL) {
 		// If not, return 0 and return false later on
-		if (acpi_numa_enum_ended) {
+		if (iter->enumeration_finished) {
 			return false;
 		}
-		acpi_numa_enum_ended = true;
+		iter->enumeration_finished = true;
 		*buf = 0;
 		return true;
 	} else {
 		// Enumerate SRAT
 		const uintptr_t starting_address = ((uintptr_t)acpi_boot_srat) + sizeof(struct acpi_srat);
 		const uintptr_t entries_len = acpi_boot_srat->hdr.length - sizeof(struct acpi_srat);
-		while (acpi_numa_current_srat_offset < entries_len) {
+		while (iter->srat_offset < entries_len) {
 			// Get pointer to current SRAT entry and increment offset
 			struct acpi_srat_entry *entry =
-			    (struct acpi_srat_entry *)(starting_address + acpi_numa_current_srat_offset);
-			acpi_numa_current_srat_offset += entry->length;
+			    (struct acpi_srat_entry *)(starting_address + iter->srat_offset);
+			iter->srat_offset += entry->length;
 			// Check SRAT entry type
 			switch (entry->type) {
 			case ACPI_SRAT_XAPIC_ENTRY: {
@@ -57,10 +52,6 @@ bool acpi_numa_enumerate_at_boot(numa_id_t *buf) {
 				domain_id += (uint32_t)(xapic->domain_high[0]) << 8U;
 				domain_id += (uint32_t)(xapic->domain_high[1]) << 16U;
 				domain_id += (uint32_t)(xapic->domain_high[2]) << 24U;
-				if (domain_id > NUMA_MAX_NODES) {
-					PANIC("domain_id = %u is greater than NUMA_MAX_NODES=%u", domain_id,
-					      NUMA_MAX_NODES);
-				}
 				*buf = (numa_id_t)domain_id;
 				return true;
 			}
@@ -71,10 +62,6 @@ bool acpi_numa_enumerate_at_boot(numa_id_t *buf) {
 				if ((x2apic->flags & 1U) == 0) {
 					break;
 				}
-				if (x2apic->domain > NUMA_MAX_NODES) {
-					PANIC("domain_id = %u is greater than NUMA_MAX_NODES=%u", x2apic->domain,
-					      NUMA_MAX_NODES);
-				}
 				*buf = (numa_id_t)x2apic->domain;
 				return true;
 			}
@@ -84,10 +71,6 @@ bool acpi_numa_enumerate_at_boot(numa_id_t *buf) {
 				// Check that entry is active
 				if ((mem->flags & 1U) == 0) {
 					break;
-				}
-				if (mem->domain > NUMA_MAX_NODES) {
-					PANIC("domain_id = %u is greater than NUMA_MAX_NODES=%u", mem->domain,
-					      NUMA_MAX_NODES);
 				}
 				*buf = (numa_id_t)mem->domain;
 				return true;
@@ -128,7 +111,6 @@ bool acpi_numa_get_memory_range(struct acpi_numa_phys_range_iter *iter,
 		if (iter->srat_offset == 0) {
 			iter->srat_offset = 1;
 			buf->node_id = 0;
-			buf->hotpluggable = false;
 			buf->end = iter->range_end;
 			buf->start = iter->range_start;
 			// Align start and end
@@ -156,7 +138,6 @@ bool acpi_numa_get_memory_range(struct acpi_numa_phys_range_iter *iter,
 			if ((mem->flags & 1U) == 0) {
 				continue;
 			}
-			bool hotplug = (mem->flags & 2U) != 0;
 			uint32_t domain_id = mem->domain;
 			uint64_t base = ((uint64_t)(mem->base_high) << 32ULL) + (uint64_t)(mem->base_low);
 			uint64_t len = ((uint64_t)(mem->length_high) << 32ULL) + (uint64_t)(mem->length_low);
@@ -165,8 +146,6 @@ bool acpi_numa_get_memory_range(struct acpi_numa_phys_range_iter *iter,
 			if (end <= iter->range_start || base >= iter->range_end) {
 				continue;
 			}
-			// Return the subset of this [base, len] interval that belongs to enumerable region
-			buf->hotpluggable = hotplug;
 			buf->end = (end > iter->range_end) ? iter->range_end : end;
 			buf->start = (base < iter->range_start) ? iter->range_start : base;
 			buf->node_id = domain_id;
@@ -205,10 +184,6 @@ numa_id_t acpi_numa_apic2numa_id(uint32_t apic_id) {
 			domain_id += (uint32_t)(xapic->domain_high[0]) << 8U;
 			domain_id += (uint32_t)(xapic->domain_high[1]) << 16U;
 			domain_id += (uint32_t)(xapic->domain_high[2]) << 24U;
-			if (domain_id > NUMA_MAX_NODES) {
-				PANIC("domain_id = %u is greater than NUMA_MAX_NODES=%u", domain_id,
-				      NUMA_MAX_NODES);
-			}
 			// Check if apic ID matches requested apic ID
 			if (xapic->apic_id == apic_id) {
 				return domain_id;
@@ -221,10 +196,6 @@ numa_id_t acpi_numa_apic2numa_id(uint32_t apic_id) {
 			// Check that entry is active
 			if ((x2apic->flags & 1U) == 0) {
 				break;
-			}
-			if (x2apic->domain > NUMA_MAX_NODES) {
-				PANIC("domain_id = %u is greater than NUMA_MAX_NODES=%u", x2apic->domain,
-				      NUMA_MAX_NODES);
 			}
 			// Check if apic ID matches requested apic ID
 			if (x2apic->apic_id == apic_id) {

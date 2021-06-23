@@ -50,12 +50,12 @@ struct mem_heap_slab_hdr {
 };
 
 //! @brief Allocate a new slabs chunk
-//! @param owner NUMA node in which allocation should be placed
+//! @param id ID of the NUMA node in which allocation should be placed
 //! @note NUMA lock should be acquired
-static bool mem_allocate_new_slabs_chunk(struct numa_node *owner) {
+static bool mem_allocate_new_slabs_chunk(numa_id_t id) {
+	struct numa_node *self = numa_nodes + id;
 	// Allocate backing memory on the given node
-	uintptr_t backing_physmem =
-	    mem_phys_perm_alloc_specific_nolock(MEM_HEAP_CHUNK_SIZE, owner->node_id);
+	uintptr_t backing_physmem = mem_phys_alloc_specific_nolock(MEM_HEAP_CHUNK_SIZE, id);
 	if (backing_physmem == PHYS_NULL) {
 		return false;
 	}
@@ -70,22 +70,23 @@ static bool mem_allocate_new_slabs_chunk(struct numa_node *owner) {
 		struct mem_heap_slab_hdr *new_slab =
 		    (struct mem_heap_slab_hdr *)(mem_wb_phys_win_base + physaddr);
 		// Add it to the list
-		new_slab->next_free = owner->slab_data.slabs;
-		owner->slab_data.slabs = new_slab;
+		new_slab->next_free = self->slab_data.slabs;
+		self->slab_data.slabs = new_slab;
 	}
 	return true;
 }
 
 //! @brief Create a new slab for a given order on the node
-//! @param node Weak reference to the node
+//! @param id Node ID
 //! @param order Block size order
 //! @note Requires empty slab list to be non-empty (lol)
-static void mem_heap_add_slab(struct numa_node *node, size_t order) {
-	ASSERT(node->slab_data.slabs != NULL, "Slab list should be non-empty");
+static void mem_heap_add_slab(numa_id_t id, size_t order) {
+	struct numa_node *self = numa_nodes + id;
+	ASSERT(self->slab_data.slabs != NULL, "Slab list should be non-empty");
 	// Take one slab
-	struct mem_heap_slab_hdr *new_slab = node->slab_data.slabs;
-	node->slab_data.slabs = new_slab->next_free;
-	new_slab->owner = node->node_id;
+	struct mem_heap_slab_hdr *new_slab = self->slab_data.slabs;
+	self->slab_data.slabs = new_slab->next_free;
+	new_slab->owner = id;
 	const uintptr_t start =
 	    align_up((uintptr_t)new_slab + sizeof(struct mem_heap_slab_hdr), (1ULL << order));
 	const uintptr_t end = (uintptr_t)new_slab + MEM_HEAP_SLAB_SIZE;
@@ -93,8 +94,8 @@ static void mem_heap_add_slab(struct numa_node *node, size_t order) {
 		ASSERT(align_down(addr, MEM_HEAP_SLAB_SIZE) == (uintptr_t)new_slab,
 		       "Object at addr does not belong to slab");
 		struct mem_heap_obj *obj = (struct mem_heap_obj *)addr;
-		obj->next = node->slab_data.free_lists[order];
-		node->slab_data.free_lists[order] = obj;
+		obj->next = self->slab_data.free_lists[order];
+		self->slab_data.free_lists[order] = obj;
 	}
 }
 
@@ -120,13 +121,13 @@ static size_t mem_heap_get_size_order(size_t size, size_t max_order) {
 }
 
 //! @brief Allocate object of a given order from slab
-//! @param node Pointer to owning NUMA node
+//! @param id ID of the NUMA node
 //! @param order Order of the block to allocate
 //! @return Pointer to allocated object
-static struct mem_heap_obj *mem_allocate_from_slab(struct numa_node *node, size_t order) {
-	ASSERT(node->slab_data.free_lists[order] != NULL, "Free-list is empty");
-	struct mem_heap_obj *obj = node->slab_data.free_lists[order];
-	node->slab_data.free_lists[order] = obj->next;
+static struct mem_heap_obj *mem_allocate_from_slab(numa_id_t id, size_t order) {
+	ASSERT(numa_nodes[id].slab_data.free_lists[order] != NULL, "Free-list is empty");
+	struct mem_heap_obj *obj = numa_nodes[id].slab_data.free_lists[order];
+	numa_nodes[id].slab_data.free_lists[order] = obj->next;
 	return obj;
 }
 
@@ -142,7 +143,7 @@ void *mem_heap_alloc(size_t size) {
 	size_t order = mem_heap_get_size_order(size, MEM_HEAP_SLAB_ORDERS);
 	if (order == MEM_HEAP_SLAB_ORDERS) {
 		// Allocate directly using PMM and cast to upper half
-		uintptr_t res = mem_phys_perm_alloc_on_behalf(size, id);
+		uintptr_t res = mem_phys_alloc_on_behalf(size, id);
 		if (res == PHYS_NULL) {
 			return NULL;
 		}
@@ -150,36 +151,35 @@ void *mem_heap_alloc(size_t size) {
 	}
 	// Allocate using slabs. Its a bit more intricate here
 	// 1. Get NUMA node data
-	struct numa_node *data = numa_query_data_no_borrow(id);
-	// 2. Iterate ove all permanent neighbours
-	for (size_t i = 0; i < data->permanent_used_entries; ++i) {
-		const numa_id_t neighbour_id = data->permanent_neighbours[i];
-		struct numa_node *neighbour = numa_query_data_no_borrow(neighbour_id);
+	struct numa_node *self = numa_nodes + id;
+	// 2. Iterate over all nodes
+	for (size_t i = 0; i < numa_nodes_count; ++i) {
+		const numa_id_t neighbour_id = self->neighbours[i];
+		struct numa_node *neighbour = numa_nodes + neighbour_id;
 		// 3. Take node lock
 		const bool int_state = thread_spinlock_lock(&neighbour->lock);
 		// 3. Check if corresponding free list has anything for us
 		if (neighbour->slab_data.free_lists[order] != NULL) {
 			// Cool, let's give that as a result
-			struct mem_heap_obj *obj = neighbour->slab_data.free_lists[order];
-			neighbour->slab_data.free_lists[order] = obj->next;
+			struct mem_heap_obj *obj = mem_allocate_from_slab(neighbour_id, order);
 			thread_spinlock_unlock(&neighbour->lock, int_state);
 			return (void *)obj;
 		}
 		// 4. Okey, time to make a new slab
 		if (neighbour->slab_data.slabs != NULL) {
 			// There are some empty slabs, just use them
-			mem_heap_add_slab(neighbour, order);
-			struct mem_heap_obj *obj = mem_allocate_from_slab(neighbour, order);
+			mem_heap_add_slab(neighbour_id, order);
+			struct mem_heap_obj *obj = mem_allocate_from_slab(neighbour_id, order);
 			thread_spinlock_unlock(&neighbour->lock, int_state);
 			return (void *)obj;
 		}
 		// 5. Alright, let's allocate a new chunk
-		if (!mem_allocate_new_slabs_chunk(neighbour)) {
+		if (!mem_allocate_new_slabs_chunk(neighbour_id)) {
 			thread_spinlock_unlock(&neighbour->lock, int_state);
 			continue;
 		}
-		mem_heap_add_slab(neighbour, order);
-		struct mem_heap_obj *obj = mem_allocate_from_slab(neighbour, order);
+		mem_heap_add_slab(neighbour_id, order);
+		struct mem_heap_obj *obj = mem_allocate_from_slab(neighbour_id, order);
 		thread_spinlock_unlock(&neighbour->lock, int_state);
 		return (void *)obj;
 	}
@@ -193,7 +193,7 @@ void mem_heap_free(void *mem, size_t size) {
 	ASSERT(mem != NULL, "Attempt to free NULL");
 	size_t order = mem_heap_get_size_order(size, MEM_HEAP_SLAB_ORDERS);
 	if (order == MEM_HEAP_SLAB_ORDERS) {
-		mem_phys_perm_free((uintptr_t)mem - mem_wb_phys_win_base);
+		mem_phys_free((uintptr_t)mem - mem_wb_phys_win_base);
 		return;
 	}
 	// 1. Get pointer to slab header
@@ -201,7 +201,7 @@ void mem_heap_free(void *mem, size_t size) {
 	struct mem_heap_slab_hdr *hdr = (struct mem_heap_slab_hdr *)slab_hdr_addr;
 	// 2. Get owning NUMA node data
 	numa_id_t owner_id = hdr->owner;
-	struct numa_node *data = numa_query_data_no_borrow(owner_id);
+	struct numa_node *data = numa_nodes + owner_id;
 	// 3. Acquire node's lock
 	const bool int_state = thread_spinlock_lock(&data->lock);
 	// 4. Enqueue node

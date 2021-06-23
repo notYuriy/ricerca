@@ -2,7 +2,7 @@
 
 ![](screenshots/system-init.png)
 
-lezione-os fork that I am using as a playground to experiment with SMP, NUMA, load balancing, and memory/CPU hotplug
+lezione-os fork that I am using as a playground to experiment with SMP, NUMA and load balancing
 
 # Nightly images
 

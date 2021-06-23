@@ -3,6 +3,7 @@
 
 #include <init/init.h>
 #include <lib/log.h>
+#include <lib/panic.h>
 #include <mem/bootstrap.h>
 #include <mem/heap/heap.h>
 #include <mem/mem.h>
@@ -48,11 +49,10 @@ static void mem_add_numa_ranges(void) {
 		LOG_PANIC("No memory map");
 	}
 	// Allocate memory pool for boot memory ranges
-	size_t entries = mem_estimate_boot_ranges_upper_bound();
-	size_t size = sizeof(struct mem_range) * entries;
-	struct mem_range *backer = mem_bootstrap_alloc(size);
-	struct mem_rc_static_pool *pool = mem_bootstrap_alloc(sizeof(struct mem_rc_static_pool));
-	*pool = MEM_RC_STATIC_POOL_POINTER_INIT(struct mem_range, backer, entries);
+	size_t num_entries = mem_estimate_boot_ranges_upper_bound();
+	size_t size = sizeof(struct mem_range) * num_entries;
+	struct mem_range *entries = mem_bootstrap_alloc(size);
+	size_t current_entry = 0;
 	// Terminate bootstrap allocator and get border of bootstrap allocated memory
 	uintptr_t border = mem_bootstrap_terminate_allocator();
 	// Enumerate all usable memory map entries
@@ -77,30 +77,19 @@ static void mem_add_numa_ranges(void) {
 			LOG_INFO("Usable memory range %p - %p belongs to domain %u", buf.start, buf.end,
 			         (uint32_t)buf.node_id);
 			// Allocate memory range object for this physical region
-			struct mem_range *range = MEM_RC_STATIC_POOL_ALLOC(pool, struct mem_range);
-			if (range == NULL) {
-				LOG_PANIC("Failed to statically allocate memory range object");
-			}
+			ASSERT(current_entry < num_entries,
+			       "Failed to statically allocate memory range object");
+			struct mem_range *range = entries + (current_entry++);
 			// Get corresponding NUMA node object
-			struct numa_node *node = numa_query_data_no_borrow(buf.node_id);
+			struct numa_node *node = numa_nodes + buf.node_id;
 			if (node == NULL) {
 				LOG_PANIC("Unknown NUMA node");
 			}
 			// Initialize range info
-			range->offlined = false;
-			range->next_range = range->prev_range = NULL;
 			mem_phys_slab_init(&range->slab, buf.start, buf.end - buf.start);
-			// Add range to node's hotpluggable/permanent ranges list
-			range->prev_range = NULL;
-			if (buf.hotpluggable) {
-				range->next_range = node->hotpluggable_ranges;
-				node->hotpluggable_ranges->prev_range = range;
-				node->hotpluggable_ranges = range;
-			} else {
-				range->next_range = node->permanent_ranges;
-				node->permanent_ranges->prev_range = range;
-				node->permanent_ranges = range;
-			}
+			// Add range to node's ranges list
+			range->next_range = node->ranges;
+			node->ranges = range;
 		}
 	}
 }

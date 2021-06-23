@@ -10,11 +10,26 @@
 //! @brief Proximity domain of boot CPU
 extern numa_id_t acpi_numa_boot_domain;
 
-//! @brief Enumerate NUMA proximities at boot time
+//! @brief NUMA proximities iterator
+struct acpi_numa_proximities_iter {
+	//! @brief SRAT offset
+	size_t srat_offset;
+	//! @brief True if enumeration has ended (only valid if SRAT is not available)
+	bool enumeration_finished;
+};
+
+//! @brief Statically initialize NUMA proximities iterator
+#define ACPI_NUMA_PROXIMITIES_ITER_INIT                                                            \
+	(struct acpi_numa_proximities_iter) {                                                          \
+		0                                                                                          \
+	}
+
+//! @brief Enumerate NUMA proximities
+//! @param iter Pointer to acpi_numa_proximities_iter
 //! @param buf Buffer to store NUMA proxmities IDs in
 //! @return False if enumeration has ended, true otherwise
 //! @note Caller should guard against duplicate proximities on its own
-bool acpi_numa_enumerate_at_boot(numa_id_t *buf);
+bool acpi_numa_enumerate_at_boot(struct acpi_numa_proximities_iter *iter, numa_id_t *buf);
 
 //! @brief Get relative distance between two given NUMA proximities
 //! @param id1 ID of proximity 1
@@ -37,8 +52,6 @@ struct acpi_numa_memory_range {
 	uintptr_t start;
 	//! @brief Range end
 	uintptr_t end;
-	//! @brief Is hotpluggable?
-	bool hotpluggable;
 	//! @brief NUMA node this range belongs to
 	numa_id_t node_id;
 };

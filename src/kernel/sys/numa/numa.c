@@ -14,145 +14,96 @@
 MODULE("sys/numa")
 TARGET(numa_available, numa_init, {acpi_numa_available, mem_bootstrap_alloc_available})
 
-//! @brief Backing memory for NUMA nodes handle tables
-static struct mem_rc *numa_table_backer[NUMA_MAX_NODES] = {NULL};
+//! @brief Number of nodes detected on the system
+numa_id_t numa_nodes_count;
 
-//! @brief Handle table for indexing NUMA nodes
-static struct static_handle_table numa_table = STATIC_HANDLE_TABLE_INIT(numa_table_backer);
+//! @brief NUMA nodes array
+struct numa_node *numa_nodes;
 
-//! @brief NUMA subsystem lock
-static struct thread_spinlock numa_lock = THREAD_SPINLOCK_INIT;
-
-//! @brief Head of permanent NUMA nodes list
-struct numa_node *numa_permanent_nodes;
-
-//! @brief Head of all NUMA nodes list
-struct numa_node *numa_nodes = NULL;
+//! @brief Size of NUMA nodes array
+numa_id_t numa_nodes_size;
 
 //! @brief Initialize neighbours array by iterating node lists
-//! @param node Node in which neighbour lists should be initialized
-static void numa_fill_neighbours_lists(struct numa_node *node) {
-	struct numa_node *current = numa_permanent_nodes;
-	while (current != NULL) {
-		node->permanent_neighbours[node->permanent_used_entries++] = current->node_id;
-		current = current->next_permanent;
+//! @param id ID of the node for which neighbour lists should be initialized
+static void numa_init_neighbour_list(numa_id_t id) {
+	numa_id_t *neighbours_array = mem_bootstrap_alloc(numa_nodes_count * sizeof(numa_id_t));
+	size_t currrent_index = 0;
+	for (size_t i = 0; i < numa_nodes_size; ++i) {
+		if (numa_nodes[i].initialized) {
+			neighbours_array[currrent_index++] = i;
+		}
 	}
-	current = numa_nodes;
-	while (current != NULL) {
-		node->neighbours[node->used_entries++] = current->node_id;
-		current = current->next;
-	}
-}
-
-//! @brief Sort neighbours array by distance
-//! @param self NUMA node id of the node
-//! @param neighbours Array with neighbours
-//! @param neighbours_count Number of neighbours
-static void numa_sort_neighbours(numa_id_t self, numa_id_t *neighbours, size_t neighbours_count) {
-	// I just wrote selection sort cause I don't think its worth to do quick sort for 255 elems
-	for (size_t i = 0; i < neighbours_count; ++i) {
+	for (size_t i = 0; i < numa_nodes_count; ++i) {
 		numa_id_t minimum_id = i;
-		numa_distance_t minimum_distance = acpi_numa_get_distance(self, neighbours[i]);
-		for (size_t j = i + 1; j < neighbours_count; ++j) {
-			numa_distance_t new_distance = acpi_numa_get_distance(self, neighbours[j]);
+		numa_distance_t minimum_distance = acpi_numa_get_distance(id, neighbours_array[i]);
+		for (size_t j = i + 1; j < numa_nodes_count; ++j) {
+			numa_distance_t new_distance = acpi_numa_get_distance(id, neighbours_array[j]);
 			if (new_distance < minimum_distance) {
 				minimum_distance = new_distance;
 				minimum_id = j;
 			}
 		}
-		numa_id_t tmp = neighbours[i];
-		neighbours[i] = neighbours[minimum_id];
-		neighbours[minimum_id] = tmp;
+		numa_id_t tmp = neighbours_array[i];
+		neighbours_array[i] = neighbours_array[minimum_id];
+		neighbours_array[minimum_id] = tmp;
 	}
+	struct numa_node *self = numa_nodes + id;
+	self->neighbours = neighbours_array;
 }
 
-//! @brief Dump NUMA nodes list
-//! @param head Head of node's list
-static void numa_dump_list(struct numa_node *head) {
-	for (struct numa_node *current = head; current != NULL; current = current->next) {
-		log_printf("Node %%\033[36m%u\033[0m: { neighbours: { ", (uint32_t)current->node_id);
-		for (size_t i = 0; i < current->used_entries; ++i) {
-			log_printf("%%\033[32m%u\033[0m, ", (uint32_t)current->neighbours[i]);
+//! @brief Dump NUMA nodes
+static void numa_dump_nodes(void) {
+	for (numa_id_t i = 0; i < numa_nodes_size; ++i) {
+		if (!numa_nodes[i].initialized) {
+			continue;
+		}
+		log_printf("Node %%\033[36m%u\033[0m: { neighbours: { ", i);
+		for (size_t j = 0; j < numa_nodes_count; ++j) {
+			log_printf("%%\033[32m%u\033[0m, ", numa_nodes[i].neighbours[j]);
 		}
 		log_printf("} }\n");
 	}
 }
 
-//! @brief Dump NUMA nodes
-void numa_dump_nodes(void) {
-	LOG_INFO("Dumping NUMA nodes.");
-	numa_dump_list(numa_nodes);
-}
-
-//! @brief Take NUMA subsystem lock
-//! @return Interrupt state
-bool numa_acquire(void) {
-	return thread_spinlock_lock(&numa_lock);
-}
-
-//! @brief Drop NUMA subsystem lock
-//! @param state Interrupt state returned from numa_acquire
-void numa_release(bool state) {
-	thread_spinlock_unlock(&numa_lock, state);
+//! @brief Estimate upper bound on NUMA nodes
+static numa_id_t numa_nodes_upper_bound(void) {
+	struct acpi_numa_proximities_iter iter = ACPI_NUMA_PROXIMITIES_ITER_INIT;
+	numa_id_t buf;
+	numa_id_t max = 0;
+	while (acpi_numa_enumerate_at_boot(&iter, &buf)) {
+		if (buf > max) {
+			max = buf;
+		}
+	}
+	return max + 1;
 }
 
 //! @brief Initialize NUMA subsystem
 static void numa_init(void) {
-	// Enumerate all domains and create nodes for them
+	// Create array for all NUMA nodes
+	numa_nodes_size = numa_nodes_upper_bound();
+	numa_nodes = mem_bootstrap_alloc(sizeof(struct numa_node) * numa_nodes_size);
+	for (numa_id_t i = 0; i < numa_nodes_size; ++i) {
+		numa_nodes[i].initialized = false;
+	}
+	struct acpi_numa_proximities_iter iter = ACPI_NUMA_PROXIMITIES_ITER_INIT;
 	numa_id_t buf;
-	struct numa_node *head = NULL;
-	struct numa_node *tail = NULL;
-	while (acpi_numa_enumerate_at_boot(&buf)) {
-		if (numa_table.handles[buf] == NULL) {
-			LOG_INFO("Allocating NUMA node %u", (uint32_t)buf);
-			// Allocate node object from bootstrap allocator
-			struct numa_node *node = MEM_BOOTSTRAP_OBJ_ALLOC(struct numa_node);
-
-			// Add node to the list of active nodes
-			node->next = NULL;
-			node->next_permanent = NULL;
-			if (head == NULL) {
-				head = node;
-				tail = node;
-			} else {
-				tail->next = node;
-				tail->next_permanent = node;
-				tail = node;
-			}
-			// Set node ID field
-			node->node_id = buf;
-			node->permanent_used_entries = 0;
-			node->used_entries = 0;
-			node->permanent = true;
-			node->hotpluggable_ranges = NULL;
-			node->permanent_ranges = NULL;
-			node->slab_data = MEM_HEAP_SLAB_DATA_INIT;
-			node->lock = THREAD_SPINLOCK_INIT;
-			if (node == NULL) {
-				PANIC("Bootstrap NUMA node allocation failed");
-			}
-			// Reserve static handle table cell for this NUMA node
-			static_handle_table_reserve(&numa_table, buf, (struct mem_rc *)node);
+	numa_nodes_count = 0;
+	// Initialize nodes
+	while (acpi_numa_enumerate_at_boot(&iter, &buf)) {
+		if (!numa_nodes[buf].initialized) {
+			numa_nodes[buf].initialized = true;
+			numa_nodes[buf].slab_data = MEM_HEAP_SLAB_DATA_INIT;
+			numa_nodes[buf].lock = THREAD_SPINLOCK_INIT;
+			numa_nodes[buf].ranges = NULL;
+			numa_nodes_count++;
 		}
 	}
-	numa_permanent_nodes = numa_nodes = head;
-	// Iterate all nodes and build proximity graph
-	struct numa_node *iter = numa_nodes;
-	while (iter != NULL) {
-		numa_fill_neighbours_lists(iter);
-		numa_sort_neighbours(iter->node_id, iter->neighbours, iter->used_entries);
-		numa_sort_neighbours(iter->node_id, iter->permanent_neighbours,
-		                     iter->permanent_used_entries);
-		iter = iter->next;
+	// Initialize neighbour lists
+	for (numa_id_t i = 0; i < numa_nodes_count; ++i) {
+		if (numa_nodes[i].initialized) {
+			numa_init_neighbour_list(i);
+		}
 	}
 	numa_dump_nodes();
-}
-
-//! @brief Query NUMA node data by ID without borrowing reference
-//! @return Borrowed RC reference to the numa data
-struct numa_node *numa_query_data_no_borrow(numa_id_t data) {
-	if (numa_table.handles[data] != NULL) {
-		return (struct numa_node *)numa_table.handles[data];
-	}
-	return NULL;
 }

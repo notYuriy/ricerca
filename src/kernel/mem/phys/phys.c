@@ -45,11 +45,10 @@ static void mem_phys_store_info(uintptr_t addr, size_t size, struct mem_range *r
 //! @param size Size of the memory area to be allocated
 //! @param id Numa node in which memory should be allocated
 //! @return Physical address of the allocated area, PHYS_NULL otherwise
-uintptr_t mem_phys_perm_alloc_specific_nolock(size_t size, numa_id_t id) {
-	// Iterate permanent rages belonging to the node
-	const struct numa_node *node = numa_query_data_no_borrow(id);
-	for (struct mem_range *range = node->permanent_ranges; range != NULL;
-	     range = range->next_range) {
+uintptr_t mem_phys_alloc_specific_nolock(size_t size, numa_id_t id) {
+	// Iterate rages belonging to the node
+	const struct numa_node *node = numa_nodes + id;
+	for (struct mem_range *range = node->ranges; range != NULL; range = range->next_range) {
 		// Try to allocate from range slab allocator
 		uintptr_t result = mem_phys_slab_alloc(&range->slab, size);
 		ASSERT(result < mem_wb_phys_win_base, "Block in higher half");
@@ -65,10 +64,10 @@ uintptr_t mem_phys_perm_alloc_specific_nolock(size_t size, numa_id_t id) {
 //! @param size Size of the memory area to be allocated
 //! @param id Numa node in which memory should be allocated
 //! @return Physical address of the allocated area, PHYS_NULL otherwise
-uintptr_t mem_phys_perm_alloc_specific(size_t size, numa_id_t id) {
-	struct numa_node *node = numa_query_data_no_borrow(id);
+uintptr_t mem_phys_alloc_specific(size_t size, numa_id_t id) {
+	struct numa_node *node = numa_nodes + id;
 	const bool int_state = thread_spinlock_lock(&node->lock);
-	uintptr_t result = mem_phys_perm_alloc_specific_nolock(size, id);
+	uintptr_t result = mem_phys_alloc_specific_nolock(size, id);
 	thread_spinlock_unlock(&node->lock, int_state);
 	return result;
 }
@@ -77,13 +76,13 @@ uintptr_t mem_phys_perm_alloc_specific(size_t size, numa_id_t id) {
 //! @param size Size of the memory area to be allocated
 //! @param id Numa node on behalf of which memory will be allocated
 //! @return Physical address of the allocated area, PHYS_NULL otherwise
-uintptr_t mem_phys_perm_alloc_on_behalf(size_t size, numa_id_t id) {
+uintptr_t mem_phys_alloc_on_behalf(size_t size, numa_id_t id) {
 	// Get NUMA node data
-	const struct numa_node *data = numa_query_data_no_borrow(id);
-	// Iterate over all permanent neighbours
-	for (size_t i = 0; i < data->permanent_used_entries; ++i) {
-		const numa_id_t neighbour_id = data->permanent_neighbours[i];
-		uintptr_t result = mem_phys_perm_alloc_specific(size, neighbour_id);
+	const struct numa_node *data = numa_nodes + id;
+	// Iterate over all nodes
+	for (size_t i = 0; i < numa_nodes_count; ++i) {
+		const numa_id_t neighbour_id = data->neighbours[i];
+		uintptr_t result = mem_phys_alloc_specific(size, neighbour_id);
 		if (result != PHYS_NULL) {
 			return result;
 		}
@@ -92,12 +91,12 @@ uintptr_t mem_phys_perm_alloc_on_behalf(size_t size, numa_id_t id) {
 }
 
 //! @brief Free permanent physical memory
-//! @param addr Address returned from mem_phys_perm_alloc_on_behalf
-void mem_phys_perm_free(uintptr_t addr) {
+//! @param addr Address returned from mem_phys_alloc_on_behalf
+void mem_phys_free(uintptr_t addr) {
 	// Get allocation data
 	struct mem_phys_object_data *obj = mem_phys_objects_info + (addr / PAGE_SIZE);
 	// Lock owning NUMA node
-	struct numa_node *data = numa_query_data_no_borrow(obj->node_id);
+	struct numa_node *data = numa_nodes + obj->node_id;
 	const bool int_state = thread_spinlock_lock(&data->lock);
 	// Free memory back to the memory region
 	mem_phys_slab_free(&obj->range->slab, addr, obj->size);
@@ -121,7 +120,7 @@ static void mem_phys_init(void) {
 	const size_t info_size = gran_units_size * sizeof(struct mem_phys_object_data);
 	// Allocate space for info in boot domain
 	const numa_id_t boot_domain = acpi_numa_boot_domain;
-	uintptr_t info_phys = mem_phys_perm_alloc_on_behalf(info_size, boot_domain);
+	uintptr_t info_phys = mem_phys_alloc_on_behalf(info_size, boot_domain);
 	if (info_phys == PHYS_NULL) {
 		PANIC("Failed to allocate space to store info about physical allocations");
 	}

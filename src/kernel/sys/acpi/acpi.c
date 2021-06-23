@@ -140,12 +140,10 @@ void acpi_dump_srat(struct acpi_srat *srat) {
 			if ((mem->flags & 1U) == 0) {
 				break;
 			}
-			bool hotplug = (mem->flags & 2U) != 0;
 			uint32_t domain_id = mem->domain;
 			uint64_t base = ((uint64_t)(mem->base_high) << 32ULL) + (uint64_t)(mem->base_low);
 			uint64_t len = ((uint64_t)(mem->length_high) << 32ULL) + (uint64_t)(mem->length_low);
-			LOG_INFO("Memory range (%p:%p, domain = %u. hotplug: %s) detected", base, base + len,
-			         domain_id, hotplug ? "true" : "false");
+			LOG_INFO("Memory range (%p:%p, domain = %u) detected", base, base + len, domain_id);
 			break;
 		}
 		case ACPI_SRAT_X2APIC_ENTRY: {
@@ -309,7 +307,7 @@ struct acpi_sdt_header *acpi_find_table(const char *name, size_t index) {
 }
 
 //! @brief Find size of physical address space according to SRAT
-//! @return Size of physical memory space including hotplug regions
+//! @return Size of physical memory space
 size_t acpi_query_phys_space_size(void) {
 	if (acpi_boot_srat == NULL) {
 		return 0;

@@ -242,7 +242,7 @@ struct acpi_dmar {
 bool acpi_validate_checksum(void *table, size_t len);
 
 //! @brief Find size of physical address space according to SRAT
-//! @return Size of physical memory space including hotplug regions
+//! @return Size of physical memory space
 size_t acpi_query_phys_space_size(void);
 
 //! @brief MADT lapic entry property

@@ -69,7 +69,7 @@ void thread_smp_locals_init(void) {
 	// Get maximum CPUs count
 	thread_smp_locals_max_cpus = acpi_smp_get_max_cpus();
 	// Allocate memory for CPU-local data
-	uintptr_t backing_physmem = mem_phys_perm_alloc_on_behalf(
+	uintptr_t backing_physmem = mem_phys_alloc_on_behalf(
 	    align_up(sizeof(struct thread_smp_locals) * thread_smp_locals_max_cpus, PAGE_SIZE),
 	    acpi_numa_boot_domain);
 	if (backing_physmem == PHYS_NULL) {
@@ -93,10 +93,10 @@ void thread_smp_locals_init(void) {
 		this_cpu_locals->apic_id = buf.apic_id;
 		this_cpu_locals->logical_id = buf.logical_id;
 		this_cpu_locals->numa_id = acpi_numa_apic2numa_id(this_cpu_locals->apic_id);
-		uintptr_t interrupt_stack = mem_phys_perm_alloc_on_behalf(THREAD_SMP_LOCALS_CPU_STACK_SIZE,
-		                                                          this_cpu_locals->numa_id);
-		uintptr_t scheduler_stack = mem_phys_perm_alloc_on_behalf(THREAD_SMP_LOCALS_CPU_STACK_SIZE,
-		                                                          this_cpu_locals->numa_id);
+		uintptr_t interrupt_stack =
+		    mem_phys_alloc_on_behalf(THREAD_SMP_LOCALS_CPU_STACK_SIZE, this_cpu_locals->numa_id);
+		uintptr_t scheduler_stack =
+		    mem_phys_alloc_on_behalf(THREAD_SMP_LOCALS_CPU_STACK_SIZE, this_cpu_locals->numa_id);
 		if (interrupt_stack == PHYS_NULL || scheduler_stack == PHYS_NULL) {
 			PANIC("Failed to allocate CPU stacks");
 		}

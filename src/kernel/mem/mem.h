@@ -10,16 +10,10 @@
 
 //! @brief Physical memory range
 struct mem_range {
-	//! @brief Refcounted base
-	struct mem_rc rc_base;
-	//! @brief Next memory range for this node
+	//! @brief Next memory range in numa node ranges list
 	struct mem_range *next_range;
-	//! @brief Previous memory range for this ndoe
-	struct mem_range *prev_range;
 	//! @brief Physical memory slab
 	struct mem_phys_slab slab;
-	//! @brief True if memory range was offlined
-	bool offlined;
 };
 
 //! @brief Export "add memory ranges to NUMA nodes" target
