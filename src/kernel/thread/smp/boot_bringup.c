@@ -6,7 +6,7 @@
 #include <sys/ic.h>
 #include <sys/timers/timer.h>
 #include <thread/smp/boot_bringup.h>
-#include <thread/smp/locals.h>
+#include <thread/smp/core.h>
 #include <thread/smp/trampoline.h>
 
 MODULE("thread/smp/boot_bringup")

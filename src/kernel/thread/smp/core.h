@@ -7,6 +7,7 @@
 #include <sys/arch/arch.h>
 #include <sys/ic.h>
 #include <sys/numa/numa.h>
+#include <thread/tasking/queue.h>
 
 //! @brief Per-CPU stack size
 #define THREAD_SMP_CORE_CPU_STACK_SIZE 0x10000
@@ -48,6 +49,8 @@ struct thread_smp_core {
 	struct arch_core_state arch_state;
 	// IC timer state
 	struct ic_core_state ic_state;
+	// Task queue
+	struct thread_task_queue queue;
 };
 
 //! @brief Macro to access per-cpu data

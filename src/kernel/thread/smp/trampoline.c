@@ -7,7 +7,7 @@
 #include <misc/types.h>
 #include <sys/cr.h>
 #include <sys/ic.h>
-#include <thread/smp/locals.h>
+#include <thread/smp/core.h>
 #include <thread/smp/trampoline.h>
 
 MODULE("thread/smp/trampoline")

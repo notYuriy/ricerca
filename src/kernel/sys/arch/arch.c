@@ -8,7 +8,7 @@
 #include <sys/arch/gdt.h>
 #include <sys/arch/interrupts.h>
 #include <sys/ic.h>
-#include <thread/smp/locals.h>
+#include <thread/smp/core.h>
 
 MODULE("arch")
 TARGET(arch_available, arch_bsp_init,

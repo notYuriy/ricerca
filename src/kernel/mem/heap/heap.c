@@ -8,7 +8,7 @@
 #include <mem/misc.h>
 #include <mem/phys/phys.h>
 #include <sys/numa/numa.h>
-#include <thread/smp/locals.h>
+#include <thread/smp/core.h>
 
 // Overview
 // 1. Slabs are aligned 64k regions for objects that are smaller that one page size. Each slab has a

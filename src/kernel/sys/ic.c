@@ -10,7 +10,7 @@
 #include <sys/msr.h>
 #include <sys/pic.h>
 #include <sys/tsc.h>
-#include <thread/smp/locals.h>
+#include <thread/smp/core.h>
 
 MODULE("sys/ic");
 TARGET(ic_bsp_available, ic_bsp_init,

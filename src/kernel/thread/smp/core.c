@@ -11,7 +11,7 @@
 #include <sys/arch/arch.h>
 #include <sys/ic.h>
 #include <sys/msr.h>
-#include <thread/smp/locals.h>
+#include <thread/smp/core.h>
 
 MODULE("thread/smp/locals")
 TARGET(thread_smp_core_available, thread_smp_core_init,
@@ -109,7 +109,8 @@ void thread_smp_core_init(void) {
 		if (!arch_prealloc(this_cpu_data->logical_id, this_cpu_data->numa_id)) {
 			PANIC("Failed to allocate arch state for the CPU");
 		}
-		LOG_INFO("Preallocated arch state for core %u", buf.logical_id);
+		// Initialize task queue
+		thread_task_queue_init(&this_cpu_data->queue, this_cpu_data->apic_id);
 	}
 	// Get APIC ID
 	uint32_t apic_id = ic_get_apic_id();
