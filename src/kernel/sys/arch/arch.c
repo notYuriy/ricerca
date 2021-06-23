@@ -16,16 +16,17 @@ TARGET(arch_available, arch_bsp_init,
 
 //! @brief Preallocate arch state for the given core before bootup
 //! @param logical_id Core logical id
+//! @param numa_id Core proximity domain ID
 //! @return True if allocation of core state succeeded
-bool arch_prealloc(uint32_t logical_id) {
+bool arch_prealloc(uint32_t logical_id, numa_id_t numa_id) {
 	struct thread_smp_locals *locals = thread_smp_locals_array + logical_id;
 	// Allocate space for GDT
-	locals->arch_state.gdt = mem_heap_alloc(sizeof(struct gdt));
+	locals->arch_state.gdt = mem_heap_alloc_on_behalf(sizeof(struct gdt), numa_id);
 	if (locals->arch_state.gdt == NULL) {
 		return false;
 	}
 	// Allocate space for TSS
-	locals->arch_state.tss = mem_heap_alloc(sizeof(struct tss));
+	locals->arch_state.tss = mem_heap_alloc_on_behalf(sizeof(struct tss), numa_id);
 	if (locals->arch_state.tss == NULL) {
 		return false;
 	}
@@ -57,10 +58,6 @@ void arch_init(void) {
 
 //! @brief Initialize amd64 tables on BSP
 static void arch_bsp_init(void) {
-	ASSERT(arch_prealloc(thread_smp_locals_get()->logical_id),
-	       "Failed to allocate arch core state for BSP");
 	// Register spurious interrupt vector
 	interrupt_register_handler(ic_spur_vec, arch_dummy_int_vec, NULL, 0, TSS_INT_IST, true);
-	// Initalize tables on BSP
-	arch_init();
 }

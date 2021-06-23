@@ -133,12 +133,18 @@ static struct mem_heap_obj *mem_allocate_from_slab(numa_id_t id, size_t order) {
 
 //! @brief Allocate memory
 //! @param size Size of the memory to be allocated
-//! @param id Locality to which memory will belong
 //! @return NULL pointer if allocation failed, pointer to the virtual memory of size "size"
 //! otherwise
 void *mem_heap_alloc(size_t size) {
-	// Get NUMA id
-	numa_id_t id = thread_smp_locals_get()->numa_id;
+	return mem_heap_alloc_on_behalf(size, PER_CPU(numa_id));
+}
+
+//! @brief Allocate memory
+//! @param size Size of the memory to be allocated
+//! @param id Locality to which memory will belong
+//! @return NULL pointer if allocation failed, pointer to the virtual memory of size "size"
+//! otherwise
+void *mem_heap_alloc_on_behalf(size_t size, numa_id_t id) {
 	// Get size order
 	size_t order = mem_heap_get_size_order(size, MEM_HEAP_SLAB_ORDERS);
 	if (order == MEM_HEAP_SLAB_ORDERS) {

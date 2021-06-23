@@ -56,7 +56,7 @@ static void thread_smp_trampoline_ap_init(uint32_t logical_id) {
 	// Initialize architecture layer
 	arch_init();
 	// Update status
-	ATOMIC_RELEASE_STORE(&locals->status, THREAD_SMP_LOCALS_STATUS_WAITING);
+	ATOMIC_RELEASE_STORE(&locals->status, THREAD_SMP_LOCALS_STATUS_ONLINE);
 	LOG_INFO("Hello from core %u", logical_id);
 	// Wait for trampoline status to update
 	while (ATOMIC_ACQUIRE_LOAD(&thread_smp_trampoline_state) !=
@@ -69,6 +69,7 @@ static void thread_smp_trampoline_ap_init(uint32_t logical_id) {
 	       THREAD_SMP_TRAMPOLINE_END_CALIBRATION)
 		;
 	ic_timer_end_calibration();
+	// Hang until we have scheduler
 	hang();
 }
 

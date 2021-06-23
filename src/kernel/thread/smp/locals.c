@@ -77,12 +77,11 @@ void thread_smp_locals_init(void) {
 	}
 	thread_smp_locals_array = (struct thread_smp_locals *)(mem_wb_phys_win_base + backing_physmem);
 	LOG_INFO("CPU-local structures allocated at %p", thread_smp_locals_array);
-	// Set not present statuses for now
+	// Set asleep statuses
 	for (size_t i = 0; i < thread_smp_locals_max_cpus; ++i) {
-		ATOMIC_RELEASE_STORE(&thread_smp_locals_array[i].status,
-		                     THREAD_SMP_LOCALS_STATUS_NOT_PRESENT);
+		ATOMIC_RELEASE_STORE(&thread_smp_locals_array[i].status, THREAD_SMP_LOCALS_STATUS_ASLEEP);
 	}
-	// Iterate over boot present CPUs
+	// Iterate over CPUs and initialize their stae
 	struct acpi_smp_cpu_iterator iter = ACPI_SMP_CPU_ITERATOR_INIT;
 	struct acpi_smp_cpu buf;
 	while (acpi_smp_iterate_over_cpus(&iter, &buf)) {
@@ -93,6 +92,7 @@ void thread_smp_locals_init(void) {
 		this_cpu_locals->apic_id = buf.apic_id;
 		this_cpu_locals->logical_id = buf.logical_id;
 		this_cpu_locals->numa_id = acpi_numa_apic2numa_id(this_cpu_locals->apic_id);
+		// Allocate CPU stacks
 		uintptr_t interrupt_stack =
 		    mem_phys_alloc_on_behalf(THREAD_SMP_LOCALS_CPU_STACK_SIZE, this_cpu_locals->numa_id);
 		uintptr_t scheduler_stack =
@@ -100,18 +100,25 @@ void thread_smp_locals_init(void) {
 		if (interrupt_stack == PHYS_NULL || scheduler_stack == PHYS_NULL) {
 			PANIC("Failed to allocate CPU stacks");
 		}
+		LOG_INFO("Core %u stacks at %p %p", buf.logical_id, interrupt_stack, scheduler_stack);
 		this_cpu_locals->interrupt_stack_top =
 		    mem_wb_phys_win_base + interrupt_stack + THREAD_SMP_LOCALS_CPU_STACK_SIZE;
 		this_cpu_locals->scheduler_stack_top =
 		    mem_wb_phys_win_base + scheduler_stack + THREAD_SMP_LOCALS_CPU_STACK_SIZE;
-		this_cpu_locals->status = THREAD_SMP_LOCALS_STATUS_ASLEEP;
+		// Allocate archittecture state
+		if (!arch_prealloc(this_cpu_locals->logical_id, this_cpu_locals->numa_id)) {
+			PANIC("Failed to allocate arch state for the CPU");
+		}
+		LOG_INFO("Preallocated arch state for core %u", buf.logical_id);
 	}
 	// Get APIC ID
 	uint32_t apic_id = ic_get_apic_id();
 	// Query logical id
 	uint32_t logical_id = acpi_madt_convert_ids(ACPI_MADT_LAPIC_PROP_APIC_ID,
-	                                            ACPI_MADT_LAPIC_PROP_LOGICAL_ID, apic_id, true);
+	                                            ACPI_MADT_LAPIC_PROP_LOGICAL_ID, apic_id);
 	// Initialize thread-local storage on BSP
 	thread_smp_locals_init_on_ap(logical_id);
-	thread_smp_locals_get()->status = THREAD_SMP_LOCALS_STATUS_RUNNING_TASK;
+	thread_smp_locals_get()->status = THREAD_SMP_LOCALS_STATUS_ONLINE;
+	// Initalize tables on BSP
+	arch_init();
 }

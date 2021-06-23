@@ -260,11 +260,9 @@ enum acpi_madt_lapic_entry_prop
 //! @param matched Property of MADT lapic entries to match with expected
 //! @param returned Property of MADT lapic entries to return
 //! @param expected Expected value of matched property
-//! @param ignore_disabled Ignore disabled MADT entries
 //! @return Value of returned property
 uint32_t acpi_madt_convert_ids(enum acpi_madt_lapic_entry_prop matched,
-                               enum acpi_madt_lapic_entry_prop returned, uint32_t expected,
-                               bool ignore_disabled);
+                               enum acpi_madt_lapic_entry_prop returned, uint32_t expected);
 
 //! @brief Search for the specific table
 //! @param name Name of the table

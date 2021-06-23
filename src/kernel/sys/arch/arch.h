@@ -5,6 +5,7 @@
 
 #include <lib/target.h>
 #include <misc/types.h>
+#include <sys/numa/numa.h>
 
 //! @brief Core architecture state
 struct arch_core_state {
@@ -16,8 +17,9 @@ struct arch_core_state {
 
 //! @brief Preallocate arch state for the given core before bootup
 //! @param logical_id Core logical id
+//! @param numa_id Core proximity domain ID
 //! @return True if allocation of core state succeeded
-bool arch_prealloc(uint32_t logical_id);
+bool arch_prealloc(uint32_t logical_id, numa_id_t numa_id);
 
 //! @brief Initialize amd64 tables on this core
 void arch_init(void);

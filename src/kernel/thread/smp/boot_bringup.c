@@ -20,9 +20,6 @@ void thread_smp_ap_boot_bringup() {
 	for (size_t i = 0; i < thread_smp_locals_max_cpus; ++i) {
 		struct thread_smp_locals *locals = thread_smp_locals_array + i;
 		if (locals->status == THREAD_SMP_LOCALS_STATUS_ASLEEP) {
-			if (!arch_prealloc(i)) {
-				LOG_WARN("Failed to allocate arch state for core %u. Core will remain asleep", i);
-			}
 			ATOMIC_RELEASE_STORE(&locals->status, THREAD_SMP_LOCALS_STATUS_WAKEUP_INITIATED);
 			ic_send_init_ipi(locals->apic_id);
 		}

@@ -432,11 +432,9 @@ static uint32_t acpi_madt_x2apic_load_prop(struct acpi_madt_x2apic_entry *entry,
 //! @param matched Property of MADT lapic entries to match with expected
 //! @param returned Property of MADT lapic entries to return
 //! @param expected Expected value of matched property
-//! @param ignore_disabled Ignore disabled MADT entries
 //! @return Value of returned property
 uint32_t acpi_madt_convert_ids(enum acpi_madt_lapic_entry_prop matched,
-                               enum acpi_madt_lapic_entry_prop returned, uint32_t expected,
-                               bool ignore_disabled) {
+                               enum acpi_madt_lapic_entry_prop returned, uint32_t expected) {
 	if (acpi_boot_madt == NULL) {
 		// 0 is valid for all props anyway
 		return 0;
@@ -450,7 +448,7 @@ uint32_t acpi_madt_convert_ids(enum acpi_madt_lapic_entry_prop matched,
 		switch (entry->type) {
 		case ACPI_MADT_XAPIC_ENTRY: {
 			struct acpi_madt_xapic_entry *xapic = (struct acpi_madt_xapic_entry *)entry;
-			if ((xapic->flags & 0b11U) == 0 && !ignore_disabled) {
+			if ((xapic->flags & 0b11U) == 0) {
 				break;
 			}
 			uint32_t matched_val = acpi_madt_xapic_load_prop(xapic, matched, logical_id);
@@ -461,7 +459,7 @@ uint32_t acpi_madt_convert_ids(enum acpi_madt_lapic_entry_prop matched,
 		}
 		case ACPI_MADT_X2APIC_ENTRY: {
 			struct acpi_madt_x2apic_entry *x2apic = (struct acpi_madt_x2apic_entry *)entry;
-			if ((x2apic->flags & 0b11U) == 0 && !ignore_disabled) {
+			if ((x2apic->flags & 0b11U) == 0) {
 				break;
 			}
 			uint32_t matched_val = acpi_madt_x2apic_load_prop(x2apic, matched, logical_id);

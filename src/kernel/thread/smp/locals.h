@@ -14,20 +14,14 @@
 //! @brief CPU status
 enum
 {
-	//! @brief CPU is not there
-	THREAD_SMP_LOCALS_STATUS_NOT_PRESENT = 0,
 	//! @brief CPU is asleep
 	THREAD_SMP_LOCALS_STATUS_ASLEEP = 1,
 	//! @brief Startup IPI was sent
 	THREAD_SMP_LOCALS_STATUS_WAKEUP_INITIATED = 2,
 	//! @brief CPU is online, waiting for tasks to run
-	THREAD_SMP_LOCALS_STATUS_WAITING = 3,
-	//! @brief CPU is online and runs a task
-	THREAD_SMP_LOCALS_STATUS_RUNNING_TASK = 4,
-	//! @brief CPU was put asleep forcefully
-	THREAD_SMP_LOCALS_STATUS_PUT_ASLEEP = 5,
-	//! @brief CPU boot timeouted, so kernel gave up on it
-	THREAD_SMP_LOCALS_STATUS_GAVE_UP = 6,
+	THREAD_SMP_LOCALS_STATUS_ONLINE = 3,
+	//! @brief Gave up status
+	THREAD_SMP_LOCALS_STATUS_GAVE_UP = 4,
 };
 
 //! @brief CPU-local area

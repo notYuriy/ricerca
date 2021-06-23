@@ -21,12 +21,22 @@ uint32_t acpi_smp_get_max_cpus(void) {
 		struct acpi_madt_entry *entry = (struct acpi_madt_entry *)address;
 		address += entry->length;
 		switch (entry->type) {
-		case ACPI_MADT_XAPIC_ENTRY:
+		case ACPI_MADT_XAPIC_ENTRY: {
+			struct acpi_madt_xapic_entry *xapic = (struct acpi_madt_xapic_entry *)entry;
+			if ((xapic->flags & 0b11U) == 0) {
+				break;
+			}
 			count++;
 			break;
-		case ACPI_MADT_X2APIC_ENTRY:
+		}
+		case ACPI_MADT_X2APIC_ENTRY: {
+			struct acpi_madt_x2apic_entry *x2apic = (struct acpi_madt_x2apic_entry *)entry;
+			if ((x2apic->flags & 0b11U) == 0) {
+				break;
+			}
 			count++;
 			break;
+		}
 		default:
 			break;
 		}
@@ -58,7 +68,6 @@ bool acpi_smp_iterate_over_cpus(struct acpi_smp_cpu_iterator *iter, struct acpi_
 			struct acpi_madt_entry *entry = (struct acpi_madt_entry *)address;
 			iter->offset += entry->length;
 			address = (uint64_t)acpi_boot_madt + sizeof(struct acpi_madt) + iter->offset;
-			// Handle MADT table types. TODO: handle disabled entries
 			switch (entry->type) {
 			case ACPI_MADT_XAPIC_ENTRY: {
 				struct acpi_madt_xapic_entry *xapic = (struct acpi_madt_xapic_entry *)entry;

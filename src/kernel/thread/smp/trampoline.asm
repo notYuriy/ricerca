@@ -33,9 +33,6 @@ ta_callback = 0x70020
 ; LAPIC spurious interrupt vector
 spur_vec = 127
 
-; Asleep status
-THREAD_SMP_LOCALS_STATUS_WAKEUP_INITIATED = 2
-
 ; Embed trampoline code in .rodata section
 section '.rodata'
 thread_smp_trampoline_code_start:
@@ -183,12 +180,6 @@ start64:
 	; If we reached end of per-cpu array, move on to the next entry
 	cmp rcx, qword [ta_max_cpus]
 	je .lookup_loop_end
-
-	; Check that CPU entry has asleep status
-	mov rdx, qword [rdi + pc_status]
-	cmp rdx, THREAD_SMP_LOCALS_STATUS_WAKEUP_INITIATED
-
-	jne .lookup_loop_next
 
 	; Load APIC id in edx and compare it with eax. If they are not equal, move to the next entry
 	mov edx, dword [rdi + pc_apic_id]
