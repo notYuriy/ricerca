@@ -5,3 +5,6 @@
 
 //! @brief Heap integrity test
 void test_heap_integrity(void);
+
+//! @brief Pairing heap test
+void test_pairing_heap(void);

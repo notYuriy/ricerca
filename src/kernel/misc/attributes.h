@@ -6,5 +6,5 @@
 //! @brief Packs the structure
 #define attribute_packed __attribute__((__packed__))
 
-//! @brief Indicates that definition may be not used
+//! @brief Indicates that definition may remain used
 #define attribute_maybe_unused __attribute__((__unused__))
