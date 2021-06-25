@@ -24,18 +24,25 @@ struct thread_smp_core *thread_smp_core_array = NULL;
 //! @brief Size of CPU local structures array
 size_t thread_smp_core_max_cpus;
 
-//! @brief CPU local storage MSR
-#define KERNEL_GS_BASE 0xC0000102
+//! @brief CPU GS hidden value MSR
+#define IA32_GS_BASE 0xC0000101
 
-//! @brief Read raw address of CPU local storage
+//! @brief CPU kernel GS MSR
+#define IA32_KERNEL_GS_BASE 0xC0000102
+
+//! @brief Read raw address of the CPU local storage structure
 static uintptr_t thread_smp_core_get_raw(void) {
-	return rdmsr(KERNEL_GS_BASE);
+	uintptr_t res;
+	asm volatile("mov %%gs:0, %0" : "=R"(res));
+	return res;
 }
 
-//! @brief Write raw address of CPU local storage
+//! @brief Write raw address of the CPU local storage structure
 //! @param addr New address
 static void thread_smp_core_set_raw(uintptr_t addr) {
-	wrmsr(KERNEL_GS_BASE, addr);
+	wrmsr(IA32_GS_BASE, addr);
+	// Write 0 to kernel GS msr to not expose address of cpu-local storage to userspace after swapgs
+	wrmsr(IA32_KERNEL_GS_BASE, 0);
 }
 
 //! @brief Get pointer to CPU local storage
@@ -79,6 +86,7 @@ void thread_smp_core_init(void) {
 	LOG_INFO("CPU-local structures allocated at %p", thread_smp_core_array);
 	// Set asleep statuses
 	for (size_t i = 0; i < thread_smp_core_max_cpus; ++i) {
+		thread_smp_core_array[i].self = thread_smp_core_array + i;
 		ATOMIC_RELEASE_STORE(&thread_smp_core_array[i].status, THREAD_SMP_CORE_STATUS_ASLEEP);
 	}
 	// Iterate over CPUs and initialize their stae
@@ -119,7 +127,7 @@ void thread_smp_core_init(void) {
 	                                            ACPI_MADT_LAPIC_PROP_LOGICAL_ID, apic_id);
 	// Initialize thread-local storage on BSP
 	thread_smp_core_init_on_ap(logical_id);
-	thread_smp_core_get()->status = THREAD_SMP_CORE_STATUS_ONLINE;
+	PER_CPU(status) = THREAD_SMP_CORE_STATUS_ONLINE;
 	// Initalize tables on BSP
 	arch_init();
 }

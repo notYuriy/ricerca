@@ -30,6 +30,8 @@ struct thread_smp_core {
 	//! @brief Data accessible from SMP trampolie
 	//! @note Keep in sync with thread/smp/trampoline.real
 	struct {
+		//! @brief Pointer to self
+		struct thread_smp_core *self;
 		//! @brief NUMA ID
 		numa_id_t numa_id;
 		//! @brief ACPI ID

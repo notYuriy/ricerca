@@ -15,13 +15,13 @@ struc gdt_descriptor base, limit, executable, long
 }
 
 ; Per cpu area member offsets
-pc_numa_id = 0
-pc_acpi_id = 4
-pc_apic_id = 8
-pc_logical_id = 12
-pc_status = 16
-pc_interrupt_stack_top = 24
-pc_scheduler_stack_top = 32
+pc_numa_id = 8
+pc_acpi_id = 12
+pc_apic_id = 16
+pc_logical_id = 20
+pc_status = 24
+pc_interrupt_stack_top = 32
+pc_scheduler_stack_top = 40
 
 ; Arguments passed from the kernel
 ta_kernel_cr3 = 0x70000
