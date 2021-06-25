@@ -455,6 +455,7 @@ uint32_t acpi_madt_convert_ids(enum acpi_madt_lapic_entry_prop matched,
 			if (matched_val == expected) {
 				return acpi_madt_xapic_load_prop(xapic, returned, logical_id);
 			}
+			logical_id++;
 			break;
 		}
 		case ACPI_MADT_X2APIC_ENTRY: {
@@ -466,12 +467,12 @@ uint32_t acpi_madt_convert_ids(enum acpi_madt_lapic_entry_prop matched,
 			if (matched_val == expected) {
 				return acpi_madt_x2apic_load_prop(x2apic, returned, logical_id);
 			}
+			logical_id++;
 			break;
 		}
 		default:
 			break;
 		}
-		logical_id++;
 	}
 	PANIC("Search for MADT LAPIC entry failed. Params: {%u, %u, %u}", (uint32_t)matched,
 	      (uint32_t)returned, expected);

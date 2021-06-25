@@ -12,14 +12,14 @@ build/bootstrap.link:
 	cd build && xbstrap init .
 
 # Build image with release kernel
-ricerca-release.hdd: KERNEL_PKG = "release-kernel"
-ricerca-release.hdd: IMAGE = "ricerca-release.hdd"
-ricerca-release.hdd: image
+ricerca-release.iso: KERNEL_PKG = "release-kernel"
+ricerca-release.iso: IMAGE = "ricerca-release.iso"
+ricerca-release.iso: image
 
 # Build image with debug kernel
-ricerca-debug.hdd: KERNEL_PKG = "debug-kernel"
-ricerca-debug.hdd: IMAGE = "ricerca-debug.hdd"
-ricerca-debug.hdd: image
+ricerca-debug.iso: KERNEL_PKG = "debug-kernel"
+ricerca-debug.iso: IMAGE = "ricerca-debug.iso"
+ricerca-debug.iso: image
 
 # Generic image build rule
 image: build/bootstrap.link
@@ -46,7 +46,7 @@ image: build/bootstrap.link
 # Deletes kernel object files, kernel binaries, and images
 clean:
 	make -C kernel clean
-	rm -rf ricerca-debug.hdd ricerca-release.hdd
+	rm -rf ricerca-debug.iso ricerca-release.iso
 
 # Binary clean rule
 # Clears only kenrel binaries and object files
@@ -55,16 +55,16 @@ kernel-clean:
 
 # Run release image rule
 # Runs OS in QEMU with kvm enabled
-run-release: ricerca-release.hdd
+run-release: ricerca-release.iso
 # Run QEMU
-# -hda ricerca-release.hdd - Attach hard drive with our image
+# -hda ricerca-release.iso - Attach hard drive with our image
 # -cpu host --accel kvm --accel hax --accel tcg - Use hardware virtualization if available
 # If no hardware acceleration is present, fallback to tcg with --accel tcg
 # -debugcon stdio - Add debug connection, so that we can print logs to e9 port from the kernel
 # and see them in the terminal
 # -no-shutdown -no-reboot - Halt on fatal errrors
 	qemu-system-x86_64 \
-	-hda ricerca-release.hdd \
+	-hda ricerca-release.iso \
 	-debugcon stdio \
 	-no-shutdown -no-reboot \
 	`cat machines/$(MACHINE) | tr '\n' ' '`
@@ -72,15 +72,15 @@ run-release: ricerca-release.hdd
 # Run safe image rule
 # Runs debug image without waiting for debugger
 # Run QEMU
-# -hda ricerca-debug.hdd - Attach hard drive with our image
+# -hda ricerca-debug.iso - Attach hard drive with our image
 # -cpu host --accel kvm --accel hax --accel tcg - Use hardware virtualization if available
 # If no hardware acceleration is present, fallback to tcg with --accel tcg
 # -debugcon stdio - Add debug connection, so that we can print logs to e9 port from the kernel
 # and see them in the terminal
 # -no-shutdown -no-reboot - Halt on fatal errrors
-run-safe: ricerca-debug.hdd
+run-safe: ricerca-debug.iso
 	qemu-system-x86_64 \
-	-hda ricerca-debug.hdd \
+	-hda ricerca-debug.iso \
 	-debugcon stdio \
 	-no-shutdown -no-reboot \
 	`cat machines/$(MACHINE) | tr '\n' ' '`
@@ -88,15 +88,15 @@ run-safe: ricerca-debug.hdd
 # Run image on CI rule
 # Runs release image on CI
 # Run QEMU
-# -hda ricerca-debug.hdd - Attach hard drive with our image
+# -hda ricerca-debug.iso - Attach hard drive with our image
 # If no hardware acceleration is present, fallback to tcg with --accel tcg
 # -debugcon stdio - Add debug connection, so that we can print logs to e9 port from the kernel
 # -display none - Do not actually open the window
 # and see them in the terminal
 # -no-shutdown -no-reboot - Halt on fatal errrors
-run-ci: ricerca-debug.hdd
+run-ci: ricerca-debug.iso
 	qemu-system-x86_64 \
-	-hda ricerca-debug.hdd \
+	-hda ricerca-debug.iso \
 	-debugcon stdio \
 	-display none \
 	-no-shutdown -no-reboot \
@@ -104,9 +104,9 @@ run-ci: ricerca-debug.hdd
 
 
 # Run debug image rule
-run-debug: ricerca-debug.hdd
+run-debug: ricerca-debug.iso
 # Run QEMU
-# -hda ricerca-debug.hdd - Attach harddrive with our image
+# -hda ricerca-debug.iso - Attach harddrive with our image
 # If no hardware acceleration is present, fallback to tcg with --accel tcg
 # -debugcon stdio - Add debug connection, so that we can print logs to e9 port from the kernel
 # and see them in the terminal
@@ -114,7 +114,7 @@ run-debug: ricerca-debug.hdd
 # -no-shutdown -no-reboot - Halt on fatal errrors
 	echo `cat machines/$(MACHINE) | tr '\n' ' '`
 	qemu-system-x86_64 \
-	-hda ricerca-debug.hdd \
+	-hda ricerca-debug.iso \
 	-debugcon stdio \
 	-S -s \
 	-no-shutdown -no-reboot \
@@ -125,7 +125,7 @@ gdb-attach:
 	gdb -x gdb-startup
 
 # Release build rule
-build-release: ricerca-release.hdd
+build-release: ricerca-release.iso
 
 # Debug build rule
-build-debug: ricerca-debug.hdd
+build-debug: ricerca-debug.iso
