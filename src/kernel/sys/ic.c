@@ -11,6 +11,7 @@
 #include <sys/pic.h>
 #include <sys/tsc.h>
 #include <thread/smp/core.h>
+#include <thread/smp/trampoline.h>
 
 MODULE("sys/ic");
 TARGET(ic_bsp_available, ic_bsp_init,
@@ -223,8 +224,6 @@ void ic_timer_start_calibration(void) {
 		if (PER_CPU(ic_state).tsc_deadline_supported) {
 			// Initialize timer LVT register
 			LAPIC_WRITE(LVT_TIMER, LAPIC_TMR_TSC | ic_timer_vec);
-			// Read currrent timestamp
-			PER_CPU(ic_state).tsc_buf = tsc_read();
 		} else {
 			// Set divider to 16
 			LAPIC_WRITE(DCR, 0b1010);
@@ -238,19 +237,16 @@ void ic_timer_start_calibration(void) {
 	}
 }
 
-//! @brief Finish timer calibration process. Should be called after IC_TIMER_CALIBRATION_PERIOD
-//! millseconds passed from ic_timer_start_calibration call
+//! @brief Finish timer calibration process. Should be called after
+//! THREAD_TRAMPOLINE_CALIBRATION_PERIOD millseconds passed from ic_timer_start_calibration call
 void ic_timer_end_calibration(void) {
 	if (ic_is_lapic_used()) {
-		if (PER_CPU(ic_state).tsc_deadline_supported) {
-			// Read clock cycles difference
-			PER_CPU(ic_state).tsc_freq =
-			    (tsc_read() - PER_CPU(ic_state).tsc_buf) / IC_TIMER_CALIBRATION_PERIOD;
-
-		} else {
+		// TSC frequency will be calculated in sys/tsc.c, so no need to do anything for TSC deadline
+		if (!PER_CPU(ic_state).tsc_deadline_supported) {
 			// Calculate number of ticks per ms
 			uint32_t val = LAPIC_READ(CNT);
-			PER_CPU(ic_state).timer_ticks_per_ms = (0xffffffff - val) / IC_TIMER_CALIBRATION_PERIOD;
+			PER_CPU(ic_state).timer_ticks_per_ms =
+			    (0xffffffff - val) / THREAD_TRAMPOLINE_CALIBRATION_PERIOD;
 			// Stop LAPIC timer
 			ic_timer_cancel_one_shot();
 		}
@@ -264,7 +260,9 @@ void ic_timer_end_calibration(void) {
 void ic_timer_one_shot(uint32_t ms) {
 	if (ic_is_lapic_used()) {
 		if (PER_CPU(ic_state).tsc_deadline_supported) {
-			wrmsr(LAPIC_IA32_TSC_DEADLINE_MSR, tsc_read() + PER_CPU(ic_state).tsc_freq * ms);
+			// TSC frequency can be non-invariant, but we only rely on timer being precise when CPU
+			// is not in some low power state.
+			wrmsr(LAPIC_IA32_TSC_DEADLINE_MSR, tsc_read() + PER_CPU(tsc_freq) * ms);
 		} else {
 			LAPIC_WRITE(INIT_CNT, PER_CPU(ic_state).timer_ticks_per_ms * ms);
 		}

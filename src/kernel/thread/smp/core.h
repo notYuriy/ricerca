@@ -53,6 +53,8 @@ struct thread_smp_core {
 	struct ic_core_state ic_state;
 	// Task queue
 	struct thread_task_queue queue;
+	// TSC frequency
+	uint64_t tsc_freq;
 };
 
 //! @brief Macro to access per-cpu data

@@ -3,20 +3,21 @@
 
 #pragma once
 
+#include <lib/pairing_heap.h>
 #include <lib/target.h>
 #include <thread/locking/spinlock.h>
 #include <thread/tasking/task.h>
 
 //! @brief Task queue
 struct thread_task_queue {
-	//! @brief Task queue head
-	struct thread_task *head;
-	//! @brief Task queue tail
-	struct thread_task *tail;
+	//! @brief Tasks heap
+	struct pairing_heap heap;
 	//! @brief Task lock
 	struct thread_spinlock lock;
 	//! @brief APIC id of the owner
 	uint32_t apic_id;
+	//! @brief Idle unfairness
+	uint64_t idle_unfairness;
 	//! @brief True if CPU is idle (waiting for new tasks to run)
 	bool idle;
 };

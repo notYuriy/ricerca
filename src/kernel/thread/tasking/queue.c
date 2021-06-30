@@ -1,6 +1,7 @@
 //! @file queue.c
 //! @brief Implementation of task queue functions
 
+#include <lib/containerof.h>
 #include <lib/panic.h>
 #include <misc/atomics.h>
 #include <sys/arch/arch.h>
@@ -22,13 +23,23 @@ static void thread_task_ipi_dummy(struct interrupt_frame *frame, void *ctx) {
 	(void)ctx;
 }
 
+//! @brief Task unfairness comparator for heap insertions/deletitions
+//! @param left Left handside
+//! @param right Right handside
+//! @return True if left unfairness is smaller than that of right
+static bool thread_compare_unfairness(struct pairing_heap_hook *left,
+                                      struct pairing_heap_hook *right) {
+	struct thread_task *ltask = CONTAINER_OF(left, struct thread_task, hook);
+	struct thread_task *rtask = CONTAINER_OF(right, struct thread_task, hook);
+	return ltask->unfairness < rtask->unfairness;
+}
+
 //! @brief Initialize task queue
 //! @param queue Queue to initialize
 //! @param apic_id CPU APIC id
 void thread_task_queue_init(struct thread_task_queue *queue, uint32_t apic_id) {
 	queue->apic_id = apic_id;
-	queue->head = NULL;
-	queue->tail = NULL;
+	pairing_heap_init(&queue->heap, thread_compare_unfairness);
 	queue->lock = THREAD_SPINLOCK_INIT;
 }
 
@@ -36,13 +47,8 @@ void thread_task_queue_init(struct thread_task_queue *queue, uint32_t apic_id) {
 //! @param queue Queue to enqueue task in
 //! @param task Task to enqueue
 void thread_task_queue_enqueue(struct thread_task_queue *queue, struct thread_task *task) {
-	task->next = NULL;
 	const bool int_state = thread_spinlock_lock(&queue->lock);
-	if (queue->head == NULL) {
-		queue->head = queue->tail = task;
-	} else {
-		queue->tail->next = task;
-	}
+	pairing_heap_insert(&queue->heap, &task->hook);
 	thread_spinlock_unlock(&queue->lock, int_state);
 	if (ATOMIC_ACQUIRE_LOAD(&queue->idle)) {
 		ic_send_ipi(queue->apic_id, thread_task_queue_ipi_vec);
@@ -54,18 +60,9 @@ void thread_task_queue_enqueue(struct thread_task_queue *queue, struct thread_ta
 //! @return Dequeued task or NULL if task queue is empty
 struct thread_task *thread_task_queue_try_dequeue(struct thread_task_queue *queue) {
 	const bool int_state = thread_spinlock_lock(&queue->lock);
-	if (queue->head == NULL) {
-		thread_spinlock_unlock(&queue->lock, int_state);
-		return NULL;
-	}
-	struct thread_task *res = queue->head;
-	if (queue->head->next != NULL) {
-		queue->head = queue->head->next;
-	} else {
-		queue->head = NULL;
-	}
+	struct pairing_heap_hook *res = pairing_heap_remove_min(&queue->heap);
 	thread_spinlock_unlock(&queue->lock, int_state);
-	return res;
+	return res != NULL ? CONTAINER_OF(res, struct thread_task, hook) : NULL;
 }
 
 //! @brief Dequeue task from the queue or wait until such task becomes available

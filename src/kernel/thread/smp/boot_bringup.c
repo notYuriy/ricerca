@@ -5,6 +5,7 @@
 #include <sys/arch/arch.h>
 #include <sys/ic.h>
 #include <sys/timers/timer.h>
+#include <sys/tsc.h>
 #include <thread/smp/boot_bringup.h>
 #include <thread/smp/core.h>
 #include <thread/smp/trampoline.h>
@@ -68,11 +69,20 @@ void thread_smp_ap_boot_bringup() {
 		LOG_ERR("Some CPUS have not booted up, giving up on them");
 	}
 calibration:
-	LOG_INFO("Timer calibration process initiated");
+	LOG_INFO("Calibration process initiated");
+	// Begin TSC calibration process
+	tsc_begin_calibration();
+	// Begin IC timer calibration process
 	ic_timer_start_calibration();
+	// Signal APs to begin calibration
 	ATOMIC_RELEASE_STORE(&thread_smp_trampoline_state, THREAD_SMP_TRAMPOLINE_BEGIN_CALIBRATION);
-	timer_busy_wait_ms(IC_TIMER_CALIBRATION_PERIOD);
+	// Wait for calibration period to end
+	timer_busy_wait_ms(THREAD_TRAMPOLINE_CALIBRATION_PERIOD);
+	// Signal APs to end calibration
 	ATOMIC_RELEASE_STORE(&thread_smp_trampoline_state, THREAD_SMP_TRAMPOLINE_END_CALIBRATION);
+	// End TSC calibration process
+	tsc_end_calibration();
+	// End IC timer calibration process
 	ic_timer_end_calibration();
-	LOG_INFO("Timer calibration process finished");
+	LOG_INFO("Calibration process finished. BSP TSC frequency = %U KHz", PER_CPU(tsc_freq));
 }

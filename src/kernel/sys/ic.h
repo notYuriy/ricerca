@@ -7,9 +7,6 @@
 #include <misc/types.h>
 #include <sys/timers/timer.h>
 
-//! @brief Timer calibration period in milliseconds
-#define IC_TIMER_CALIBRATION_PERIOD 10
-
 //! @brief Per-cpu interrupt controller state
 struct ic_core_state {
 	//! @brief Number of ticks in one millisecond for IC timer
@@ -55,8 +52,8 @@ void ic_send_ipi(uint32_t id, uint8_t vec);
 //! @brief Initiate timer calibration process
 void ic_timer_start_calibration(void);
 
-//! @brief Finish timer calibration process. Should be called after IC_TIMER_CALIBRATION_PERIOD
-//! millseconds passed from ic_timer_start_calibration call
+//! @brief Finish timer calibration process. Should be called after
+//! THREAD_TRAMPOLINE_CALIBRATION_PERIOD millseconds passed from ic_timer_start_calibration call
 void ic_timer_end_calibration(void);
 
 //! @brief Prepare timer for one shot event

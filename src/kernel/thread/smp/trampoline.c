@@ -7,6 +7,7 @@
 #include <misc/types.h>
 #include <sys/cr.h>
 #include <sys/ic.h>
+#include <sys/tsc.h>
 #include <thread/smp/core.h>
 #include <thread/smp/trampoline.h>
 
@@ -57,18 +58,23 @@ static void thread_smp_trampoline_ap_init(uint32_t logical_id) {
 	arch_init();
 	// Update status
 	ATOMIC_RELEASE_STORE(&locals->status, THREAD_SMP_CORE_STATUS_ONLINE);
-	LOG_INFO("Hello from core %u", logical_id);
 	// Wait for trampoline status to update
 	while (ATOMIC_ACQUIRE_LOAD(&thread_smp_trampoline_state) !=
 	       THREAD_SMP_TRAMPOLINE_BEGIN_CALIBRATION)
 		;
+	// Begin TSC calibration process
+	tsc_begin_calibration();
 	// Begin IC timer calibration process
 	ic_timer_start_calibration();
 	// Wait for trampoline status to update
 	while (ATOMIC_ACQUIRE_LOAD(&thread_smp_trampoline_state) !=
 	       THREAD_SMP_TRAMPOLINE_END_CALIBRATION)
 		;
+	// End TSC calibration process
+	tsc_end_calibration();
+	// End IC timer calibration process
 	ic_timer_end_calibration();
+	LOG_INFO("Hello from AP %u. Local TSC frequency is %U KHz", logical_id, PER_CPU(tsc_freq));
 	// Hang until we have scheduler
 	hang();
 }
