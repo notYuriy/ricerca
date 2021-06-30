@@ -59,17 +59,24 @@ static void thread_smp_trampoline_ap_init(uint32_t logical_id) {
 	// Update status
 	ATOMIC_RELEASE_STORE(&locals->status, THREAD_SMP_CORE_STATUS_ONLINE);
 	// Wait for trampoline status to update
-	while (ATOMIC_ACQUIRE_LOAD(&thread_smp_trampoline_state) !=
-	       THREAD_SMP_TRAMPOLINE_BEGIN_CALIBRATION)
-		;
+	enum thread_smp_trampoline_state state;
+	while ((state = ATOMIC_ACQUIRE_LOAD(&thread_smp_trampoline_state)) !=
+	       THREAD_SMP_TRAMPOLINE_BEGIN_CALIBRATION) {
+		if (state == THREAD_SMP_TRAMPOLINE_END_CALIBRATION) {
+			LOG_WARN("CPU is late to calibration interval! Hanging");
+			hang();
+		}
+		asm volatile("pause");
+	}
 	// Begin TSC calibration process
 	tsc_begin_calibration();
 	// Begin IC timer calibration process
 	ic_timer_start_calibration();
 	// Wait for trampoline status to update
 	while (ATOMIC_ACQUIRE_LOAD(&thread_smp_trampoline_state) !=
-	       THREAD_SMP_TRAMPOLINE_END_CALIBRATION)
-		;
+	       THREAD_SMP_TRAMPOLINE_END_CALIBRATION) {
+		asm volatile("pause");
+	}
 	// End TSC calibration process
 	tsc_end_calibration();
 	// End IC timer calibration process

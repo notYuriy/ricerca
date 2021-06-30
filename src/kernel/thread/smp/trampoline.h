@@ -9,7 +9,7 @@
 #define THREAD_SMP_TRAMPOLINE_ADDR 0x71000
 
 //! @brief Trampoline calibration window in duration (in ms)
-#define THREAD_TRAMPOLINE_CALIBRATION_PERIOD 10
+#define THREAD_TRAMPOLINE_CALIBRATION_PERIOD 200
 
 //! @brief Trampoline state enum. Set by core that boots up APs and watched by cores that are booted
 enum thread_smp_trampoline_state

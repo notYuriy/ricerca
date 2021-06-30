@@ -50,10 +50,10 @@ void thread_smp_ap_boot_bringup() {
 	if (everyone_started) {
 		goto calibration;
 	}
-	LOG_WARN("Failed to boot CPUs from the first SIPI round. Waiting for 100ms to give CPUs a "
+	LOG_WARN("Failed to boot CPUs from the first SIPI round. Waiting for 200ms to give CPUs a "
 	         "second chance");
-	// Wait for 100 ms
-	timer_busy_wait_ms(100);
+	// Wait for 200 ms
+	timer_busy_wait_ms(200);
 	// Ok, now everyone should have started,
 	everyone_started = true;
 	for (size_t i = 0; i < thread_smp_core_max_cpus; ++i) {
