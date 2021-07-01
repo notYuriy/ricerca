@@ -3,6 +3,10 @@
 # evaluate it
 .PHONY: build-debug build-release clean kernel-clean run-release run-debug run-safe run-ci
 
+# Use timestamp of the commit to ensure that builds are reproducible
+export SOURCE_DATE_EPOCH=$(shell git show -s --format=%ct)
+XORRISO_DATE=$(shell git log -1 --format="%at" | xargs -I{} date -d @{} +%Y%m%d%H%M%S00)
+
 # Machine to test on
 MACHINE=numa-distances
 
@@ -23,6 +27,8 @@ ricerca-debug.iso: image
 
 # Generic image build rule
 image: build/bootstrap.link
+# Clean sysroot
+	rm -rf build/system-root/*
 # Install limine
 	cd build && xbstrap install-tool limine
 # Reinstall system files
@@ -36,7 +42,9 @@ image: build/bootstrap.link
 # Delete existing image
 	rm -f $(IMAGE)
 # Create image with xorriso
-	xorriso -as mkisofs -b boot/limine-cd.bin \
+	echo $(SOURCE_DATE_EPOCH)
+	xorriso -volume_date "all_file_dates" $(XORRISO_DATE) \
+	-as mkisofs -b boot/limine-cd.bin \
 	-no-emul-boot -boot-load-size 4 -boot-info-table \
 	--efi-boot boot/limine-eltorito-efi.bin \
 	-efi-boot-part --efi-boot-image --protective-msdos-label \
