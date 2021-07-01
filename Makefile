@@ -29,8 +29,10 @@ image: build/bootstrap.link
 	cd build && xbstrap install system-files --rebuild
 # Reinstall kernel
 	cd build && xbstrap install $(KERNEL_PKG) --rebuild
-# Reinstall limine files
+# Reinstall limine CD files
 	cd build && xbstrap install limine-cd --rebuild
+# Add limine files for network boot
+	cd build && xbstrap install limine-pxe --rebuild
 # Delete existing image
 	rm -f $(IMAGE)
 # Create image with xorriso

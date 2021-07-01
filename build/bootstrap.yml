@@ -143,13 +143,11 @@ packages:
 
   - name: limine-cd
     from_source: limine
-    tools_required:
-      - limine
     pkgs_required:
       - system-files
     build:
       # Create boot folder
-      - args: ["mkdir", "@THIS_COLLECT_DIR@/boot"]
+      - args: ["mkdir", "-p", "@THIS_COLLECT_DIR@/boot"]
       # Copy limine stage 3
       - args:
           - "cp"
@@ -165,3 +163,21 @@ packages:
           - "cp"
           - "@THIS_SOURCE_DIR@/limine-eltorito-efi.bin"
           - "@THIS_COLLECT_DIR@/boot/limine-eltorito-efi.bin"
+
+  - name: limine-pxe
+    from_source: limine
+    pkgs_required:
+      - system-files
+    build:
+      # Create boot folder
+      - args: ["mkdir", "-p", "@THIS_COLLECT_DIR@/boot"]
+      # Copy limine stage 3
+      - args:
+          - "cp"
+          - "@THIS_SOURCE_DIR@/limine.sys"
+          - "@THIS_COLLECT_DIR@/boot/limine.sys"
+      # Copy limine-pxe.bin
+      - args:
+          - "cp"
+          - "@THIS_SOURCE_DIR@/limine-pxe.bin"
+          - "@THIS_COLLECT_DIR@/boot/limine-pxe.bin"
