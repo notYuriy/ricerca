@@ -1,3 +1,2 @@
 -machine q35 -smp 8 -m 1G
 -cpu qemu64,+la57,+invtsc,+tsc-deadline
---enable-kvm -cpu host

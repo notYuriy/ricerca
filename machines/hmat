@@ -7,4 +7,3 @@
 -smp 2,sockets=2,maxcpus=2 
 -numa cpu,node-id=0,socket-id=0
 -numa cpu,node-id=0,socket-id=1
---enable-kvm -cpu host

@@ -2,6 +2,8 @@
 **/*.elf
 **/*.iso
 **/*.bin
+**/*.out
+**/*.out.md
 build/build-tools/**
 build/packages/**
 build/pkg-builds/**

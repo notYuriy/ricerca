@@ -25,23 +25,34 @@ jobs:
       - name: Build debug image
         run: make build-debug
 
+      - name: Build safe image
+        run: make build-safe
+
+      - name: Build profile image
+        run: make build-profile
+
       - name: Untag last nightly release
         run: ( git push --delete origin nightly || true ) && ( git tag --delete nightly || true )
 
       - name: Tag new nightly release
         run: git tag nightly && git push --tags
 
+      - name: Generate nightly release message file
+        run: python3 misc/gen-nightly-release-msg.py
+
       - name: Create nightly release
         uses: softprops/action-gh-release@v1
         with:
           name: Nightly build
           tag_name: nightly
-          body: Images of an up to date ricerca nightly build.
+          body_path: misc/NIGHTLY.out.md
           files: |
             ricerca-release.iso
             ricerca-debug.iso
+            ricerca-safe.iso
+            ricerca-profile.iso
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run debug image
-        run: timeout --signal=SIGINT 120 make run-ci MACHINE=ci || true
+        run: timeout --signal=SIGINT 60 make run-ci || true

@@ -25,6 +25,16 @@ ricerca-debug.iso: KERNEL_PKG = "debug-kernel"
 ricerca-debug.iso: IMAGE = "ricerca-debug.iso"
 ricerca-debug.iso: image
 
+# Build image with safe kernel
+ricerca-safe.iso: KERNEL_PKG = "safe-kernel"
+ricerca-safe.iso: IMAGE = "ricerca-safe.iso"
+ricerca-safe.iso: image
+
+# Build image with profile kernel
+ricerca-profile.iso: KERNEL_PKG = "profile-kernel"
+ricerca-profile.iso: IMAGE = "ricerca-profile.iso"
+ricerca-profile.iso: image
+
 # Generic image build rule
 image: build/bootstrap.link
 # Clean sysroot
@@ -56,75 +66,78 @@ image: build/bootstrap.link
 # Deletes kernel object files, kernel binaries, and images
 clean:
 	make -C kernel clean
-	rm -rf ricerca-debug.iso ricerca-release.iso
+	rm -rf ricerca-debug.iso ricerca-release.iso ricerca-safe.iso ricerca-profile.iso
 
 # Binary clean rule
 # Clears only kenrel binaries and object files
 kernel-clean:
 	make -C src/kernel clean
 
-# Run release image rule
-# Runs OS in QEMU with kvm enabled
-run-release: ricerca-release.iso
-# Run QEMU
-# -hda ricerca-release.iso - Attach hard drive with our image
-# -cpu host --accel kvm --accel hax --accel tcg - Use hardware virtualization if available
-# If no hardware acceleration is present, fallback to tcg with --accel tcg
-# -debugcon stdio - Add debug connection, so that we can print logs to e9 port from the kernel
-# and see them in the terminal
-# -no-shutdown -no-reboot - Halt on fatal errrors
+# Run release image in QEMU with KVM enabled
+run-release-kvm: ricerca-release.iso
 	qemu-system-x86_64 \
-	-hda ricerca-release.iso \
+	-cdrom ricerca-release.iso \
+	-debugcon stdio \
+	-no-shutdown -no-reboot \
+	--enable-kvm \
+	`cat machines/$(MACHINE) | tr '\n' ' '`
+
+# Run safe image in QEMU with KVM enabled
+run-safe-kvm: ricerca-safe.iso
+	qemu-system-x86_64 \
+	-cdrom ricerca-safe.iso \
+	-debugcon stdio \
+	-no-shutdown -no-reboot \
+	--enable-kvm \
+	`cat machines/$(MACHINE) | tr '\n' ' '`
+
+# Run release image in QEMU without KVM enabled
+run-release-tcg: ricerca-release.iso
+	qemu-system-x86_64 \
+	-cdrom ricerca-release.iso \
 	-debugcon stdio \
 	-no-shutdown -no-reboot \
 	`cat machines/$(MACHINE) | tr '\n' ' '`
 
-# Run safe image rule
-# Runs debug image without waiting for debugger
-# Run QEMU
-# -hda ricerca-debug.iso - Attach hard drive with our image
-# -cpu host --accel kvm --accel hax --accel tcg - Use hardware virtualization if available
-# If no hardware acceleration is present, fallback to tcg with --accel tcg
-# -debugcon stdio - Add debug connection, so that we can print logs to e9 port from the kernel
-# and see them in the terminal
-# -no-shutdown -no-reboot - Halt on fatal errrors
-run-safe: ricerca-debug.iso
+# Run safe image in QEMU without KVM enabled
+run-safe-tcg: ricerca-safe.iso
 	qemu-system-x86_64 \
-	-hda ricerca-debug.iso \
+	-cdrom ricerca-safe.iso \
 	-debugcon stdio \
 	-no-shutdown -no-reboot \
 	`cat machines/$(MACHINE) | tr '\n' ' '`
 
-# Run image on CI rule
-# Runs release image on CI
-# Run QEMU
-# -hda ricerca-debug.iso - Attach hard drive with our image
-# If no hardware acceleration is present, fallback to tcg with --accel tcg
-# -debugcon stdio - Add debug connection, so that we can print logs to e9 port from the kernel
-# -display none - Do not actually open the window
-# and see them in the terminal
-# -no-shutdown -no-reboot - Halt on fatal errrors
-run-ci: ricerca-debug.iso
+# Run profiling kernel build in QEMU with KVM enabled
+profile-kvm: ricerca-profile.iso
 	qemu-system-x86_64 \
-	-hda ricerca-debug.iso \
+	-cdrom ricerca-profile.iso \
+	-debugcon stdio \
+	-no-shutdown -no-reboot \
+	--enable-kvm \
+	`cat machines/$(MACHINE) | tr '\n' ' '`
+
+# Run profiling kernel build in QEMU without KVM enabled
+profile-tcg: ricerca-profile.iso
+	qemu-system-x86_64 \
+	-cdrom ricerca-profile.iso \
+	-debugcon stdio \
+	-no-shutdown -no-reboot \
+	`cat machines/$(MACHINE) | tr '\n' ' '`
+
+# Run image on CI rule.
+# Image runs in TCG with 2 minute timeout
+run-ci: ricerca-safe.iso
+	qemu-system-x86_64 \
+	-cdrom ricerca-safe.iso \
 	-debugcon stdio \
 	-display none \
 	-no-shutdown -no-reboot \
 	`cat machines/$(MACHINE) | tr '\n' ' '`
 
-
-# Run debug image rule
-run-debug: ricerca-debug.iso
-# Run QEMU
-# -hda ricerca-debug.iso - Attach harddrive with our image
-# If no hardware acceleration is present, fallback to tcg with --accel tcg
-# -debugcon stdio - Add debug connection, so that we can print logs to e9 port from the kernel
-# and see them in the terminal
-# -S -s - attach and wait for the debugger
-# -no-shutdown -no-reboot - Halt on fatal errrors
-	echo `cat machines/$(MACHINE) | tr '\n' ' '`
+# Start QEMU with debug image and wait for debugger to attach
+debug: ricerca-debug.iso
 	qemu-system-x86_64 \
-	-hda ricerca-debug.iso \
+	-cdrom ricerca-debug.iso \
 	-debugcon stdio \
 	-S -s \
 	-no-shutdown -no-reboot \
@@ -139,3 +152,9 @@ build-release: ricerca-release.iso
 
 # Debug build rule
 build-debug: ricerca-debug.iso
+
+# Safe build rule
+build-safe: ricerca-safe.iso
+
+# Profile build rule
+build-profile: ricerca-profile.iso

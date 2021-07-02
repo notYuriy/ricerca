@@ -1,2 +1,1 @@
 -machine q35 -m 1G
---enable-kvm -cpu host

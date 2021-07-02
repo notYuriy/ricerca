@@ -120,6 +120,8 @@ packages:
           - "DESTDIR=@THIS_COLLECT_DIR@/boot"
           - "LAIPATH=@SOURCE_ROOT@/libraries/lai"
           - "CC=x86_64-elf-gcc"
+          - "LD=x86_64-elf-gcc"
+          - "AS=fasm"
         workdir: "@THIS_SOURCE_DIR@"
 
   - name: debug-kernel
@@ -139,6 +141,50 @@ packages:
           - "DESTDIR=@THIS_COLLECT_DIR@/boot"
           - "LAIPATH=@SOURCE_ROOT@/libraries/lai"
           - "CC=x86_64-elf-gcc"
+          - "LD=x86_64-elf-gcc"
+          - "AS=fasm"
+        workdir: "@THIS_SOURCE_DIR@"
+
+  - name: safe-kernel
+    from_source: kernel
+    tools_required:
+      - gcc
+    pkgs_required:
+      - system-files
+    sources_required:
+      - lai
+    build:
+      - args: ["mkdir", "-p", "@THIS_COLLECT_DIR@/boot"]
+      - args:
+          - "make"
+          - "-j@PARALLELISM@"
+          - "safe"
+          - "DESTDIR=@THIS_COLLECT_DIR@/boot"
+          - "LAIPATH=@SOURCE_ROOT@/libraries/lai"
+          - "CC=x86_64-elf-gcc"
+          - "LD=x86_64-elf-gcc"
+          - "AS=fasm"
+        workdir: "@THIS_SOURCE_DIR@"
+
+  - name: profile-kernel
+    from_source: kernel
+    tools_required:
+      - gcc
+    pkgs_required:
+      - system-files
+    sources_required:
+      - lai
+    build:
+      - args: ["mkdir", "-p", "@THIS_COLLECT_DIR@/boot"]
+      - args:
+          - "make"
+          - "-j@PARALLELISM@"
+          - "profile"
+          - "DESTDIR=@THIS_COLLECT_DIR@/boot"
+          - "LAIPATH=@SOURCE_ROOT@/libraries/lai"
+          - "CC=x86_64-elf-gcc"
+          - "LD=x86_64-elf-gcc"
+          - "AS=fasm"
         workdir: "@THIS_SOURCE_DIR@"
 
   - name: limine-cd

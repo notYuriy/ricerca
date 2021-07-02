@@ -1,6 +1,6 @@
 # Ricerca
 
-![](screenshots/system-init.png)
+![](misc/system-init.png)
 
 lezione-os fork that I am using as a playground to experiment with SMP, NUMA and load balancing
 
@@ -25,11 +25,11 @@ Run `make build-release`/`make build-debug` in root directory to build release i
 
 # Running
 
-Run `make run-release` to run release image in QEMU
+Run `make run-release-kvm` to run release image in QEMU with KVM enabled. If KVM is not available, you can use `make run-release-tcg` command.
 
-Run `make run-debug` to run debug image in QEMU. QEMU will wait for debugger to be attached. Run `make gdb-attach` in a separate terminal to start GDB and attach it to QEMU
+Run `make run-safe-kvm` to run safe image (equivalent to the release image, but assertions are enabled) in QEMU with KVM enabled. If KVM is not available, you can use `make run-safe-tcg` command.
 
-Run `make run-safe` to run debug image in QEMU without waiting for the debugger
+Run `make debug` to run debug image in QEMU. QEMU will wait for debugger to be attached. Run `make gdb-attach` in a separate terminal to start GDB and attach it to QEMU
 
 # Real hardware
 
@@ -37,8 +37,8 @@ While there is no apparent reason why ricerca could break your hardware, **there
 
 Having said that, it is indeed possible to run ricerca on your PC. Just copy image to a USB stick. Thanks to limine, ricerca can run both on UEFI and legacy BIOS.
 
-I recommend to burn debug image since it has assertions enabled.
+I recommend to burn `ricerca-safe.iso` since it has assertions enabled.
 
-Here is the ricerca run on my laptop
+Here is the debug log printed on my laptop
 
-![](screenshots/real-hw.jpg)
+![](misc/real-hw.jpg)
