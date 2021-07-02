@@ -22,6 +22,8 @@ template = template.replace(
     '$SHA512_INFO', run(['sha512sum'] + images))
 template = template.replace(
     '$MD5_INFO', run(['md5sum'] + images))
+template = template.replace(
+    '$SYSROOT_SHA1_INFO', run(['bash', '-c', 'find build/system-root/ -type f | xargs sha256sum -b']))
 
 with open('misc/NIGHTLY.out.md', 'w') as f:
     f.write(template)

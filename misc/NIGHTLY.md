@@ -48,3 +48,13 @@ $SHA512_INFO
 ```
 $MD5_INFO
 ```
+
+## Build reproducibility
+
+For now, ricercaOS builds are not reproducible, but that is something I am working on. Info below is only used for me to debug why github actions ends up producing image with a different hash.
+
+### SHA1 checksum of all files on the image
+
+```
+$SYSROOT_SHA1_INFO
+```
