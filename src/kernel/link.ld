@@ -10,22 +10,30 @@ SECTIONS {
     }
 
     /* Kernel code */
+    _kernel_text_start = .;
     .text : ALIGN(4K) {
         *(.text*)
     }
+    _kernel_text_end = .;
 
     /* Readonly kernel data */
+    _kernel_rodata_start = .;
     .rodata : ALIGN(4K) {
         *(.rodata*)
     }
+    _kernel_rodata_end = .;
 
     /* Readable and writable kernel data */
+    _kernel_data_start = .;
     .data : ALIGN(4K) {
         *(.data*)
     }
+    _kernel_data_end = .;
 
     /* Readable writeable unitialized kernel memory */
+    _kernel_bss_start = .;
     .bss : ALIGN(4K) {
         *(.bss*)
     }
+    _kernel_bss_end = .;
 }

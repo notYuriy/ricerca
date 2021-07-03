@@ -64,7 +64,9 @@ struct thread_smp_core *thread_smp_core_get_for(uint32_t id) {
 //! @note To be used on AP bootup
 //! @note Requires LAPIC to be enabled
 //! @param logical_id Logical ID of the current AP
-void thread_smp_core_init_on_ap(uint32_t logical_id) {
+//! @note attribute_no_instrument as CPU local storage is not enabled yet => profiling wont' work
+//! properly
+attribute_no_instrument void thread_smp_core_init_on_ap(uint32_t logical_id) {
 	// Get point to CPU local data
 	struct thread_smp_core *this_cpu_data = thread_smp_core_array + logical_id;
 	// Set pointer to local storage

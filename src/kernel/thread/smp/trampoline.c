@@ -4,6 +4,7 @@
 #include <lib/panic.h>
 #include <lib/string.h>
 #include <mem/misc.h>
+#include <misc/attributes.h>
 #include <misc/types.h>
 #include <sys/cr.h>
 #include <sys/ic.h>
@@ -46,8 +47,9 @@ struct thread_smp_trampoline_args {
 
 //! @brief Long mode trampoline code
 //! @param logical_id Logical ID of the CPU
-static void thread_smp_trampoline_ap_init(uint32_t logical_id) {
-	// TODO: Die properly instead of hangs
+//! @note attribute_no_instrument as CPU local storage is not enabled yet => profiling wont' work
+//! properly
+attribute_no_instrument static void thread_smp_trampoline_ap_init(uint32_t logical_id) {
 	thread_smp_core_init_on_ap(logical_id);
 	// If kernel gave up on us, hang
 	struct thread_smp_core *locals = thread_smp_core_get();

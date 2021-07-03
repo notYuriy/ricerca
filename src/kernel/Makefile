@@ -42,13 +42,14 @@ C_DEBUG_FLAGS = -g -DDEBUG
 # -flto - enable link time optimization
 # -O2 - optimize for spped
 # -DDEBUG - define DEBUG macro to check assertions
-C_SAFE_FLAGS = -O2 -flto
+C_SAFE_FLAGS = -O2 -flto -DDEBUG
 
 # C flags used for profiled builds
 # -g - generate debugging symbols
 # -O2 - optimize for speed
 # -pg - Add calls to mcount on every function call
-C_PROFILE_FLAGS = -O2 -g -pg
+# -DPROFILE - Hint for kernel logger to disable logging to e9 (e9 is used for profiling logging)
+C_PROFILE_FLAGS = -O2 -g -pg -DPROFILE
 
 # Common linker flags (used both in debug and release mode), that are
 # essential for correct kernel linkage
@@ -134,22 +135,23 @@ AS_OBJS = $(AS_SOURCES:.asm=.asm.o)
 
 # Release kernel build rule
 release: $(C_RELEASE_OBJS) $(AS_OBJS)
-	$(LD) -T $(LD_SCRIPT) -o $(OUTPUT_PATH) $(LD_HARD_FLAGS) $(LD_FLAGS) $(LD_RELEASE_FLAGS) $^
+	$(LD) -T $(LD_SCRIPT) -o $(OUTPUT_PATH) $(LD_HARD_FLAGS) $(LDFLAGS) $(LD_RELEASE_FLAGS) $^
 
 # Debug kernel build rule
 debug: $(C_DEBUG_OBJS) $(AS_OBJS)
-	$(LD) -T $(LD_SCRIPT) -o $(OUTPUT_PATH) $(LD_HARD_FLAGS) $(LD_FLAGS) $(LD_DEBUG_FLAGS) $^
+	$(LD) -T $(LD_SCRIPT) -o $(OUTPUT_PATH) $(LD_HARD_FLAGS) $(LDFLAGS) $(LD_DEBUG_FLAGS) $^
 
 # Safe kernel build rule
 safe: $(C_SAFE_OBJS) $(AS_OBJS)
-	$(LD) -T $(LD_SCRIPT) -o $(OUTPUT_PATH) $(LD_HARD_FLAGS) $(LD_FLAGS) $(LD_SAFE_FLAGS) $^
+	$(LD) -T $(LD_SCRIPT) -o $(OUTPUT_PATH) $(LD_HARD_FLAGS) $(LDFLAGS) $(LD_SAFE_FLAGS) $^
 
 # Profile kernel build rule
 profile: $(C_PROFILE_OBJS) $(AS_OBJS)
-	$(LD) -T $(LD_SCRIPT) -o $(OUTPUT_PATH) $(LD_HARD_FLAGS) $(LD_FLAGS) $(LD_PROFILE_FLAGS) $^
+	$(LD) -T $(LD_SCRIPT) -o $(OUTPUT_PATH) $(LD_HARD_FLAGS) $(LDFLAGS) $(LD_PROFILE_FLAGS) $^
 
 # Clean object files
 obj_clean:
+	rm -f $(shell find $(LAIPATH) -type f -name '*.o')
 	rm -f $(shell find . -type f -name '*.o')
 
 # Clean rule that cleans everything, along with kernel binaries

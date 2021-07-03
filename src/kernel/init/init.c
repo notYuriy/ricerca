@@ -7,6 +7,7 @@
 #include <init/stivale2.h>
 #include <lib/log.h>
 #include <lib/panic.h>
+#include <lib/profiling.h>
 #include <lib/target.h>
 #include <mem/heap/heap.h>
 #include <mem/mem.h>
@@ -121,6 +122,16 @@ void kernel_init(struct stivale2_struct *info) {
 	init_memmap_tag =
 	    (struct stivale2_struct_tag_memmap *)stivale2_query(info, STIVALE2_STRUCT_TAG_MEMMAP_ID);
 
+	// If we are running PROFILE kernel, initialize performance counters subsystems first
+#ifdef PROFILE
+	// Compute init plan to initialize profiling
+	struct target *profile_plan = target_compute_plan(profiling_available);
+
+	// Execute plan
+	target_plan_dump(profile_plan);
+	target_execute_plan(profile_plan);
+
+#endif
 	// Compute init plan to bootup APs
 	struct target *plan = target_compute_plan(thread_smp_ap_boot_bringup_available);
 

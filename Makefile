@@ -65,7 +65,7 @@ image: build/bootstrap.link
 # Clean rule
 # Deletes kernel object files, kernel binaries, and images
 clean:
-	make -C kernel clean
+	make -C src/kernel clean
 	rm -rf ricerca-debug.iso ricerca-release.iso ricerca-safe.iso ricerca-profile.iso
 
 # Binary clean rule
@@ -111,18 +111,20 @@ run-safe-tcg: ricerca-safe.iso
 profile-kvm: ricerca-profile.iso
 	qemu-system-x86_64 \
 	-cdrom ricerca-profile.iso \
-	-debugcon stdio \
+	-debugcon file:profiling/dump \
 	-no-shutdown -no-reboot \
 	--enable-kvm \
 	`cat machines/$(MACHINE) | tr '\n' ' '`
+	python3 profile/process.py
 
 # Run profiling kernel build in QEMU without KVM enabled
 profile-tcg: ricerca-profile.iso
 	qemu-system-x86_64 \
 	-cdrom ricerca-profile.iso \
-	-debugcon stdio \
+	-debugcon file:profiling/dump \
 	-no-shutdown -no-reboot \
 	`cat machines/$(MACHINE) | tr '\n' ' '`
+	python3 profile/process.py
 
 # Run image on CI rule.
 # Image runs in TCG with 2 minute timeout

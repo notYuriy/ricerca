@@ -22,8 +22,7 @@ static enum
 {
 	IC_X2APIC_USED,
 	IC_XAPIC_USED,
-	IC_PIC8259_USED,
-} ic_state = IC_PIC8259_USED;
+} ic_state = IC_XAPIC_USED;
 
 //! @brief xAPIC registers
 enum
@@ -112,11 +111,9 @@ uint8_t ic_timer_vec = 32;
 		uint32_t val;                                                                              \
 		if (ic_state == IC_XAPIC_USED) {                                                           \
 			val = ic_xapic_base[LAPIC_XAPIC_##reg##_REG];                                          \
-		} else if (ic_state == IC_X2APIC_USED) {                                                   \
-			val = (uint32_t)rdmsr(LAPIC_X2APIC_##reg##_REG);                                       \
 		} else {                                                                                   \
-			PANIC("LAPIC_READ macro used in PIC8259 code");                                        \
-		};                                                                                         \
+			val = (uint32_t)rdmsr(LAPIC_X2APIC_##reg##_REG);                                       \
+		}                                                                                          \
 		val;                                                                                       \
 	})
 
@@ -125,33 +122,19 @@ uint8_t ic_timer_vec = 32;
 	do {                                                                                           \
 		if (ic_state == IC_XAPIC_USED) {                                                           \
 			ic_xapic_base[LAPIC_XAPIC_##reg##_REG] = (val);                                        \
-		} else if (ic_state == IC_X2APIC_USED) {                                                   \
-			wrmsr(LAPIC_X2APIC_##reg##_REG, (uint32_t)val);                                        \
 		} else {                                                                                   \
-			PANIC("LAPIC_READ macro used in PIC8259 code");                                        \
+			wrmsr(LAPIC_X2APIC_##reg##_REG, (uint32_t)val);                                        \
 		}                                                                                          \
 	} while (false)
 
-//! @brief Check if LAPIC is used
-//! @return True if LAPIC is used, false if IC driver should fallback to PIC8259
-static bool ic_is_lapic_used(void) {
-	return ic_state != IC_PIC8259_USED;
-}
-
 //! @brief Handle spurious irq
 void ic_handle_spur_irq(void) {
-	if (ic_is_lapic_used()) {
-		LAPIC_WRITE(EOI, 0);
-	}
+	LAPIC_WRITE(EOI, 0);
 }
 
 //! @brief Get interrupt controller ID
 uint32_t ic_get_apic_id(void) {
-	if (ic_is_lapic_used()) {
-		return LAPIC_READ(ID);
-	} else {
-		return 0;
-	}
+	return LAPIC_READ(ID);
 }
 
 //! @brief Enable interrupt controller on AP
@@ -160,10 +143,8 @@ void ic_enable(void) {
 	if (ic_state == IC_X2APIC_USED) {
 		wrmsr(LAPIC_IA32_APIC_BASE, rdmsr(LAPIC_IA32_APIC_BASE) | X2APIC_ENABLE);
 		wrmsr(LAPIC_X2APIC_SPUR_REG, LAPIC_ENABLE | ic_spur_vec);
-	} else if (ic_state == IC_XAPIC_USED) {
-		ic_xapic_base[LAPIC_XAPIC_SPUR_REG] = LAPIC_ENABLE | ic_spur_vec;
 	} else {
-		PANIC("lapic_enable in single-core mode got called");
+		ic_xapic_base[LAPIC_XAPIC_SPUR_REG] = LAPIC_ENABLE | ic_spur_vec;
 	}
 }
 
@@ -178,10 +159,8 @@ static void ic_ipi_send_raw(uint32_t id, uint32_t msg) {
 		while ((ic_xapic_base[LAPIC_XAPIC_ICR_LOW_REG] & XAPIC_DELIEVERED) != 0) {
 			asm volatile("pause");
 		}
-	} else if (ic_state == IC_X2APIC_USED) {
-		wrmsr(LAPIC_X2APIC_ICR_REG, (((uint64_t)id) << 32ULL) | msg);
 	} else {
-		PANIC("SMP is not supported with legacy PIC8259");
+		wrmsr(LAPIC_X2APIC_ICR_REG, (((uint64_t)id) << 32ULL) | msg);
 	}
 }
 
@@ -219,76 +198,56 @@ static void ic_timer_tsc_deadline_detect() {
 
 //! @brief Initiate timer calibration process
 void ic_timer_start_calibration(void) {
-	if (ic_is_lapic_used()) {
-		ic_timer_tsc_deadline_detect();
-		if (PER_CPU(ic_state).tsc_deadline_supported) {
-			// Initialize timer LVT register
-			LAPIC_WRITE(LVT_TIMER, LAPIC_TMR_TSC | ic_timer_vec);
-		} else {
-			// Set divider to 16
-			LAPIC_WRITE(DCR, 0b1010);
-			// Initialize timer LVT register
-			LAPIC_WRITE(LVT_TIMER, LAPIC_TMR_ONE_SHOT | ic_timer_vec);
-			// Initialize counter to 0xffffffff
-			LAPIC_WRITE(INIT_CNT, 0xffffffff);
-		}
+	ic_timer_tsc_deadline_detect();
+	if (PER_CPU(ic_state).tsc_deadline_supported) {
+		// Initialize timer LVT register
+		LAPIC_WRITE(LVT_TIMER, LAPIC_TMR_TSC | ic_timer_vec);
 	} else {
-		TODO();
+		// Set divider to 16
+		LAPIC_WRITE(DCR, 0b1010);
+		// Initialize timer LVT register
+		LAPIC_WRITE(LVT_TIMER, LAPIC_TMR_ONE_SHOT | ic_timer_vec);
+		// Initialize counter to 0xffffffff
+		LAPIC_WRITE(INIT_CNT, 0xffffffff);
 	}
 }
 
 //! @brief Finish timer calibration process. Should be called after
 //! THREAD_TRAMPOLINE_CALIBRATION_PERIOD millseconds passed from ic_timer_start_calibration call
 void ic_timer_end_calibration(void) {
-	if (ic_is_lapic_used()) {
-		// TSC frequency will be calculated in sys/tsc.c, so no need to do anything for TSC deadline
-		if (!PER_CPU(ic_state).tsc_deadline_supported) {
-			// Calculate number of ticks per ms
-			uint32_t val = LAPIC_READ(CNT);
-			PER_CPU(ic_state).timer_ticks_per_ms =
-			    (0xffffffff - val) / THREAD_TRAMPOLINE_CALIBRATION_PERIOD;
-			// Stop LAPIC timer
-			ic_timer_cancel_one_shot();
-		}
-	} else {
-		TODO();
+	// TSC frequency will be calculated in sys/tsc.c, so no need to do anything for TSC deadline
+	if (!PER_CPU(ic_state).tsc_deadline_supported) {
+		// Calculate number of ticks per ms
+		uint32_t val = LAPIC_READ(CNT);
+		PER_CPU(ic_state).timer_ticks_per_ms =
+		    (0xffffffff - val) / THREAD_TRAMPOLINE_CALIBRATION_PERIOD;
+		// Stop LAPIC timer
+		ic_timer_cancel_one_shot();
 	}
 }
 
 //! @brief Prepare timer for one shot event
 //! @param ms Number of milliseconds to wait
 void ic_timer_one_shot(uint32_t ms) {
-	if (ic_is_lapic_used()) {
-		if (PER_CPU(ic_state).tsc_deadline_supported) {
-			// TSC frequency can be non-invariant, but we only rely on timer being precise when CPU
-			// is not in some low power state.
-			wrmsr(LAPIC_IA32_TSC_DEADLINE_MSR, tsc_read() + PER_CPU(tsc_freq) * ms);
-		} else {
-			LAPIC_WRITE(INIT_CNT, PER_CPU(ic_state).timer_ticks_per_ms * ms);
-		}
+	if (PER_CPU(ic_state).tsc_deadline_supported) {
+		// TSC frequency can be non-invariant, but we only rely on timer being precise when CPU
+		// is not in some low power state.
+		wrmsr(LAPIC_IA32_TSC_DEADLINE_MSR, tsc_read() + PER_CPU(tsc_freq) * ms);
 	} else {
-		TODO();
+		LAPIC_WRITE(INIT_CNT, PER_CPU(ic_state).timer_ticks_per_ms * ms);
 	}
 }
 
 //! @brief Acknowledge timer interrupt
 void ic_timer_ack(void) {
-	if (ic_is_lapic_used()) {
-		LAPIC_WRITE(EOI, 0);
-	} else {
-		pic_irq_ack(0);
-	}
+	LAPIC_WRITE(EOI, 0);
 }
 //! @brief Cancel one-shot timer event
 void ic_timer_cancel_one_shot() {
-	if (ic_is_lapic_used()) {
-		if (PER_CPU(ic_state).tsc_deadline_supported) {
-			wrmsr(LAPIC_IA32_TSC_DEADLINE_MSR, 0);
-		} else {
-			LAPIC_WRITE(INIT_CNT, 0);
-		}
+	if (PER_CPU(ic_state).tsc_deadline_supported) {
+		wrmsr(LAPIC_IA32_TSC_DEADLINE_MSR, 0);
 	} else {
-		TODO();
+		LAPIC_WRITE(INIT_CNT, 0);
 	}
 }
 
@@ -298,7 +257,7 @@ static void ic_bsp_init(void) {
 	struct cpuid cpuid1h;
 	cpuid(0x1, 0, &cpuid1h);
 	if ((cpuid1h.edx & (1 << 9)) == 0) {
-		return;
+		PANIC("ricercaOS kernel requires LAPIC to run");
 	}
 	ic_state = IC_XAPIC_USED;
 	// Query x2APIC support
