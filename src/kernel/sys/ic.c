@@ -183,7 +183,7 @@ void ic_send_startup_ipi(uint32_t id, uint32_t addr) {
 //! @param id APIC id of the core
 //! @param vec Interrupt vector to be triggered when message is recieved
 void ic_send_ipi(uint32_t id, uint8_t vec) {
-	ic_ipi_send_raw(id, LAPIC_STARTUP_IPI | (uint32_t)vec);
+	ic_ipi_send_raw(id, (uint32_t)vec);
 }
 
 //! @brief Detect TSC deadline mode support
