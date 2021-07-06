@@ -86,4 +86,19 @@ calibration:
 	// End IC timer calibration process
 	ic_timer_end_calibration();
 	LOG_INFO("Calibration process finished. BSP TSC frequency = %U MHz", PER_CPU(tsc_freq));
+	// Wait for CPUs to online
+	bool everyone_ready = false;
+	while (!everyone_ready) {
+		everyone_ready = true;
+		for (size_t i = 0; i < thread_smp_core_max_cpus; ++i) {
+			struct thread_smp_core *locals = thread_smp_core_array + i;
+			uint64_t status = ATOMIC_ACQUIRE_LOAD(&locals->status);
+			if (status != THREAD_SMP_CORE_STATUS_ONLINE &&
+			    status != THREAD_SMP_CORE_STATUS_GAVE_UP) {
+				everyone_ready = false;
+				break;
+			}
+		}
+		asm volatile("pause");
+	}
 }

@@ -60,8 +60,8 @@ void ic_timer_end_calibration(void);
 //! @param us Number of microseconds to wait
 void ic_timer_one_shot(uint64_t us);
 
-//! @brief Acknowledge timer interrupt
-void ic_timer_ack(void);
+//! @brief Acknowledge IC interrupt
+void ic_ack(void);
 
 //! @brief Cancel one-shot timer event
 void ic_timer_cancel_one_shot();

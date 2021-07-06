@@ -126,6 +126,11 @@ start64:
 	mov gs, ax
 	mov ss, ax
 
+	; Store highest supported CPUID in esi
+	mov eax, 0x80000000
+	cpuid
+	mov esi, eax
+
 	; Query x2apic support
 	mov eax, 1
 	xor ecx, ecx
@@ -134,37 +139,34 @@ start64:
 	jz .xapic
 
 .x2apic:
-	; Enable x2APIC
-	mov ecx, 0x1b
-	rdmsr
-	or eax, 1 shl 10
-	wrmsr
+	; Check if 0x1f leaf exists
+	mov eax, 0x1f
+	cmp eax, esi
+	jg .use_bh
 
-	; Set spurious vector
-	mov ecx, 0x80f
-	rdmsr
-	or eax, 0x100 or spur_vec
-	wrmsr
+	; Query x2APIC id and store it in eax
+	mov ecx, 0
+	cpuid
+	mov eax, edx
 
-	; Store x2APIC id in eax
-	mov ecx, 0x802
-	rdmsr
+	jmp .logical_id_lookup
+
+.use_bh:
+	; Query x2APIC id and store it in eax
+	mov eax, 0xb
+	mov ecx, 0
+	cpuid
+	mov eax, edx
 
 	jmp .logical_id_lookup
 
 .xapic:
-	; Get xAPIC base
-	mov ecx, 0x1b
-	rdmsr
-	mov rbx, rax
-	and rbx, not 0xfff
-
-	; Enable xAPIC
-	mov dword [rbx + 0xf0], 0x100 or spur_vec
-
-	; Get APIC id in eax
-	mov eax, dword [rbx + 0x20]
-	shr eax, 24
+	; Query xAPIC id and store it in eax
+	mov eax, 1
+	mov ecx, 0
+	cpuid
+	shr ebx, 24
+	mov eax, ebx
 
 .logical_id_lookup:
 	; Load per cpu array pointer from cpu_locals_pointer

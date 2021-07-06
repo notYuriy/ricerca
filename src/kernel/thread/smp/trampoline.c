@@ -57,6 +57,8 @@ attribute_no_instrument static void thread_smp_trampoline_ap_init(uint32_t logic
 	if (ATOMIC_ACQUIRE_LOAD(&locals->status) == THREAD_SMP_CORE_STATUS_GAVE_UP) {
 		hang();
 	}
+	// Initialize interrupt controller
+	ic_enable();
 	// Initialize architecture layer
 	arch_init();
 	// Update status

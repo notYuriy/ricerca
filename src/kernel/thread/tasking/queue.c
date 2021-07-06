@@ -21,6 +21,7 @@ static uint8_t thread_task_queue_ipi_vec = 0x69;
 static void thread_task_ipi_dummy(struct interrupt_frame *frame, void *ctx) {
 	(void)frame;
 	(void)ctx;
+	ic_ack();
 }
 
 //! @brief Task unfairness comparator for heap insertions/deletitions

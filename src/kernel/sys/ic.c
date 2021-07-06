@@ -146,6 +146,8 @@ void ic_enable(void) {
 	} else {
 		ic_xapic_base[LAPIC_XAPIC_SPUR_REG] = LAPIC_ENABLE | ic_spur_vec;
 	}
+	// Zero out TPR
+	LAPIC_WRITE(TPR, 0);
 }
 
 //! @brief Send raw IPI
@@ -238,8 +240,8 @@ void ic_timer_one_shot(uint64_t us) {
 	}
 }
 
-//! @brief Acknowledge timer interrupt
-void ic_timer_ack(void) {
+//! @brief Acknowledge IC interrupt
+void ic_ack(void) {
 	LAPIC_WRITE(EOI, 0);
 }
 //! @brief Cancel one-shot timer event

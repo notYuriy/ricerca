@@ -135,7 +135,7 @@ static void thread_localsched_timer_int_handler(struct interrupt_frame *frame, v
 	new_task->timestamp = tsc_read();
 	data->current_task = new_task;
 	// Acknowledge timer interrupt
-	ic_timer_ack();
+	ic_ack();
 }
 
 //! @brief Preemption callback
