@@ -46,76 +46,23 @@ interrupts_common:
 	push r14
 	push r15
 
-	; Load hidden GS/FS parts
-	mov ecx, IA32_FS_MSR
-	rdmsr
-	shl rdx, 32
-	or rdx, rax
-	push rdx
-
-	mov ecx, IA32_GS_MSR
-	rdmsr
-	shl rdx, 32
-	or rdx, rax
-	push rdx
-
-	; Push segment registers
-	mov rax, es
-	push rax
-	mov rax, ds
-	push rax
-	mov rax, gs
-	push rax
-	mov rax, fs
-	push rax
-
 	; Save pointer to the frame in rdi
 	mov rdi, rsp
 
 	; Check if fault originated from kernel with CS and only do swapgs when it has not
-	test byte [rsp + 0xc0], 11b
+	test byte [rsp + 0x90], 11b
 	jz .kernel
 	swapgs
-
-	; Update segment registers. Threads in kernel already have sane register state, so reload
-	; is not needed
-	mov ax, DATA64
-	mov ds, ax
-	mov es, ax
-	mov ss, ax
 .kernel:
 
 	; Call generic interrupt handling routine
 	call interrupt_handle
 
 	; Check if fault originated from kernel with CS and only do swapgs when it has not
-	test byte [rsp + 0xc0], 11b
+	test byte [rsp + 0x90], 11b
 	jz .kernel_leave
 	swapgs
 .kernel_leave:
-
-	; Restore segmnet registers
-	pop rax
-	mov fs, ax
-	pop rax
-	mov gs, ax
-	pop rax
-	mov ds, ax
-	pop rax
-	mov es, ax
-
-	; Restore hidden GS/FS values
-	pop rdx
-	mov rax, rdx
-	shr rdx, 32
-	mov ecx, IA32_GS_MSR
-	wrmsr
-
-	pop rdx
-	mov rax, rdx
-	shr rdx, 32
-	mov ecx, IA32_FS_MSR
-	wrmsr
 
     pop r15
     pop r14

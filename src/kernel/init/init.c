@@ -14,7 +14,10 @@
 #include <misc/misc.h>
 #include <sys/arch/interrupts.h>
 #include <sys/ic.h>
-#include <thread/smp/boot_bringup.h>
+#include <thread/smp/core.h>
+#include <thread/tasking/localsched.h>
+#include <thread/tasking/task.h>
+#include <thread/tasking/tasking.h>
 
 MODULE("init")
 
@@ -92,19 +95,24 @@ void kernel_load_stivale2_term(struct stivale2_struct *info) {
 	}
 }
 
+//! @brief Test task
+void kernel_test_task(void *arg) {
+	for (size_t i = 0; i < 100; ++i) {
+		LOG_INFO("cpu: %u, task: %U val: %U", PER_CPU(logical_id), (uint64_t)arg, i);
+		if (i % 10 == 0) {
+			thread_localsched_yield();
+		}
+	}
+	LOG_SUCCESS("Task %U on CPU %u is terminating...", (uint64_t)arg, PER_CPU(logical_id));
+	thread_localsched_terminate();
+}
+
 //! @brief Unregister stivale2 terminal if it was loaded
 void kernel_unload_stivale2_term(void) {
 	if (kernel_stivale2_term_loaded) {
 		stivale2_term_unregister();
 		LOG_SUCCESS("Stivale2 terminal unregistered!");
 	}
-}
-
-//! @brief Test timer callback
-void kernel_timer_test_callback(struct interrupt_frame *frame, void *ctx) {
-	(void)frame;
-	(void)ctx;
-	ic_timer_ack();
 }
 
 //! @brief Kernel entrypoint
@@ -132,33 +140,28 @@ void kernel_init(struct stivale2_struct *info) {
 	target_execute_plan(profile_plan);
 
 #endif
-	// Compute init plan to bootup APs
-	struct target *plan = target_compute_plan(thread_smp_ap_boot_bringup_available);
+	// Compute init plan to initialize multitasking
+	struct target *plan = target_compute_plan(thread_tasking_available);
 
 	// Execute plan
 	target_plan_dump(plan);
 	target_execute_plan(plan);
 
-	interrupt_register_handler(ic_timer_vec, kernel_timer_test_callback, NULL, 0, 0, true);
+	// Initialize local scheduler on BSP
+	thread_localsched_init();
 
-	// Run timer in a loop
-	asm volatile("sti");
-	while (true) {
-		ic_timer_one_shot(125);
-		asm volatile("hlt");
-		LOG_INFO("125 ms after");
-		ic_timer_one_shot(250);
-		asm volatile("hlt");
-		LOG_INFO("250 ms after");
-		ic_timer_one_shot(500);
-		asm volatile("hlt");
-		LOG_INFO("500 ms after");
-		ic_timer_one_shot(1000);
-		asm volatile("hlt");
-		LOG_INFO("1 s after");
+	// Create a few tasks for each core
+	for (size_t i = 0; i < thread_smp_core_max_cpus; ++i) {
+		// Create a few tasks
+		for (size_t j = 0; j < 4; ++j) {
+			struct thread_task *new_task = thread_task_create_call(kernel_test_task, (void *)j);
+			if (new_task == NULL) {
+				LOG_PANIC("Failed to create test task");
+			}
+			thread_localsched_associate(i, new_task);
+		}
 	}
 
-	// Nothing more for now
-	LOG_SUCCESS("Kernel initialization finished!");
-	hang();
+	// Bootstrap local scheduler
+	thread_localsched_bootstrap();
 }

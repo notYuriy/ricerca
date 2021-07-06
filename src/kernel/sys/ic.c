@@ -219,22 +219,22 @@ void ic_timer_end_calibration(void) {
 	if (!PER_CPU(ic_state).tsc_deadline_supported) {
 		// Calculate number of ticks per ms
 		uint32_t val = LAPIC_READ(CNT);
-		PER_CPU(ic_state).timer_ticks_per_ms =
-		    (0xffffffff - val) / THREAD_TRAMPOLINE_CALIBRATION_PERIOD;
+		PER_CPU(ic_state).timer_ticks_per_us =
+		    (0xffffffff - val) / (THREAD_TRAMPOLINE_CALIBRATION_PERIOD * 1000);
 		// Stop LAPIC timer
 		ic_timer_cancel_one_shot();
 	}
 }
 
 //! @brief Prepare timer for one shot event
-//! @param ms Number of milliseconds to wait
-void ic_timer_one_shot(uint32_t ms) {
+//! @param us Number of microseconds to wait
+void ic_timer_one_shot(uint64_t us) {
 	if (PER_CPU(ic_state).tsc_deadline_supported) {
 		// TSC frequency can be non-invariant, but we only rely on timer being precise when CPU
 		// is not in some low power state.
-		wrmsr(LAPIC_IA32_TSC_DEADLINE_MSR, tsc_read() + PER_CPU(tsc_freq) * ms);
+		wrmsr(LAPIC_IA32_TSC_DEADLINE_MSR, tsc_read() + PER_CPU(tsc_freq) * us);
 	} else {
-		LAPIC_WRITE(INIT_CNT, PER_CPU(ic_state).timer_ticks_per_ms * ms);
+		LAPIC_WRITE(INIT_CNT, PER_CPU(ic_state).timer_ticks_per_us * us);
 	}
 }
 

@@ -125,7 +125,7 @@ void laihost_log(int type, const char *msg) {
 //! @brief lai panic function
 //! @param msg Message to be printed
 void laihost_panic(const char *msg) {
-	PANIC(msg);
+	PANIC("%s", msg);
 }
 
 //! @brief Initialize LAI

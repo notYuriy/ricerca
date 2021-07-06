@@ -11,6 +11,7 @@
 #include <sys/tsc.h>
 #include <thread/smp/core.h>
 #include <thread/smp/trampoline.h>
+#include <thread/tasking/localsched.h>
 
 MODULE("thread/smp/trampoline")
 TARGET(thread_smp_trampoline_available, thread_smp_trampoline_init,
@@ -59,7 +60,7 @@ attribute_no_instrument static void thread_smp_trampoline_ap_init(uint32_t logic
 	// Initialize architecture layer
 	arch_init();
 	// Update status
-	ATOMIC_RELEASE_STORE(&locals->status, THREAD_SMP_CORE_STATUS_ONLINE);
+	ATOMIC_RELEASE_STORE(&locals->status, THREAD_SMP_CORE_WAITING_FOR_CALIBRATION);
 	// Wait for trampoline status to update
 	enum thread_smp_trampoline_state state;
 	while ((state = ATOMIC_ACQUIRE_LOAD(&thread_smp_trampoline_state)) !=
@@ -83,9 +84,12 @@ attribute_no_instrument static void thread_smp_trampoline_ap_init(uint32_t logic
 	tsc_end_calibration();
 	// End IC timer calibration process
 	ic_timer_end_calibration();
-	LOG_INFO("Hello from AP %u. Local TSC frequency is %U KHz", logical_id, PER_CPU(tsc_freq));
-	// Hang until we have scheduler
-	hang();
+	LOG_INFO("Hello from AP %u. Local TSC frequency is %U MHz", logical_id, PER_CPU(tsc_freq));
+	// Initialize local scheduler
+	thread_localsched_init();
+	// Bootstrap local scheduler
+	thread_localsched_bootstrap();
+	UNREACHABLE;
 }
 
 //! @brief Initialize SMP trampoline

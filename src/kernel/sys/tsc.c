@@ -15,5 +15,5 @@ void tsc_begin_calibration(void) {
 //! tsc_begin_calibration() call
 void tsc_end_calibration(void) {
 	uint64_t passed = tsc_read() - PER_CPU(tsc_freq);
-	PER_CPU(tsc_freq) = passed / THREAD_TRAMPOLINE_CALIBRATION_PERIOD;
+	PER_CPU(tsc_freq) = passed / ((uint64_t)THREAD_TRAMPOLINE_CALIBRATION_PERIOD * 1000);
 }

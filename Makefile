@@ -160,3 +160,11 @@ build-safe: ricerca-safe.iso
 
 # Profile build rule
 build-profile: ricerca-profile.iso
+
+# Find symbol by address rule
+addr2line:
+	addr2line -e build/system-root/boot/ricerca-kernel.elf $(SYMBOL)
+
+# List kernel symbols
+nm:
+	nm -n build/system-root/boot/ricerca-kernel.elf

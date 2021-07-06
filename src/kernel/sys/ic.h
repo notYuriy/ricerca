@@ -9,8 +9,8 @@
 
 //! @brief Per-cpu interrupt controller state
 struct ic_core_state {
-	//! @brief Number of ticks in one millisecond for IC timer
-	uint32_t timer_ticks_per_ms;
+	//! @brief Number of ticks in one microsecond for IC timer
+	uint32_t timer_ticks_per_us;
 	//! @brief TSC deadline mode support
 	bool tsc_deadline_supported;
 	//! @brief Number of ticks in one millisecond for invariant TSC
@@ -57,17 +57,14 @@ void ic_timer_start_calibration(void);
 void ic_timer_end_calibration(void);
 
 //! @brief Prepare timer for one shot event
-//! @param ms Number of milliseconds to wait
-void ic_timer_one_shot(uint32_t ms);
+//! @param us Number of microseconds to wait
+void ic_timer_one_shot(uint64_t us);
 
 //! @brief Acknowledge timer interrupt
 void ic_timer_ack(void);
 
 //! @brief Cancel one-shot timer event
 void ic_timer_cancel_one_shot();
-
-//! @brief Get timer counter delta.
-//! @note Value of delta is reset after every ic_timer_one_shot
 
 //! @brief Export interrupt controller BSP init target
 EXPORT_TARGET(ic_bsp_available)

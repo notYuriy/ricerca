@@ -11,3 +11,6 @@
 
 //! @brief Indicates that instrument calls should not be generated for this procedure
 #define attribute_no_instrument __attribute__((no_instrument_function))
+
+//! @brief Indicates that the function will never return
+#define attribute_noreturn _Noreturn

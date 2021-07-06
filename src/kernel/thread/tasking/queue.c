@@ -43,41 +43,96 @@ void thread_task_queue_init(struct thread_task_queue *queue, uint32_t apic_id) {
 	queue->lock = THREAD_SPINLOCK_INIT;
 }
 
-//! @brief Enqueue task in the queue
+//! @brief Enqueue task without locking
 //! @param queue Queue to enqueue task in
 //! @param task Task to enqueue
-void thread_task_queue_enqueue(struct thread_task_queue *queue, struct thread_task *task) {
-	const bool int_state = thread_spinlock_lock(&queue->lock);
+void thread_task_queue_enqueue_nolock(struct thread_task_queue *queue, struct thread_task *task) {
 	pairing_heap_insert(&queue->heap, &task->hook);
-	thread_spinlock_unlock(&queue->lock, int_state);
+}
+
+//! @brief Enqueue task in the queue without locking and signal with interprocessor interrupt
+//! @param queue Queue to enqueue task in
+//! @param task Task to enqueue
+void thread_task_queue_enqueue_signal_nolock(struct thread_task_queue *queue,
+                                             struct thread_task *task) {
+	thread_task_queue_enqueue_nolock(queue, task);
 	if (ATOMIC_ACQUIRE_LOAD(&queue->idle)) {
 		ic_send_ipi(queue->apic_id, thread_task_queue_ipi_vec);
 	}
 }
 
+//! @brief Lock queue
+//! @param queue Queue to lock
+//! @return Interrupt state prior to thread_task_queue_lock call
+bool thread_task_queue_lock(struct thread_task_queue *queue) {
+	return thread_spinlock_lock(&queue->lock);
+}
+
+//! @brief Unlock queue
+//! @param queue Queue to unlock
+//! @param state Interrupt state returned from thread_task_queue_lock
+void thread_task_queue_unlock(struct thread_task_queue *queue, bool int_state) {
+	thread_spinlock_unlock(&queue->lock, int_state);
+}
+
+//! @brief Get next task to run without locking
+//! @param queue Queue to dequeue the task from
+//! @return Dequeued task or NULL if task queue is empty
+struct thread_task *thread_task_queue_try_get_nolock(struct thread_task_queue *queue) {
+	struct pairing_heap_hook *res = pairing_heap_get_min(&queue->heap);
+	return res != NULL ? CONTAINER_OF(res, struct thread_task, hook) : NULL;
+}
+
+//! @brief Dequeue task from the queue without locking
+//! @param queue Queue to dequeue the task from
+//! @return Dequeued task or NULL if task queue is empty
+struct thread_task *thread_task_queue_try_dequeue_nolock(struct thread_task_queue *queue) {
+	struct pairing_heap_hook *res = pairing_heap_remove_min(&queue->heap);
+	return res != NULL ? CONTAINER_OF(res, struct thread_task, hook) : NULL;
+}
+
 //! @brief Try to dequeue task from the queue
 //! @param queue Queue to dequeue the task from
 //! @return Dequeued task or NULL if task queue is empty
-struct thread_task *thread_task_queue_try_dequeue(struct thread_task_queue *queue) {
+static struct thread_task *thread_task_queue_try_dequeue(struct thread_task_queue *queue) {
 	const bool int_state = thread_spinlock_lock(&queue->lock);
-	struct pairing_heap_hook *res = pairing_heap_remove_min(&queue->heap);
-	thread_spinlock_unlock(&queue->lock, int_state);
-	return res != NULL ? CONTAINER_OF(res, struct thread_task, hook) : NULL;
+	struct thread_task *res = thread_task_queue_try_dequeue_nolock(queue);
+	if (res == NULL) {
+		// Unlock only if we don't have a task to run
+		thread_spinlock_unlock(&queue->lock, int_state);
+	}
+	return res;
 }
 
 //! @brief Dequeue task from the queue or wait until such task becomes available
 //! @param queue Queue to dequeue the task
+//! @param exited_idle Set to true if core had entered idle state while waiting for the new task
 //! @return Dequeued task
-struct thread_task *thread_task_queue_dequeue(struct thread_task_queue *queue) {
+//! @note Task queue should be locked before the call to this function and interrupts should be
+//! disabled
+struct thread_task *thread_task_queue_dequeue(struct thread_task_queue *queue, bool *exited_idle) {
+	*exited_idle = false;
+	// Fast path - dequeue task without any additional locking
+	struct thread_task *result = thread_task_queue_try_dequeue_nolock(queue);
+	if (result != NULL) {
+		return result;
+	}
+	// Cancel pending one-shot timer event, we are entering idle
 	ATOMIC_RELEASE_STORE(&queue->idle, true);
+	ic_timer_cancel_one_shot();
+	*exited_idle = true;
+	// Drop queue lock
+	thread_spinlock_unlock(&queue->lock, false);
 	while (true) {
-		struct thread_task *result = thread_task_queue_try_dequeue(queue);
-		if (result != NULL) {
-			ATOMIC_RELEASE_STORE(&queue->idle, true);
-		}
+		// Wait for IPI
 		asm volatile("sti\n\r"
 		             "hlt\n\r"
 		             "cli\n\r");
+		result = thread_task_queue_try_dequeue(queue);
+		if (result != NULL) {
+			ATOMIC_RELEASE_STORE(&queue->idle, false);
+			return result;
+		}
 	}
 }
 

@@ -7,7 +7,7 @@
 #include <sys/arch/arch.h>
 #include <sys/ic.h>
 #include <sys/numa/numa.h>
-#include <thread/tasking/queue.h>
+#include <thread/tasking/localsched.h>
 
 //! @brief Per-CPU stack size
 #define THREAD_SMP_CORE_CPU_STACK_SIZE 0x10000
@@ -19,10 +19,12 @@ enum
 	THREAD_SMP_CORE_STATUS_ASLEEP = 1,
 	//! @brief Startup IPI was sent
 	THREAD_SMP_CORE_STATUS_WAKEUP_INITIATED = 2,
+	//! @brief CPU is waiting for calibration
+	THREAD_SMP_CORE_WAITING_FOR_CALIBRATION = 3,
 	//! @brief CPU is online, waiting for tasks to run
-	THREAD_SMP_CORE_STATUS_ONLINE = 3,
+	THREAD_SMP_CORE_STATUS_ONLINE = 4,
 	//! @brief Gave up status
-	THREAD_SMP_CORE_STATUS_GAVE_UP = 4,
+	THREAD_SMP_CORE_STATUS_GAVE_UP = 5,
 };
 
 //! @brief CPU-local area
@@ -51,9 +53,9 @@ struct thread_smp_core {
 	struct arch_core_state arch_state;
 	// IC timer state
 	struct ic_core_state ic_state;
-	// Task queue
-	struct thread_task_queue queue;
-	// TSC frequency
+	// Per-core scheduler data
+	struct thread_localsched_data localsched;
+	// TSC frequency in MHz
 	uint64_t tsc_freq;
 };
 

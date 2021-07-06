@@ -9,11 +9,12 @@
 #include <thread/smp/boot_bringup.h>
 #include <thread/smp/core.h>
 #include <thread/smp/trampoline.h>
+#include <thread/tasking/localsched.h>
 
 MODULE("thread/smp/boot_bringup")
 TARGET(thread_smp_ap_boot_bringup_available, thread_smp_ap_boot_bringup,
        {ic_bsp_available, thread_smp_core_available, timers_available,
-        thread_smp_trampoline_available, arch_available})
+        thread_smp_trampoline_available, arch_available, thread_localsched_available})
 
 //! @brief Bring up CPUs plugged on boot
 void thread_smp_ap_boot_bringup() {
@@ -84,5 +85,5 @@ calibration:
 	tsc_end_calibration();
 	// End IC timer calibration process
 	ic_timer_end_calibration();
-	LOG_INFO("Calibration process finished. BSP TSC frequency = %U KHz", PER_CPU(tsc_freq));
+	LOG_INFO("Calibration process finished. BSP TSC frequency = %U MHz", PER_CPU(tsc_freq));
 }
