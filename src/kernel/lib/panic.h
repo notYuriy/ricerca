@@ -1,6 +1,8 @@
 //! @file panic.h
 //! @brief File containing declaration of the panic macro
 
+#pragma once
+
 #include <lib/log.h>
 #include <misc/attributes.h>
 

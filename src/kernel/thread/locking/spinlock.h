@@ -5,6 +5,7 @@
 
 #include <misc/atomics.h>
 #include <sys/interrupts.h>
+#include <lib/panic.h>
 
 //! @brief Spinlock
 struct thread_spinlock {
@@ -26,10 +27,22 @@ struct thread_spinlock {
 static inline bool thread_spinlock_lock(struct thread_spinlock *spinlock) {
 	const bool state = interrupts_disable();
 	const size_t ticket = ATOMIC_FETCH_INCREMENT(&spinlock->allocated);
+#ifdef DEBUG
+#define TRIES 10000000
+	for (size_t i = 0; i < TRIES; ++i) {
+		if (ATOMIC_ACQUIRE_LOAD(&spinlock->current) == ticket) {
+			return state;
+		}
+		asm volatile("pause");
+	}
+	log_logf(LOG_TYPE_PANIC, "thread/locking/spinlock", "Potential deadlock (or severe contention issue) detected");
+	hang();
+#else
 	while (ATOMIC_ACQUIRE_LOAD(&spinlock->current) < ticket) {
 		asm volatile("pause");
 	}
 	return state;
+#endif
 }
 
 //! @brief Unlock spinlock
