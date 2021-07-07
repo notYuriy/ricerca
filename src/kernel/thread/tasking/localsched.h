@@ -6,13 +6,19 @@
 #include <lib/target.h>
 #include <misc/attributes.h>
 #include <misc/types.h>
-#include <thread/tasking/queue.h>
 #include <thread/tasking/task.h>
+#include <thread/locking/spinlock.h>
 
 //! @brief Local scheduler data
 struct thread_localsched_data {
-	//! @brief Scheduler queue
-	struct thread_task_queue queue;
+	//! @brief Tasks heap
+	struct pairing_heap heap;
+	//! @brief Task lock
+	struct thread_spinlock lock;
+	//! @brief APIC id of the owner
+	uint32_t apic_id;
+	//! @brief True if CPU is idle (waiting for new tasks to run)
+	bool idle;
 	//! @brief Number of tasks in the queue
 	size_t tasks_count;
 	//! @brief Idle unfairness
