@@ -28,25 +28,39 @@ static enum
 enum
 {
 	//! @brief Spurious interrupt vector register
-	LAPIC_XAPIC_SPUR_REG = 0x3c,
-	//! @brief Local LAPIC id register
-	LAPIC_XAPIC_ID_REG = 0x08,
+	LAPIC_XAPIC_SPUR_REG = 0xf0 / 4,
+	//! @brief LAPIC id register
+	LAPIC_XAPIC_ID_REG = 0x20 / 4,
+	//! @brief LAPIC version register
+	LAPIC_XAPIC_VER_REG = 0x30 / 4,
 	//! @brief ICR low register
-	LAPIC_XAPIC_ICR_LOW_REG = 0xc0,
+	LAPIC_XAPIC_ICR_LOW_REG = 0x300 / 4,
 	//! @brief ICR high register
-	LAPIC_XAPIC_ICR_HIGH_REG = 0xc4,
+	LAPIC_XAPIC_ICR_HIGH_REG = 0x310 / 4,
+	//! @brief LVT CMCI register
+	LAPIC_XAPIC_LVT_CMCI_REG = 0x2f0 / 4,
 	//! @brief LVT timer register
-	LAPIC_XAPIC_LVT_TIMER_REG = 0xc8,
+	LAPIC_XAPIC_LVT_TIMER_REG = 0x320 / 4,
+	//! @brief LVT thermal sensor register
+	LAPIC_XAPIC_LVT_THERMAL_SENSOR_REG = 0x330 / 4,
+	//! @brief LVT Performance monitoring register
+	LAPIC_XAPIC_LVT_PERFMON_REG = 0x340 / 4,
+	//! @brief LVT LINT0 register
+	LAPIC_XAPIC_LVT_LINT0_REG = 0x350 / 4,
+	//! @brief LVT LINT1 register
+	LAPIC_XAPIC_LVT_LINT1_REG = 0x360 / 4,
+	//! @brief LVT Error register
+	LAPIC_XAPIC_LVT_ERR_REG = 0x370 / 4,
 	//! @brief Initial count register
-	LAPIC_XAPIC_INIT_CNT_REG = 0xe0,
+	LAPIC_XAPIC_INIT_CNT_REG = 0x380 / 4,
 	//! @brief Current count register
-	LAPIC_XAPIC_CNT_REG = 0xe4,
+	LAPIC_XAPIC_CNT_REG = 0x390 / 4,
 	//! @brief Divide configuration register
-	LAPIC_XAPIC_DCR_REG = 0xf8,
+	LAPIC_XAPIC_DCR_REG = 0x3e0 / 4,
 	//! @brief EOI register
-	LAPIC_XAPIC_EOI_REG = 0x2c,
+	LAPIC_XAPIC_EOI_REG = 0xb0 / 4,
 	//! @brief Task priority register
-	LAPIC_XAPIC_TPR_REG = 0x20,
+	LAPIC_XAPIC_TPR_REG = 0x80 / 4,
 };
 
 //! @brief x2APIC MSRs
@@ -54,12 +68,26 @@ enum
 {
 	//! @brief Spurious interrupt vector MSR
 	LAPIC_X2APIC_SPUR_REG = 0x80f,
-	//! @brief Local LAPIC id register
+	//! @brief LAPIC id register
 	LAPIC_X2APIC_ID_REG = 0x802,
+	//! @brief LAPIC version register
+	LAPIC_X2APIC_VER_REG = 0x803,
 	//! @brief ICR register
 	LAPIC_X2APIC_ICR_REG = 0x830,
+	//! @brief LVT CMCI register
+	LAPIC_X2APIC_LVT_CMCI_REG = 0x82f,
 	//! @brief LVT timer register
 	LAPIC_X2APIC_LVT_TIMER_REG = 0x832,
+	//! @brief LVT thermal sensor register
+	LAPIC_X2APIC_LVT_THERMAL_SENSOR_REG = 0x833,
+	//! @brief LVT Performance monitoring register
+	LAPIC_X2APIC_LVT_PERFMON_REG = 0x834,
+	//! @brief LVT LINT0 register
+	LAPIC_X2APIC_LVT_LINT0_REG = 0x835,
+	//! @brief LVT LINT1 register
+	LAPIC_X2APIC_LVT_LINT1_REG = 0x836,
+	//! @brief LVT Error register
+	LAPIC_X2APIC_LVT_ERR_REG = 0x837,
 	//! @brief Initial count register
 	LAPIC_X2APIC_INIT_CNT_REG = 0x838,
 	//! @brief Current count register,
@@ -148,6 +176,26 @@ void ic_enable(void) {
 	}
 	// Zero out TPR
 	LAPIC_WRITE(TPR, 0);
+	// Get LAPIC version
+	uint32_t raw_ver = LAPIC_READ(VER);
+	// Read max LVT entry
+	uint32_t max_lvt_entry = (raw_ver >> 16) & 255;
+	// Zero out LVT
+	if (max_lvt_entry >= 3) {
+		LAPIC_WRITE(LVT_ERR, LAPIC_LVT_DISABLE_MASK);
+	}
+	LAPIC_WRITE(LVT_LINT0, LAPIC_LVT_DISABLE_MASK);
+	LAPIC_WRITE(LVT_LINT1, LAPIC_LVT_DISABLE_MASK);
+	LAPIC_WRITE(LVT_TIMER, LAPIC_LVT_DISABLE_MASK);
+	if (max_lvt_entry >= 4) {
+		LAPIC_WRITE(LVT_PERFMON, LAPIC_LVT_DISABLE_MASK);
+	}
+	if (max_lvt_entry >= 5) {
+		LAPIC_WRITE(LVT_THERMAL_SENSOR, LAPIC_LVT_DISABLE_MASK);
+	}
+	if (max_lvt_entry >= 6) {
+		LAPIC_WRITE(LVT_CMCI, LAPIC_LVT_DISABLE_MASK);
+	}
 }
 
 //! @brief Send raw IPI
