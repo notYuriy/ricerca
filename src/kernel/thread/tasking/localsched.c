@@ -7,7 +7,7 @@
 #include <lib/string.h>
 #include <sys/arch/gdt.h>
 #include <sys/ic.h>
-#include <sys/interrupts.h>
+#include <sys/intlevel.h>
 #include <sys/tsc.h>
 #include <thread/locking/spinlock.h>
 #include <thread/smp/core.h>

@@ -1,4 +1,4 @@
-//! @file interrupts.h
+//! @file intlsevel.h
 //! @brief File containing for interrupts enable/disable functions
 
 #pragma once
@@ -7,8 +7,8 @@
 
 //! @brief Disable interrupts
 //! @return True if interrupts were enabled
-bool interrupts_disable();
+bool intlevel_elevate();
 
 //! @brief Enable interrupts if true is passed
 //! @param status True if interrupts should be enabled
-void interrupts_enable(bool status);
+void intlevel_recover(bool status);

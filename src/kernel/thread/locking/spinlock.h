@@ -5,7 +5,7 @@
 
 #include <lib/panic.h>
 #include <misc/atomics.h>
-#include <sys/interrupts.h>
+#include <sys/intlevel.h>
 
 //! @brief Spinlock
 struct thread_spinlock {
@@ -25,7 +25,7 @@ struct thread_spinlock {
 //! @param spinlock Pointer to the spinlock
 //! @return Interrupts state
 static inline bool thread_spinlock_lock(struct thread_spinlock *spinlock) {
-	const bool state = interrupts_disable();
+	const bool state = intlevel_elevate();
 	const size_t ticket = ATOMIC_FETCH_INCREMENT(&spinlock->allocated);
 #ifdef DEBUG
 #define TRIES 10000000
@@ -51,5 +51,5 @@ static inline bool thread_spinlock_lock(struct thread_spinlock *spinlock) {
 //! @param state Interrupts state
 static inline void thread_spinlock_unlock(struct thread_spinlock *spinlock, bool state) {
 	ATOMIC_FETCH_INCREMENT(&spinlock->current);
-	interrupts_enable(state);
+	intlevel_recover(state);
 }
