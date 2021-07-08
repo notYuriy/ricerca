@@ -3,9 +3,9 @@
 
 #pragma once
 
+#include <lib/panic.h>
 #include <misc/atomics.h>
 #include <sys/interrupts.h>
-#include <lib/panic.h>
 
 //! @brief Spinlock
 struct thread_spinlock {
@@ -35,7 +35,8 @@ static inline bool thread_spinlock_lock(struct thread_spinlock *spinlock) {
 		}
 		asm volatile("pause");
 	}
-	log_logf(LOG_TYPE_PANIC, "thread/locking/spinlock", "Potential deadlock (or severe contention issue) detected");
+	log_logf(LOG_TYPE_PANIC, "thread/locking/spinlock",
+	         "Potential deadlock (or severe contention issue) detected");
 	hang();
 #else
 	while (ATOMIC_ACQUIRE_LOAD(&spinlock->current) < ticket) {

@@ -1,22 +1,21 @@
 //! @file local_sched.c
 //! @brief File containing implementation of the local scheduler
 
+#include <lib/containerof.h>
 #include <lib/pairing_heap.h>
 #include <lib/panic.h>
 #include <lib/string.h>
+#include <sys/arch/gdt.h>
 #include <sys/ic.h>
 #include <sys/interrupts.h>
 #include <sys/tsc.h>
+#include <thread/locking/spinlock.h>
 #include <thread/smp/core.h>
-#include <sys/arch/gdt.h>
 #include <thread/tasking/localsched.h>
 #include <thread/tasking/schedcall.h>
-#include <lib/containerof.h>
-#include <thread/locking/spinlock.h>
 
 MODULE("thread/tasking/localsched")
-TARGET(thread_localsched_available, thread_localsched_init_target,
-       {thread_sched_call_available})
+TARGET(thread_localsched_available, thread_localsched_init_target, {thread_sched_call_available})
 
 //! @brief Length of the minimal timeslice in us
 #define THREAD_LOCAL_TIMESLICE_MIN 10000
@@ -45,7 +44,7 @@ static void thread_localsched_ipi_dummy(struct interrupt_frame *frame, void *ctx
 //! @param right Right handside
 //! @return True if left unfairness is smaller than that of right
 static bool thread_localsched_cmp_unfairness(struct pairing_heap_hook *left,
-                                      struct pairing_heap_hook *right) {
+                                             struct pairing_heap_hook *right) {
 	struct thread_task *ltask = CONTAINER_OF(left, struct thread_task, hook);
 	struct thread_task *rtask = CONTAINER_OF(right, struct thread_task, hook);
 	return ltask->unfairness < rtask->unfairness;
@@ -54,7 +53,8 @@ static bool thread_localsched_cmp_unfairness(struct pairing_heap_hook *left,
 //! @brief Enqueue task in CPU's queue without locking
 //! @param data Pointer to the CPU local scheduler data area
 //! @param task Task to enqueue
-static void thread_localsched_enqueue_nolock(struct thread_localsched_data *data, struct thread_task *task) {
+static void thread_localsched_enqueue_nolock(struct thread_localsched_data *data,
+                                             struct thread_task *task) {
 	pairing_heap_insert(&data->heap, &task->hook);
 }
 
@@ -62,7 +62,7 @@ static void thread_localsched_enqueue_nolock(struct thread_localsched_data *data
 //! @param data Pointer to the CPU local scheduler data area
 //! @param task Task to enqueue
 static void thread_localsched_enqueue_signal_nolock(struct thread_localsched_data *data,
-                                             struct thread_task *task) {
+                                                    struct thread_task *task) {
 	thread_localsched_enqueue_nolock(data, task);
 	if (ATOMIC_ACQUIRE_LOAD(&data->idle)) {
 		ic_send_ipi(data->apic_id, thread_localsched_ipi_vec);
@@ -72,7 +72,7 @@ static void thread_localsched_enqueue_signal_nolock(struct thread_localsched_dat
 //! @brief Get next task to run without locking
 //! @param data Pointer to the CPU local scheduler data area
 //! @return Dequeued task or NULL if task queue is empty
-static  struct thread_task *thread_localsched_try_get_nolock(struct thread_localsched_data *data) {
+static struct thread_task *thread_localsched_try_get_nolock(struct thread_localsched_data *data) {
 	struct pairing_heap_hook *res = pairing_heap_get_min(&data->heap);
 	return res != NULL ? CONTAINER_OF(res, struct thread_task, hook) : NULL;
 }
@@ -80,7 +80,8 @@ static  struct thread_task *thread_localsched_try_get_nolock(struct thread_local
 //! @brief Dequeue task from the queue without locking
 //! @param data Pointer to the CPU local scheduler data area
 //! @return Dequeued task or NULL if task queue is empty
-static struct thread_task *thread_localsched_try_dequeue_nolock(struct thread_localsched_data *data) {
+static struct thread_task *thread_localsched_try_dequeue_nolock(
+    struct thread_localsched_data *data) {
 	struct pairing_heap_hook *res = pairing_heap_remove_min(&data->heap);
 	return res != NULL ? CONTAINER_OF(res, struct thread_task, hook) : NULL;
 }
@@ -104,7 +105,8 @@ static struct thread_task *thread_localsched_try_dequeue_lock(struct thread_loca
 //! @return Dequeued task
 //! @note Task queue should be locked before the call to this function and interrupts should be
 //! disabled
-static struct thread_task *thread_localsched_dequeue(struct thread_localsched_data *data, bool *exited_idle) {
+static struct thread_task *thread_localsched_dequeue(struct thread_localsched_data *data,
+                                                     bool *exited_idle) {
 	*exited_idle = false;
 	// Fast path - dequeue task without any additional locking
 	struct thread_task *result = thread_localsched_try_dequeue_nolock(data);
@@ -129,7 +131,6 @@ static struct thread_task *thread_localsched_dequeue(struct thread_localsched_da
 		}
 	}
 }
-
 
 //! @brief Copy task state frame to the interrupt frame
 //! @param task Task to copy state from

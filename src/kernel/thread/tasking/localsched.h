@@ -6,8 +6,8 @@
 #include <lib/target.h>
 #include <misc/attributes.h>
 #include <misc/types.h>
-#include <thread/tasking/task.h>
 #include <thread/locking/spinlock.h>
+#include <thread/tasking/task.h>
 
 //! @brief Local scheduler data
 struct thread_localsched_data {
