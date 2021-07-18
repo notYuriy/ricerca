@@ -44,6 +44,9 @@ relative_start:
 use16
 
 start16:
+	; Disable external interrupts
+	cli
+
 	; CPU starts at 0x71000. Set segment registers to 0x7100 so that
 	; we can access trampoline data in real mode
 	mov ax, 0x7100

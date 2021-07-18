@@ -14,9 +14,6 @@ META_DEFINE_DUMMY()
 //! @brief Singly linked list of timers
 static struct timer timer_list_head = {0, NULL, NULL, NULL};
 
-//! @brief Timer subsystem spinlock
-struct thread_spinlock timer_lock = THREAD_SPINLOCK_INIT;
-
 //! @brief Register timer
 //! @param timer Pointer to the timer
 void timer_register(struct timer *timer) {
