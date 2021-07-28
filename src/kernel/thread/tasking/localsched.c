@@ -11,6 +11,7 @@
 #include <sys/tsc.h>
 #include <thread/locking/spinlock.h>
 #include <thread/smp/core.h>
+#include <thread/smp/topology.h>
 #include <thread/tasking/localsched.h>
 #include <thread/tasking/schedcall.h>
 
@@ -306,6 +307,7 @@ void thread_localsched_associate(uint32_t logical_id, struct thread_task *task) 
 	task->unfairness = 0;
 	task->acc_unfairness_idle = 0;
 	task->core_id = logical_id;
+	thread_smp_topology_update_on_insert(logical_id);
 	thread_localsched_wake_up(task);
 }
 
@@ -353,12 +355,14 @@ static void thread_localsched_termination_handler(struct interrupt_frame *frame,
 
 //! @brief Terminate current task
 attribute_noreturn void thread_localsched_terminate(void) {
+	thread_smp_topology_update_on_remove(PER_CPU(logical_id));
 	thread_sched_call(thread_localsched_termination_handler, NULL);
 	UNREACHABLE;
 }
 
 //! @brief Initialize local scheduler
 static void thread_localsched_init_target(void) {
+	PER_CPU(localsched).tasks_count = 1;
 	// Register timer interrupt handler
 	interrupt_register_handler(ic_timer_vec, thread_localsched_timer_int_handler, NULL, 0, 0, true);
 	// Register IPI handler

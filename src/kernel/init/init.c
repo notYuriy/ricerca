@@ -15,6 +15,7 @@
 #include <sys/arch/interrupts.h>
 #include <sys/ic.h>
 #include <thread/smp/core.h>
+#include <thread/tasking/balancer.h>
 #include <thread/tasking/localsched.h>
 #include <thread/tasking/task.h>
 #include <thread/tasking/tasking.h>
@@ -150,16 +151,13 @@ void kernel_init(struct stivale2_struct *info) {
 	// Initialize local scheduler on BSP
 	thread_localsched_init();
 
-	// Create a few tasks for each core
-	for (size_t i = 0; i < thread_smp_core_max_cpus; ++i) {
-		// Create a few tasks
-		for (size_t j = 0; j < 4; ++j) {
-			struct thread_task *new_task = thread_task_create_call(kernel_test_task, (void *)j);
-			if (new_task == NULL) {
-				LOG_PANIC("Failed to create test task");
-			}
-			thread_localsched_associate(i, new_task);
+	// Create a few tasks
+	for (size_t j = 0; j < 4; ++j) {
+		struct thread_task *new_task = thread_task_create_call(kernel_test_task, (void *)j);
+		if (new_task == NULL) {
+			LOG_PANIC("Failed to create test task");
 		}
+		thread_balancer_allocate_to_any(new_task);
 	}
 
 	// Bootstrap local scheduler

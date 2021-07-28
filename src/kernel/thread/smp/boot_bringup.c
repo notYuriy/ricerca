@@ -8,13 +8,15 @@
 #include <sys/tsc.h>
 #include <thread/smp/boot_bringup.h>
 #include <thread/smp/core.h>
+#include <thread/smp/topology.h>
 #include <thread/smp/trampoline.h>
 #include <thread/tasking/localsched.h>
 
 MODULE("thread/smp/boot_bringup")
 TARGET(thread_smp_ap_boot_bringup_available, thread_smp_ap_boot_bringup,
        {ic_bsp_available, thread_smp_core_available, timers_available,
-        thread_smp_trampoline_available, arch_available, thread_localsched_available})
+        thread_smp_trampoline_available, arch_available, thread_localsched_available,
+        thread_smp_topology_available})
 
 //! @brief Bring up CPUs plugged on boot
 void thread_smp_ap_boot_bringup() {

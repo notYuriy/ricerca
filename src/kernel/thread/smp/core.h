@@ -7,6 +7,7 @@
 #include <sys/arch/arch.h>
 #include <sys/ic.h>
 #include <sys/numa/numa.h>
+#include <thread/smp/topology.h>
 #include <thread/tasking/localsched.h>
 
 //! @brief Per-CPU stack size
@@ -49,14 +50,18 @@ struct thread_smp_core {
 		//! @brief Top of the scheduler stack for this CPU
 		uintptr_t scheduler_stack_top;
 	} attribute_packed;
-	// Architecture-specific CPU state
+	//! @brief Architecture-specific CPU state
 	struct arch_core_state arch_state;
-	// IC timer state
+	//! @brief IC timer state
 	struct ic_core_state ic_state;
-	// Per-core scheduler data
+	//! @brief Per-core scheduler data
 	struct thread_localsched_data localsched;
-	// TSC frequency in MHz
+	//! @brief TSC frequency in MHz
 	uint64_t tsc_freq;
+	//! @brief CPU topology domain tree leaf
+	struct thread_smp_sched_domain *domain;
+	//! @brief CPU topology domain tree root
+	struct thread_smp_sched_domain *root;
 };
 
 //! @brief Macro to access per-cpu data
