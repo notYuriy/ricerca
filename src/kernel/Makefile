@@ -12,7 +12,6 @@
 # in negative 2 gigabytes of the virtual address space
 # -ffrestanding - do not assume running in standard C library
 # environment (which bare metal does not offer)
-# -fno-stack-protector - disable stack protection checks.
 # We don't enable them, as this feature requires runtime support we dont have yet.
 # -fno-pic - do not generate position independent code. Hosted compilers
 # usually enable it by default, as they generate ASLR compatible
@@ -21,7 +20,7 @@
 # -I$(LAIPATH)/include - include LAI header files
 # "-I." - add current directory as include path (so that we can include files from this directory)
 C_HARD_FLAGS := -c -mgeneral-regs-only -mno-red-zone -mcmodel=kernel \
-		-ffreestanding -nostdlib -fno-stack-protector -fno-pic -I$(LAIPATH)/include  -I.
+		-ffreestanding -nostdlib -fno-pic -I$(LAIPATH)/include  -I.
 
 # Common C flags, that are not essential for correct
 # compilation, but useful anyways. Value of this variable can be changed from the command line
@@ -29,27 +28,33 @@ C_HARD_FLAGS := -c -mgeneral-regs-only -mno-red-zone -mcmodel=kernel \
 CFLAGS = -Wall -Werror -Wextra
 
 # C flags used for release builds
-# -flto - enable link time optimization
 # -O2 - optimize for speed
-C_RELEASE_FLAGS = -O2 -flto
+# -fno-stack-protector - Disable stack protector
+C_RELEASE_FLAGS = -O2 -fno-stack-protector
 
 # C flags used for debug builds
 # -g - generate debugging symbols
 # -DDEBUG - define DEBUG macro to check assertions
-C_DEBUG_FLAGS = -g -DDEBUG
+# -fstack-protector-all - Enable stack protector
+# -fsanitize-undefined - Enable UB sanitizer
+C_DEBUG_FLAGS = -g -DDEBUG -fstack-protector-all -fsanitize=undefined
 
 # C flags used for safe builds
-# -flto - enable link time optimization
+# -g - generate debugging symbols
 # -O2 - optimize for spped
 # -DDEBUG - define DEBUG macro to check assertions
-C_SAFE_FLAGS = -O2 -flto -DDEBUG
+# -fstack-protector-all - Enable stack protector
+# -fsanitize-undefined - Enable UB sanitizer
+C_SAFE_FLAGS = -g -O2 -DDEBUG -fstack-protector -fsanitize=undefined
 
 # C flags used for profiled builds
 # -g - generate debugging symbols
 # -O2 - optimize for speed
 # -pg - Add calls to mcount on every function call
 # -DPROFILE - Hint for kernel logger to disable logging to e9 (e9 is used for profiling logging)
-C_PROFILE_FLAGS = -O2 -g -pg -DPROFILE
+# -fstack-protector-all - Enable stack protector
+# -fsanitize-undefined - Enable UB sanitizer
+C_PROFILE_FLAGS = -O2 -g -pg -DPROFILE -fstack-protector -fsanitize=undefined
 
 # Common linker flags (used both in debug and release mode), that are
 # essential for correct kernel linkage

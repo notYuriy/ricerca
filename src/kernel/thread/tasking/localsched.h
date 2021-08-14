@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <lib/callback.h>
 #include <lib/target.h>
 #include <misc/attributes.h>
 #include <misc/types.h>
@@ -42,7 +43,8 @@ void thread_localsched_associate(uint32_t logical_id, struct thread_task *task);
 void thread_localsched_yield(void);
 
 //! @brief Suspend current task
-void thread_localsched_suspend_current(void);
+//! @param callback Callback to run in suspend scope
+void thread_localsched_suspend_current(struct callback_void callback);
 
 //! @brief Wake up task
 //! @param task Pointer to the task to wake up
@@ -50,6 +52,10 @@ void thread_localsched_wake_up(struct thread_task *task);
 
 //! @brief Terminate current task
 attribute_noreturn void thread_localsched_terminate(void);
+
+//! @brief Get pointer to the current task
+//! @return Pointer to the current task
+struct thread_task *thread_localsched_get_current_task();
 
 //! @brief Export target for local scheduler initialization
 EXPORT_TARGET(thread_localsched_available)

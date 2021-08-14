@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <lib/callback.h>
 #include <lib/panic.h>
 #include <misc/atomics.h>
 #include <sys/cr.h>
@@ -22,23 +23,20 @@ struct thread_spinlock {
 		0, 0                                                                                       \
 	}
 
-//! @brief Lock spinlock
+//! @brief Grab spinlock
 //! @param spinlock Pointer to the spinlock
-//! @return Interrupts state
-static inline bool thread_spinlock_lock(struct thread_spinlock *spinlock) {
-	const bool state = intlevel_elevate();
-	const size_t ticket = ATOMIC_FETCH_INCREMENT_REL(&spinlock->allocated);
-	while (ATOMIC_ACQUIRE_LOAD(&spinlock->current) != ticket) {
-		asm volatile("pause");
-	}
-	return state;
-}
+void thread_spinlock_grab(struct thread_spinlock *spinlock);
 
-//! @brief Unlock spinlock
+//! @brief Ungrab spinlock
 //! @param spinlock Pointer to the spinlock
-//! @param state Interrupts state
-static inline void thread_spinlock_unlock(struct thread_spinlock *spinlock, bool state) {
-	const size_t current = ATOMIC_RELAXED_LOAD(&spinlock->current);
-	ATOMIC_RELEASE_STORE(&spinlock->current, current + 1);
-	intlevel_recover(state);
-}
+void thread_spinlock_ungrab(struct thread_spinlock *spinlock);
+
+//! @brief Grab spinlock and disable interrupts
+//! @param spinlock Pointer to the spinlock
+//! @return New interrupt state
+bool thread_spinlock_lock(struct thread_spinlock *spinlock);
+
+//! @brief Ungrab spinlock and return to prev int state
+//! @param spinlock Pointer to the spinlock
+//! @param state Previous interrupt state
+void thread_spinlock_unlock(struct thread_spinlock *spinlock, bool state);

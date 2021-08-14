@@ -8,10 +8,9 @@
 #include <thread/tasking/task.h>
 
 //! @brief Create task with a given entrypoint
-//! @param func Function to be called
-//! @param arg First argument
+//! @param callback Void callback
 //! @return Pointer to the created task or NULL on failure
-struct thread_task *thread_task_create_call(void *func, void *arg) {
+struct thread_task *thread_task_create_call(struct callback_void callback) {
 	struct thread_task *task = mem_heap_alloc(sizeof(struct thread_task));
 	if (task == NULL) {
 		return NULL;
@@ -24,8 +23,8 @@ struct thread_task *thread_task_create_call(void *func, void *arg) {
 	memset(task, 0, sizeof(struct thread_task));
 	task->frame.cs = GDT_CODE64;
 	task->frame.ss = GDT_DATA64;
-	task->frame.rip = (uint64_t)func;
-	task->frame.rdi = (uint64_t)arg;
+	task->frame.rip = (uint64_t)callback.func;
+	task->frame.rdi = (uint64_t)callback.ctx;
 	task->frame.rflags = (1 << 9); // Enable interrupts
 
 	task->stack = (uintptr_t)stack + THREAD_TASK_STACK_SIZE;

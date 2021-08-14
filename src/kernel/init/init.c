@@ -14,6 +14,7 @@
 #include <misc/misc.h>
 #include <sys/arch/interrupts.h>
 #include <sys/ic.h>
+#include <test/tests.h>
 #include <thread/smp/core.h>
 #include <thread/tasking/balancer.h>
 #include <thread/tasking/localsched.h>
@@ -96,24 +97,20 @@ void kernel_load_stivale2_term(struct stivale2_struct *info) {
 	}
 }
 
-//! @brief Test task
-void kernel_test_task(void *arg) {
-	for (size_t i = 0; i < 100; ++i) {
-		LOG_INFO("cpu: %u, task: %U val: %U", PER_CPU(logical_id), (uint64_t)arg, i);
-		if (i % 10 == 0) {
-			thread_localsched_yield();
-		}
-	}
-	LOG_SUCCESS("Task %U on CPU %u is terminating...", (uint64_t)arg, PER_CPU(logical_id));
-	thread_localsched_terminate();
-}
-
 //! @brief Unregister stivale2 terminal if it was loaded
 void kernel_unload_stivale2_term(void) {
 	if (kernel_stivale2_term_loaded) {
 		stivale2_term_unregister();
 		LOG_SUCCESS("Stivale2 terminal unregistered!");
 	}
+}
+
+//! @brief Kernel init stage2
+void kernel_init_stage2() {
+	LOG_SUCCESS("Running in stage 2");
+	test_ipc();
+	while (true)
+		;
 }
 
 //! @brief Kernel entrypoint
@@ -151,15 +148,16 @@ void kernel_init(struct stivale2_struct *info) {
 	// Initialize local scheduler on BSP
 	thread_localsched_init();
 
-	// Create a few tasks
-	for (size_t j = 0; j < 4; ++j) {
-		struct thread_task *new_task = thread_task_create_call(kernel_test_task, (void *)j);
-		if (new_task == NULL) {
-			LOG_PANIC("Failed to create test task");
-		}
-		thread_balancer_allocate_to_any(new_task);
+	// Create stage 2 task
+	struct thread_task *stage2_task =
+	    thread_task_create_call(CALLBACK_VOID(kernel_init_stage2, NULL));
+	if (stage2_task == NULL) {
+		PANIC("Failed to allocate stage2 task");
 	}
+	thread_balancer_allocate_to_any(stage2_task);
 
 	// Bootstrap local scheduler
 	thread_localsched_bootstrap();
+	// Scheduler should have picked this new task
+	UNREACHABLE;
 }

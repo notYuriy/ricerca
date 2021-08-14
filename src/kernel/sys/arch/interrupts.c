@@ -9,6 +9,7 @@
 #include <sys/arch/tss.h>
 #include <sys/cr.h>
 #include <thread/locking/spinlock.h>
+#include <thread/smp/core.h>
 
 MODULE("sys/arch/interrupts")
 TARGET(idt_available, idt_fill, {})
@@ -38,8 +39,8 @@ void interrupt_handle(struct interrupt_frame *frame) {
 	if (interrupt_callbacks[frame->intno] != NULL) {
 		interrupt_callbacks[frame->intno](frame, interrupt_contexts[frame->intno]);
 	} else {
-		PANIC("Unhandled interrupt v=%U, e=0x%p, rip=0x%p, cr2=0x%p", frame->intno, frame->errcode,
-		      frame->rip, rdcr2());
+		PANIC("Unhandled interrupt v=%U, e=0x%p, rip=0x%p, cr2=0x%p, cpu=%u", frame->intno,
+		      frame->errcode, frame->rip, rdcr2(), PER_CPU(logical_id));
 	}
 }
 

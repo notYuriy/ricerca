@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <lib/callback.h>
 #include <lib/pairing_heap.h>
 #include <misc/types.h>
 #include <sys/arch/interrupts.h>
@@ -28,10 +29,9 @@ struct thread_task {
 };
 
 //! @brief Create task with a given entrypoint
-//! @param func Function to be called
-//! @param arg First argument
+//! @param callback Void callback
 //! @return Pointer to the created task or NULL on failure
-struct thread_task *thread_task_create_call(void *func, void *arg);
+struct thread_task *thread_task_create_call(struct callback_void callback);
 
 //! @brief Dispose task
 //! @param task Pointer to the task

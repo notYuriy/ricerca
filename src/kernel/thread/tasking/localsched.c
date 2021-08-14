@@ -252,6 +252,12 @@ static void thread_localsched_timer_int_handler(struct interrupt_frame *frame, v
 	ic_ack();
 }
 
+//! @brief Preemption callback context
+struct thread_localsched_preemption {
+	//! @brief Callback to run
+	struct callback_void callback;
+};
+
 //! @brief Preemption callback
 //! @param frame Interrupt frame
 //! @param ctx If ctx != (void *)0, current task is enqueued back
@@ -265,11 +271,19 @@ static void thread_localsched_preemption_handler(struct interrupt_frame *frame, 
 	thread_localsched_update_unfairness(old_task);
 	bool int_state = thread_spinlock_lock(&data->lock);
 	// Put task back in the queue if ctx is not NULL
-	if (ctx != NULL) {
+	if (ctx == NULL) {
 		thread_localsched_enqueue_nolock(data, old_task);
 	} else {
 		// Task is not coming back, so store current idle unfairness in acc_unfairness_idle field
 		old_task->acc_unfairness_idle = data->idle_unfairness;
+		// Run callback
+		struct thread_localsched_preemption *preemption =
+		    (struct thread_localsched_preemption *)ctx;
+		if (preemption->callback.func != NULL &&
+		    preemption->callback.func != (void *)thread_spinlock_ungrab) {
+			PANIC("This shit is fucked up");
+		}
+		callback_void_run(preemption->callback);
 	}
 	// Grab a new task to run
 	data->current_task = NULL;
@@ -288,14 +302,20 @@ static void thread_localsched_preemption_handler(struct interrupt_frame *frame, 
 }
 
 //! @brief Suspend current task
-void thread_localsched_suspend_current(void) {
-	thread_sched_call(thread_localsched_preemption_handler, NULL);
+//! @param callback Callback to run in suspend scope
+void thread_localsched_suspend_current(struct callback_void callback) {
+	struct thread_localsched_preemption preemption;
+	preemption.callback = callback;
+	if (callback.func != NULL) {
+		ASSERT((void *)callback.func == (void *)thread_spinlock_ungrab, "Wrong suspend function");
+	}
+	thread_sched_call(thread_localsched_preemption_handler, &preemption);
 }
 
 //! @brief Yield current task
 void thread_localsched_yield(void) {
 	// Any non-null value would work as ctx
-	thread_sched_call(thread_localsched_preemption_handler, (void *)(1));
+	thread_sched_call(thread_localsched_preemption_handler, NULL);
 }
 
 //! @brief Associate task with the local scheduler on the given CPU
@@ -368,4 +388,11 @@ static void thread_localsched_init_target(void) {
 	// Register IPI handler
 	interrupt_register_handler(thread_localsched_ipi_vec, thread_localsched_ipi_dummy, NULL, 0,
 	                           TSS_INT_IST, true);
+}
+
+//! @brief Get pointer to the current task
+//! @return Pointer to the current task
+struct thread_task *thread_localsched_get_current_task() {
+	struct thread_localsched_data *data = &PER_CPU(localsched);
+	return data->current_task;
 }
