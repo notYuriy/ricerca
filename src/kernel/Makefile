@@ -46,8 +46,7 @@ C_DEBUG_FLAGS = -g -DDEBUG -fstack-protector-all -fsanitize=undefined
 # -DDEBUG - define DEBUG macro to check assertions
 # -fstack-protector-all - Enable stack protector
 # -fsanitize-undefined - Enable UB sanitizer
-# -flto - Enable link time optimization
-C_SAFE_FLAGS = -g -O2 -DDEBUG -fstack-protector -fsanitize=undefined -flto
+C_SAFE_FLAGS = -g -O2 -DDEBUG -fstack-protector -fsanitize=undefined
 
 # C flags used for profiled builds
 # -g - generate debugging symbols
@@ -74,13 +73,13 @@ LDFLAGS = -z max-page-size=0x1000
 LD_RELEASE_FLAGS = -flto
 
 # Debug LD flags
-LD_DEBUG_FLAGS =
+LD_DEBUG_FLAGS = -fstack-protector -fsanitize=undefined
 
 # Safe LD flags
-LD_SAFE_FLAGS = -flto
+LD_SAFE_FLAGS = -fstack-protector -fsanitize=undefined
 
 # Profile LD flags
-LD_PROFILE_FLAGS =
+LD_PROFILE_FLAGS = -fstack-protector -fsanitize=undefined
 
 # Path to linker script
 LD_SCRIPT = link.ld

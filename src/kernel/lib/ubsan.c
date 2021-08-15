@@ -3,6 +3,7 @@
 
 #include <lib/panic.h>
 #include <lib/target.h>
+#include <misc/attributes.h>
 #include <misc/types.h>
 
 MODULE("lib/ubsan")
@@ -51,7 +52,8 @@ struct ubsan_invalid_value_data {
 #define UBSAN_LOC_FMT "%s:%d:%d"
 #define UBSAN_FROM_LOC(location) location.file, location.line, location.column
 
-void __ubsan_handle_type_mismatch_v1(struct ubsan_mismatch_data *data, uintptr_t ptr) {
+attribute_noinline void __ubsan_handle_type_mismatch_v1(struct ubsan_mismatch_data *data,
+                                                        uintptr_t ptr) {
 	if (ptr == 0) {
 		LOG_PANIC(UBSAN_LOC_FMT " null dereference", UBSAN_FROM_LOC(data->location));
 	} else if (data->align != 0 && align_up(ptr, 1 << data->align) != ptr) {
@@ -65,50 +67,51 @@ void __ubsan_handle_type_mismatch_v1(struct ubsan_mismatch_data *data, uintptr_t
 	hang();
 }
 
-void __ubsan_handle_add_overflow() {
+attribute_noinline void __ubsan_handle_add_overflow() {
 	LOG_PANIC("addition overflow");
 	hang();
 }
 
-void __ubsan_handle_sub_overflow() {
+attribute_noinline void __ubsan_handle_sub_overflow() {
 	LOG_PANIC("substraction overflow");
 	hang();
 }
 
-void __ubsan_handle_mul_overflow() {
+attribute_noinline void __ubsan_handle_mul_overflow() {
 	LOG_PANIC("multiplication overflow");
 	hang();
 }
 
-void __ubsan_handle_divrem_overflow() {
+attribute_noinline void __ubsan_handle_divrem_overflow() {
 	LOG_PANIC("division overflow");
 	hang();
 }
 
-void __ubsan_handle_negate_overflow() {
+attribute_noinline void __ubsan_handle_negate_overflow() {
 	LOG_PANIC("negate overflow");
 	hang();
 }
 
-void __ubsan_handle_load_invalid_value() {
+attribute_noinline void __ubsan_handle_load_invalid_value() {
 	LOG_PANIC("load invalid value");
 	hang();
 }
 
-void __ubsan_handle_pointer_overflow(void *data_raw, void *lhs, void *rhs) {
+attribute_noinline void __ubsan_handle_pointer_overflow(void *data_raw, void *lhs, void *rhs) {
 	struct ubsan_overflow_data *data = (struct ubsan_overflow_data *)data_raw;
 	LOG_PANIC(UBSAN_LOC_FMT " pointer overflow with operands %p, %p",
 	          UBSAN_FROM_LOC(data->location), lhs, rhs);
 	hang();
 }
 
-void __ubsan_handle_shift_out_of_bounds(void *data_raw) {
+attribute_noinline void __ubsan_handle_shift_out_of_bounds(void *data_raw, void *lhs, void *rhs) {
 	struct ubsan_out_of_bounds_data *data = (struct ubsan_out_of_bounds_data *)data_raw;
-	LOG_PANIC(UBSAN_LOC_FMT " shift out of bounds", UBSAN_FROM_LOC(data->location));
+	LOG_PANIC(UBSAN_LOC_FMT " shift out of bounds %U << %U", UBSAN_FROM_LOC(data->location), lhs,
+	          rhs);
 	hang();
 }
 
-void __ubsan_handle_out_of_bounds(void *data_raw, void *index) {
+attribute_noinline void __ubsan_handle_out_of_bounds(void *data_raw, void *index) {
 	struct ubsan_out_of_bounds_data *data = (struct ubsan_out_of_bounds_data *)data_raw;
 	LOG_PANIC(UBSAN_LOC_FMT "out of bounds at index %d", UBSAN_FROM_LOC(data->location),
 	          (intptr_t)index);
