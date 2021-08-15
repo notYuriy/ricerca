@@ -49,6 +49,16 @@ struct ubsan_invalid_value_data {
 	struct ubsan_type *type;
 };
 
+struct ubsan_vla_bound_data {
+	struct ubsan_source_location location;
+	struct ubsan_type *type;
+};
+
+struct ubsan_invalid_builtin_data {
+	struct ubsan_source_location location;
+	uint8_t kind;
+};
+
 #define UBSAN_LOC_FMT "%s:%d:%d"
 #define UBSAN_FROM_LOC(location) location.file, location.line, location.column
 
@@ -113,7 +123,19 @@ attribute_noinline void __ubsan_handle_shift_out_of_bounds(void *data_raw, void 
 
 attribute_noinline void __ubsan_handle_out_of_bounds(void *data_raw, void *index) {
 	struct ubsan_out_of_bounds_data *data = (struct ubsan_out_of_bounds_data *)data_raw;
-	LOG_PANIC(UBSAN_LOC_FMT "out of bounds at index %d", UBSAN_FROM_LOC(data->location),
+	LOG_PANIC(UBSAN_LOC_FMT " out of bounds at index %d", UBSAN_FROM_LOC(data->location),
 	          (intptr_t)index);
 	hang();
+}
+
+attribute_noinline void __ubsan_handle_vla_bound_not_positive(void *data_raw, void *bound) {
+	struct ubsan_vla_bound_data *data = (struct ubsan_vla_bound_data *)data_raw;
+	LOG_PANIC(UBSAN_LOC_FMT " vla bound %p not positive", UBSAN_FROM_LOC(data->location),
+	          (intptr_t)bound);
+	hang();
+}
+
+attribute_noinline void __ubsan_handle_invalid_builtin(void *data_raw) {
+	struct ubsan_invalid_builtin_data *data = (struct ubsan_invalid_builtin_data *)data_raw;
+	LOG_PANIC(UBSAN_LOC_FMT " invalid builtin", UBSAN_FROM_LOC(data->location));
 }
