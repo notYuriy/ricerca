@@ -50,7 +50,7 @@ struct user_ipc_message {
 //! @param quota Mailbox quota
 //! @param mailbox Buffer to store reference to the mailbox
 //! @return API error
-int user_ipc_create_mailbox(size_t quota, struct user_ipc_mailbox **mailbox);
+int user_ipc_create_mailbox(uint32_t quota, struct user_ipc_mailbox **mailbox);
 
 //! @brief Create token pair
 //! @param mailbox Owning mailbox
@@ -59,7 +59,7 @@ int user_ipc_create_mailbox(size_t quota, struct user_ipc_mailbox **mailbox);
 //! @param ctrl Buffer to store reference to the control token
 //! @param opaque Opaque value to be stored inside the token
 //! @return API error
-int user_ipc_create_token_pair(struct user_ipc_mailbox *mailbox, size_t quota,
+int user_ipc_create_token_pair(struct user_ipc_mailbox *mailbox, uint32_t quota,
                                struct user_ipc_token **token, struct user_ipc_control_token **ctrl,
                                size_t opaque);
 
@@ -79,7 +79,7 @@ int user_ipc_recieve(struct user_ipc_mailbox *mailbox, struct user_ipc_message *
 //! @param mailbox Mailbox to which message has been sent
 //! @param index Index of the message
 //! @return API error
-int user_ipc_ack(struct user_ipc_mailbox *mailbox, size_t index);
+int user_ipc_ack(struct user_ipc_mailbox *mailbox, uint32_t index);
 
 //! @brief Shutdown mailbox
 //! @param mailbox Pointer to the mailbox

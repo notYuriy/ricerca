@@ -18,9 +18,9 @@ struct user_ipc_control_token {
 	//! @brief Refcounting base
 	struct mem_rc rc_base;
 	//! @brief Max quota
-	size_t max_quota;
+	uint32_t max_quota;
 	//! @brief Current quota
-	size_t current_quota;
+	uint32_t current_quota;
 	//! @brief Lock
 	struct thread_spinlock lock;
 	//! @brief Owning mailbox reference
@@ -64,9 +64,9 @@ struct user_ipc_mailbox {
 	//! @brief Lock
 	struct thread_spinlock lock;
 	//! @brief Max message quota
-	size_t max_quota;
+	uint32_t max_quota;
 	//! @brief Current message quota
-	size_t current_quota;
+	uint32_t current_quota;
 	//! @brief Message buffers
 	struct user_ipc_message *messages;
 	//! @brief Message nodes
@@ -95,7 +95,7 @@ static void user_ipc_destroy_mailbox(struct user_ipc_mailbox *mailbox, void *opa
 //! @param quota Mailbox quota
 //! @param mailbox Buffer to store reference to the mailbox
 //! @return API error
-int user_ipc_create_mailbox(size_t quota, struct user_ipc_mailbox **mailbox) {
+int user_ipc_create_mailbox(uint32_t quota, struct user_ipc_mailbox **mailbox) {
 	// Allocate mailbox object, message buffers and message queue nodes
 	struct user_ipc_mailbox *result = mem_heap_alloc(sizeof(struct user_ipc_mailbox));
 	if (result == NULL) {
@@ -113,13 +113,14 @@ int user_ipc_create_mailbox(size_t quota, struct user_ipc_mailbox **mailbox) {
 	MEM_REF_INIT(result, user_ipc_destroy_mailbox, NULL);
 	result->lock = THREAD_SPINLOCK_INIT;
 	result->max_quota = quota;
+	result->current_quota = quota;
 	result->messages = messages;
 	result->msg_nodes = msg_nodes;
 	result->free_queue = result->pending_queue = result->task_queue = QUEUE_INIT;
 	result->is_shut_down = false;
 	*mailbox = result;
 	// Enqueue message buffers
-	for (size_t i = 0; i < quota; ++i) {
+	for (uint32_t i = 0; i < quota; ++i) {
 		QUEUE_ENQUEUE(&result->free_queue, result->msg_nodes + i, node);
 	}
 	return USER_STATUS_SUCCESS;
@@ -136,7 +137,7 @@ free_result:
 //! @return Message node pointer
 static inline struct user_ipc_msg_queue_node *user_ipc_buf_to_node(struct user_ipc_mailbox *mailbox,
                                                                    struct user_ipc_message *buf) {
-	size_t index = buf - mailbox->messages;
+	uint32_t index = buf - mailbox->messages;
 	return mailbox->msg_nodes + index;
 }
 
@@ -146,7 +147,7 @@ static inline struct user_ipc_msg_queue_node *user_ipc_buf_to_node(struct user_i
 //! @return Message buffer pointer
 static inline struct user_ipc_message *user_ipc_node_to_buf(struct user_ipc_mailbox *mailbox,
                                                             struct user_ipc_msg_queue_node *node) {
-	size_t index = node - mailbox->msg_nodes;
+	uint32_t index = node - mailbox->msg_nodes;
 	return mailbox->messages + index;
 }
 
@@ -230,7 +231,7 @@ static void user_ipc_destroy_token(struct user_ipc_token *tok, void *opaque) {
 //! @param ctrl Buffer to store reference to the control token
 //! @param opaque Opaque value to be stored inside the token
 //! @return API error
-int user_ipc_create_token_pair(struct user_ipc_mailbox *mailbox, size_t quota,
+int user_ipc_create_token_pair(struct user_ipc_mailbox *mailbox, uint32_t quota,
                                struct user_ipc_token **token, struct user_ipc_control_token **ctrl,
                                size_t opaque) {
 	int error;
@@ -372,7 +373,7 @@ int user_ipc_recieve(struct user_ipc_mailbox *mailbox, struct user_ipc_message *
 //! @param mailbox Mailbox to which message has been sent
 //! @param index Index of the message
 //! @return API error
-int user_ipc_ack(struct user_ipc_mailbox *mailbox, size_t index) {
+int user_ipc_ack(struct user_ipc_mailbox *mailbox, uint32_t index) {
 	// Check if mailbox is shutdown
 	const bool int_state = thread_spinlock_lock(&mailbox->lock);
 	if (mailbox->is_shut_down) {
@@ -411,7 +412,7 @@ void user_ipc_shutdown_mailbox(struct user_ipc_mailbox *mailbox) {
 		thread_localsched_wake_up(task_node->task);
 	}
 	// Drop all referenced tokens
-	for (size_t i = 0; i < mailbox->max_quota; ++i) {
+	for (uint32_t i = 0; i < mailbox->max_quota; ++i) {
 		if (mailbox->messages[i].type == USER_IPC_MSG_TYPE_REGULAR) {
 			MEM_REF_DROP(mailbox->messages[i].token);
 		}
