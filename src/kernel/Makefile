@@ -30,7 +30,8 @@ CFLAGS = -Wall -Werror -Wextra
 # C flags used for release builds
 # -O2 - optimize for speed
 # -fno-stack-protector - Disable stack protector
-C_RELEASE_FLAGS = -O2 -fno-stack-protector
+# -flto - Enable link time optimization
+C_RELEASE_FLAGS = -O2 -fno-stack-protector -flto
 
 # C flags used for debug builds
 # -g - generate debugging symbols
@@ -45,7 +46,8 @@ C_DEBUG_FLAGS = -g -DDEBUG -fstack-protector-all -fsanitize=undefined
 # -DDEBUG - define DEBUG macro to check assertions
 # -fstack-protector-all - Enable stack protector
 # -fsanitize-undefined - Enable UB sanitizer
-C_SAFE_FLAGS = -g -O2 -DDEBUG -fstack-protector -fsanitize=undefined
+# -flto - Enable link time optimization
+C_SAFE_FLAGS = -g -O2 -DDEBUG -fstack-protector -fsanitize=undefined -flto
 
 # C flags used for profiled builds
 # -g - generate debugging symbols

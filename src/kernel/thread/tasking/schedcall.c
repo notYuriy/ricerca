@@ -25,7 +25,7 @@ static void thread_sched_call_gate_handler(struct interrupt_frame *frame, void *
 //! @param func Pointer to the function to be called
 //! @param arg Pointer to the function argument
 void thread_sched_call(interrupt_callback_t func, void *arg) {
-	asm volatile("int $0x57" ::"D"(func), "S"(arg));
+	asm volatile("int $0x57" ::"D"(func), "S"(arg) : "memory");
 }
 
 //! @brief Initialize sched stack call subsystem
