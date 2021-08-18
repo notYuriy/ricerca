@@ -5,82 +5,54 @@
 
 #include <misc/attributes.h>
 #include <misc/types.h>
-#include <user/error.h>
+#include <user/notifications.h>
+#include <user/status.h>
 
-//! @brief IPC token. Used as target of send operation.
-struct user_ipc_token;
-
-//! @brief IPC control token. Used to control token quota
-struct user_ipc_control_token;
-
-//! @brief IPC mailbox. Used to recieve messages from tokens
-struct user_ipc_mailbox;
-
-//! @brief Message types
-enum
-{
-	//! @brief Empty marker
-	USER_IPC_MSG_TYPE_NONE = 0,
-	//! @brief Regular IPC message
-	USER_IPC_MSG_TYPE_REGULAR = 1,
-	//! @brief Token death IPC message.
-	USER_IPC_MSG_TYPE_TOKEN_UNREACHABLE = 2,
-};
-
-//! @brief Size of IPC message payload
-#define USER_IPC_MESSAGE_PAYLOAD_SIZE 48
+//! @brief IPC message payload max size
+#define USER_IPC_PAYLOAD_MAX 120
 
 //! @brief IPC message
-struct user_ipc_message {
-	union {
-		//! @brief Control token pointer
-		struct user_ipc_control_token *token;
-		//! @brief Opaque value
-		size_t opaque;
-	};
-	//! @brief Message index
-	uint32_t index;
-	//! @brief Message type
-	uint32_t type;
-	//! @brief Payload
-	char payload[USER_IPC_MESSAGE_PAYLOAD_SIZE];
+struct user_ipc_msg {
+	//! @brief Message length
+	size_t length;
+	//! @brief Message payload
+	char payload[USER_IPC_PAYLOAD_MAX];
 } attribute_packed;
 
-//! @brief Create mailbox
-//! @param quota Mailbox quota
-//! @param mailbox Buffer to store reference to the mailbox
-//! @return API error
-int user_ipc_create_mailbox(uint32_t quota, struct user_ipc_mailbox **mailbox);
+//! @brief IPC stream
+struct user_ipc_stream;
 
-//! @brief Create token pair
-//! @param mailbox Owning mailbox
-//! @param quota Token quota
-//! @param token Buffer to store reference to the token
-//! @param ctrl Buffer to store reference to the control token
-//! @param opaque Opaque value to be stored inside the token
-//! @return API error
-int user_ipc_create_token_pair(struct user_ipc_mailbox *mailbox, uint32_t quota,
-                               struct user_ipc_token **token, struct user_ipc_control_token **ctrl,
-                               size_t opaque);
+//! @brief Create IPC stream
+//! @param stream Buffer to store pointer to the new stream in
+//! @param quota Max size of pending messages queue
+//! @param mailbox Pointer to the mailbox for recieving notifications
+//! @param opaque Opaque value to be passed in notifications
+//! @return API status
+//! @note Reference count of the returned stream is 1
+int user_ipc_create_stream(struct user_ipc_stream **stream, size_t quota,
+                           struct user_mailbox *mailbox, size_t opaque);
 
-//! @brief Send message to the token
-//! @param token Target token
+//! @brief Shutdown IPC stream on consumer side
+//! @param stream Pointer to the stream
+void user_ipc_shutdown_stream_consumer(struct user_ipc_stream *stream);
+
+//! @brief Shutdown IPC stream on producer side
+//! @param stream Pointer to the stream
+void user_ipc_shutdown_stream_producer(struct user_ipc_stream *stream);
+
+//! @brief Send signal over IPC stream
+//! @param stream Pointer to the stream to send signal to
+//! @return API status
+int user_ipc_send_signal(struct user_ipc_stream *stream);
+
+//! @brief Send message over IPC stream
+//! @param stream Pointer to the stream to send message to
 //! @param message Message to send
-//! @return API error
-int user_ipc_send(struct user_ipc_token *token, struct user_ipc_message *message);
+//! @return API status
+int user_ipc_send_msg(struct user_ipc_stream *stream, const struct user_ipc_msg *msg);
 
-//! @brief Recieve message from the mailbox
-//! @param mailbox Mailbox to recieve messages from
-//! @param message Buffer to recieve the message in
-//! @return API error
-int user_ipc_recieve(struct user_ipc_mailbox *mailbox, struct user_ipc_message *message);
-
-//! @brief Ack message at index
-//! @param mailbox Mailbox to which message has been sent
-//! @param index Index of the message
-//! @return API error
-int user_ipc_ack(struct user_ipc_mailbox *mailbox, uint32_t index);
-
-//! @brief Shutdown mailbox
-//! @param mailbox Pointer to the mailbox
-void user_ipc_shutdown_mailbox(struct user_ipc_mailbox *mailbox);
+//! @brief Attempt to recieve message over IPC stream
+//! @param stream Pointer to the stream to recieve message from
+//! @param buf Buffer to store message in
+//! @return API status
+int user_ipc_recieve_msg(struct user_ipc_stream *stream, struct user_ipc_msg *buf);

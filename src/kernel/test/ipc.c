@@ -15,49 +15,59 @@ MODULE("test/ipc")
 
 //! @brief IPC client parameters
 struct test_ipc_client_params {
-	//! @brief Token
-	struct user_ipc_token *token;
+	//! @brief Remote stream end
+	struct user_ipc_stream *remote_stream;
+	//! @brief Local stream end
+	struct user_ipc_stream *local_stream;
+	//! @brief Pointer to the local mailbox
+	struct user_mailbox *mailbox;
 };
 
 //! @brief IPC server parameters
 struct test_ipc_server_params {
-	//! @brief Control token
-	struct user_ipc_control_token *ctrl;
-	//! @brief Mailbox
-	struct user_ipc_mailbox *mailbox;
+	//! @brief Remote stream end
+	struct user_ipc_stream *remote_stream;
+	//! @brief Local stream end
+	struct user_ipc_stream *local_stream;
+	//! @brief Pointer to the local mailbox
+	struct user_mailbox *mailbox;
 	//! @brief Pointer to the test task
 	struct thread_task *test_task;
 };
 
 //! @brief Number of messages to send
-#define TEST_IPC_MSGS_NUM 1000000
+#define TEST_IPC_MSGS_NUM 100
 
 //! @brief IPC test server
 static void test_ipc_server(struct test_ipc_server_params *params) {
 	LOG_INFO("server: running");
-	struct user_ipc_message msg;
+	struct user_ipc_msg msg;
+	struct user_notification note;
 	for (size_t i = 0; i < TEST_IPC_MSGS_NUM; ++i) {
-		// progress_bar(i, TEST_IPC_MSGS_NUM, 50);
-		// LOG_INFO("server: recieving message #%U", i);
-		int recv_status = user_ipc_recieve(params->mailbox, &msg);
-		ASSERT(recv_status == USER_STATUS_SUCCESS, "Invalid recv status");
-		ASSERT(msg.opaque == 69, "Wrong opaque value");
-		ASSERT(msg.type == USER_IPC_MSG_TYPE_REGULAR, "Invalid message type");
-		// LOG_INFO("server: acking message #%U", i);
-		int ack_status = user_ipc_ack(params->mailbox, msg.index);
-		ASSERT(ack_status == USER_STATUS_SUCCESS, "Invalid ack status");
+		// Get notification
+		int status = user_recieve_notification(params->mailbox, &note);
+		ASSERT(status == USER_STATUS_SUCCESS, "Failed to get notification");
+		LOG_INFO("server: recieved #%U notification", i);
+		// Get message from the client
+		status = user_ipc_recieve_msg(params->local_stream, &msg);
+		ASSERT(status == USER_STATUS_SUCCESS, "Failed to get message");
+		LOG_INFO("server: recieved #%U message from the client", i);
+		// Send reply
+		status = user_ipc_send_msg(params->remote_stream, &msg);
+		ASSERT(status == USER_STATUS_SUCCESS, "Failed to send reply");
+		LOG_INFO("server: replied to #%U message from the client", i);
 	}
-	// progress_bar(TEST_IPC_MSGS_NUM, TEST_IPC_MSGS_NUM, 50);
-	// log_putc('\n');
-	LOG_INFO("server: recieving ping of death");
-	int recv_status = user_ipc_recieve(params->mailbox, &msg);
-	ASSERT(recv_status == USER_STATUS_SUCCESS, "Invalid recv status on ping of death");
-	ASSERT(msg.opaque == 69, "Wrong opaque value on ping of death");
-	ASSERT(msg.type == USER_IPC_MSG_TYPE_TOKEN_UNREACHABLE,
-	       "Invalid message type on ping of death");
-	user_ipc_shutdown_mailbox(params->mailbox);
-	MEM_REF_DROP(params->ctrl);
-	LOG_INFO("server: terminating");
+	// Shut down remote stream
+	user_ipc_shutdown_stream_producer(params->remote_stream);
+	// Wait for stream dead notification
+	int status = user_recieve_notification(params->mailbox, &note);
+	ASSERT(status == USER_STATUS_SUCCESS, "Failed to get notification");
+	LOG_INFO("server: got local_stream close notification");
+	// Cleanup
+	user_ipc_shutdown_stream_consumer(params->local_stream);
+	user_destroy_mailbox(params->mailbox);
+	// Exit
+	LOG_SUCCESS("server: terminating");
 	thread_localsched_wake_up(params->test_task);
 	thread_localsched_terminate();
 }
@@ -65,29 +75,43 @@ static void test_ipc_server(struct test_ipc_server_params *params) {
 //! @brief IPC test client
 static void test_ipc_client(struct test_ipc_client_params *params) {
 	LOG_INFO("client: running");
-	struct user_ipc_message msg;
-	size_t skips = 0;
+	struct user_ipc_msg msg;
+	msg.length = 0;
+	struct user_notification note;
+	bool got_dead_note = false;
 	for (size_t i = 0; i < TEST_IPC_MSGS_NUM; ++i) {
-		// LOG_INFO("server: sending message #%U", i);
-		while (true) {
-			int status = user_ipc_send(params->token, &msg);
-			switch (status) {
-			case USER_STATUS_SUCCESS:
-				goto finished;
-			case USER_STATUS_QUOTA_EXCEEDED:
-				skips++;
-				asm volatile("pause");
-				continue;
-			default:
-				PANIC("server: Failed to send the message");
-				break;
-			}
+		// Send request
+		int status = user_ipc_send_msg(params->remote_stream, &msg);
+		ASSERT(status == USER_STATUS_SUCCESS, "Failed to send request");
+		LOG_INFO("client: sent #%U message to the server", i);
+		// Get notification
+		status = user_recieve_notification(params->mailbox, &note);
+		ASSERT(status == USER_STATUS_SUCCESS, "Failed to get notification");
+		LOG_INFO("client: recieved #%U notification", i);
+		// Get reply from the server
+		status = user_ipc_recieve_msg(params->local_stream, &msg);
+		if (status != USER_STATUS_SUCCESS) {
+			ASSERT(status == USER_STATUS_TARGET_UNREACHABLE, "Invalid status");
+			got_dead_note = true;
+			LOG_INFO("client: got local_stream close notification");
+			break;
+		} else {
+			LOG_INFO("client: recieved #%U message from the server", i);
 		}
-	finished:
-		continue;
 	}
-	MEM_REF_DROP(params->token);
-	LOG_INFO("client: terminating");
+	// Shut down remote stream
+	user_ipc_shutdown_stream_producer(params->remote_stream);
+	// Wait for stream dead notification
+	if (!got_dead_note) {
+		int status = user_recieve_notification(params->mailbox, &note);
+		ASSERT(status == USER_STATUS_SUCCESS, "Failed to get notification");
+		LOG_INFO("client: got local_stream close notification");
+	}
+	// Cleanup
+	user_ipc_shutdown_stream_consumer(params->local_stream);
+	user_destroy_mailbox(params->mailbox);
+	// Exit
+	LOG_SUCCESS("client: terminating");
 	thread_localsched_terminate();
 }
 
@@ -95,13 +119,21 @@ static void test_ipc_client(struct test_ipc_client_params *params) {
 void test_ipc(void) {
 	struct test_ipc_server_params server_params;
 	struct test_ipc_client_params client_params;
-	// Create mailbox
-	ASSERT(user_ipc_create_mailbox(1025, &server_params.mailbox) == USER_STATUS_SUCCESS,
+	// Create mailboxes
+	ASSERT(user_create_mailbox(&server_params.mailbox, 1) == USER_STATUS_SUCCESS,
 	       "Failed to create mailbox");
-	// Create token pair
-	ASSERT(user_ipc_create_token_pair(server_params.mailbox, 1024, &client_params.token,
-	                                  &server_params.ctrl, 69) == USER_STATUS_SUCCESS,
+	ASSERT(user_create_mailbox(&client_params.mailbox, 1) == USER_STATUS_SUCCESS,
+	       "Failed to create mailbox");
+	// Create streams
+	ASSERT(user_ipc_create_stream(&server_params.local_stream, 1, server_params.mailbox, 69) ==
+	           USER_STATUS_SUCCESS,
 	       "Failed to create token pair");
+	ASSERT(user_ipc_create_stream(&client_params.local_stream, 1, client_params.mailbox, 69) ==
+	           USER_STATUS_SUCCESS,
+	       "Failed to create token pair");
+	// Borrow streams
+	server_params.remote_stream = MEM_REF_BORROW(client_params.local_stream);
+	client_params.remote_stream = MEM_REF_BORROW(server_params.local_stream);
 	// Start client thread
 	struct thread_task *client =
 	    thread_task_create_call(CALLBACK_VOID(test_ipc_client, &client_params));

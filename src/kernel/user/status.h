@@ -1,5 +1,5 @@
-//! @file error.h
-//! @brief File containing declarations of user routines error identifiers
+//! @file status.h
+//! @brief File containing declarations of user routines status identifiers
 
 #pragma once
 
@@ -13,12 +13,14 @@ enum
 	USER_STATUS_UNSUPPORTED = 2,
 	//! @brief Out of memory error
 	USER_STATUS_OUT_OF_MEMORY = 3,
-	//! @brief Mailbox unreachable
-	USER_STATUS_MAILBOX_UNREACHABLE = 4,
+	//! @brief Target unreachable
+	USER_STATUS_TARGET_UNREACHABLE = 4,
 	//! @brief Quota exceeded
 	USER_STATUS_QUOTA_EXCEEDED = 5,
 	//! @brief Mailbox shutdown
 	USER_STATUS_MAILBOX_SHUTDOWN = 6,
-	//! @brief Inactive message slot
-	USER_STATUS_INACTIVE_MESSAGE_SLOT = 7,
+	//! @brief Stream empty
+	USER_STATUS_STREAM_EMPTY = 7,
+	//! @brief Invalid message
+	USER_STATUS_INVALID_MSG = 8,
 };
