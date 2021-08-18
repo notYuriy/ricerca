@@ -3,7 +3,6 @@
 
 #include <lib/log.h>
 #include <lib/panic.h>
-#include <lib/static_handle_table.h>
 #include <mem/bootstrap.h>
 #include <mem/rc.h>
 #include <mem/rc_static_pool.h>
