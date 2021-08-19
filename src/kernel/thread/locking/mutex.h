@@ -16,8 +16,11 @@ struct thread_mutex {
 	bool taken;
 };
 
-//! @brief Initialize mutex
-void thread_mutex_init(struct thread_mutex *mutex);
+//! @brief Mutex static initializer
+#define THREAD_MUTEX_INIT                                                                          \
+	(struct thread_mutex) {                                                                        \
+		.lock = THREAD_SPINLOCK_INIT, .sleep_queue = QUEUE_INIT, .taken = false                    \
+	}
 
 //! @brief Lock mutex
 void thread_mutex_lock(struct thread_mutex *mutex);

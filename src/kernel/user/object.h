@@ -32,6 +32,12 @@ struct user_ref {
 	int type;
 };
 
+//! @brief Drop borrowed reference to the object
+//! @param ref Reference to drop
+static inline void user_drop_borrow_ref(struct user_ref ref) {
+	MEM_REF_DROP(ref.ref);
+}
+
 //! @brief Drop owning reference to the object
 //! @param ref Reference to drop
 void user_drop_owning_ref(struct user_ref ref);

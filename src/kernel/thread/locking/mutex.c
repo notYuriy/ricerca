@@ -12,13 +12,6 @@ struct thread_mutex_wait_queue_node {
 	struct thread_task *task;
 };
 
-//! @brief Initialize mutex
-void thread_mutex_init(struct thread_mutex *mutex) {
-	mutex->lock = THREAD_SPINLOCK_INIT;
-	mutex->sleep_queue = QUEUE_INIT;
-	mutex->taken = false;
-}
-
 //! @brief Lock mutex
 void thread_mutex_lock(struct thread_mutex *mutex) {
 	const bool int_state = thread_spinlock_lock(&mutex->lock);

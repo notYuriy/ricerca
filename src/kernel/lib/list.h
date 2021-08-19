@@ -63,32 +63,32 @@ static inline void list_append_tail(struct list *list, struct list_node *node) {
 //! @param list Pointer to the list
 //! @return head or NULL if list is empty
 static inline struct list_node *list_remove_head(struct list *list) {
-	if (list->head == NULL) {
+	struct list_node *result = list->head;
+	if (result == NULL) {
 		return NULL;
-	} else if (list->head->next == NULL) {
-		struct list_node *result = list->head;
+	} else if (result->next == NULL) {
 		list->head = list->tail = NULL;
-		return result;
 	} else {
 		list->head->next->prev = NULL;
 		list->head = list->head->next;
 	}
+	return result;
 }
 
 //! @brief Remove tail
 //! @param list Pointer to the list
 //! @return tail or NULL if list is empty
 static inline struct list_node *list_remove_tail(struct list *list) {
-	if (list->tail == NULL) {
+	struct list_node *result = list->tail;
+	if (result == NULL) {
 		return NULL;
-	} else if (list->tail->prev == NULL) {
-		struct list_node *result = list->tail;
+	} else if (result->prev == NULL) {
 		list->head = list->tail = NULL;
-		return result;
 	} else {
 		list->tail->prev->next = NULL;
 		list->tail = list->tail->prev;
 	}
+	return result;
 }
 
 //! @brief Remove node from the list
@@ -109,13 +109,13 @@ static inline void list_remove_node(struct list *list, struct list_node *node) {
 //! @param l Pointer to the list
 //! @param node Pointer to the node
 //! @param hook Name of the member inside node struct that points to list_node
-#define LIST_APPEND_HEAD(l, node, hook) list_append_head(l, &(node->hook))
+#define LIST_APPEND_HEAD(l, node, hook) list_append_head(l, &((node)->hook))
 
 //! @brief Generic LIST_APPEND_TAIL macro
 //! @param l Pointer to the list
 //! @param node Pointer to the node
 //! @param hook Name of the member inside node struct that points to list_node
-#define LIST_APPEND_TAIL(l, node, hook) list_append_tail(l, &(node->hook))
+#define LIST_APPEND_TAIL(l, node, hook) list_append_tail(l, &((node)->hook))
 
 //! @brief Generic LIST_REMOVE_HEAD macro
 //! @param l Pointer to the list
@@ -133,4 +133,4 @@ static inline void list_remove_node(struct list *list, struct list_node *node) {
 //! @param l Pointer to the list
 //! @param node Pointer to the node
 //! @param hook Name of the member inside node struct that points to list_node
-#define LIST_REMOVE(l, node, hook) list_remove(l, &(node->hook))
+#define LIST_REMOVE(l, node, hook) list_remove(l, &((node)->hook))

@@ -23,4 +23,6 @@ enum
 	USER_STATUS_STREAM_EMPTY = 7,
 	//! @brief Invalid message
 	USER_STATUS_INVALID_MSG = 8,
+	//! @brief Invalid handle
+	USER_STATUS_INVALID_HANDLE = 9,
 };
