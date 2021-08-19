@@ -1,7 +1,7 @@
 # List of defined commands
 # build rule is not to be used by the user, however it is included in this list to make makefile
 # evaluate it
-.PHONY: build-debug build-release clean kernel-clean run-release run-debug run-safe run-ci
+.PHONY: build-debug build-release clean kernel-clean run-release run-debug run-safe run-ci cloc
 
 # Use timestamp of the commit to ensure that builds are reproducible
 export SOURCE_DATE_EPOCH=$(shell git show -s --format=%ct)
@@ -168,3 +168,7 @@ addr2line:
 # List kernel symbols
 nm:
 	nm -n build/system-root/boot/ricerca-kernel.elf
+
+# Output lines of code info
+cloc:
+	cloc src/kernel
