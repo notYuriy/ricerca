@@ -138,7 +138,7 @@ static struct thread_task *thread_localsched_dequeue(struct thread_localsched_da
 //! @param frame Frame to copy state to
 static void thread_localsched_task_to_frame(struct thread_task *task,
                                             struct interrupt_frame *frame) {
-	memcpy(frame, &task->frame, sizeof(struct interrupt_frame));
+	*frame = task->frame;
 }
 
 //! @brief Copy interrupt frame to the task state frame
@@ -146,7 +146,7 @@ static void thread_localsched_task_to_frame(struct thread_task *task,
 //! @param task Task to copy state to
 static void thread_localsched_frame_to_task(struct interrupt_frame *frame,
                                             struct thread_task *task) {
-	memcpy(&task->frame, frame, sizeof(struct interrupt_frame));
+	task->frame = *frame;
 }
 
 //! @brief Pick the length of the timeslice on bootstrap/timer interrupt

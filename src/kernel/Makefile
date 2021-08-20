@@ -31,7 +31,7 @@ CFLAGS = -Wall -Werror -Wextra
 # -O2 - optimize for speed
 # -fno-stack-protector - Disable stack protector
 # -flto - Enable link time optimization
-C_RELEASE_FLAGS = -O2 -fno-stack-protector -flto
+C_RELEASE_FLAGS = -O3 -fno-stack-protector -flto
 
 # C flags used for debug builds
 # -g - generate debugging symbols

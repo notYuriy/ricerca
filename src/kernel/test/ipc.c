@@ -40,7 +40,7 @@ struct test_ipc_server_params {
 };
 
 //! @brief Number of messages to send
-#define TEST_IPC_MSGS_NUM 100
+#define TEST_IPC_MSGS_NUM 10000000
 
 //! @brief IPC test server
 static void test_ipc_server(struct test_ipc_server_params *params) {
@@ -51,15 +51,15 @@ static void test_ipc_server(struct test_ipc_server_params *params) {
 		// Get notification
 		int status = user_api_get_notification(&params->entry, params->hmailbox, &note);
 		ASSERT(status == USER_STATUS_SUCCESS, "Failed to get notification");
-		LOG_INFO("server: recieved #%U notification", i);
+		// LOG_INFO("server: recieved #%U notification", i);
 		// Get message from the client
 		status = user_api_recv_msg(&params->entry, params->hlocal, &msg);
 		ASSERT(status == USER_STATUS_SUCCESS, "Failed to get message");
-		LOG_INFO("server: recieved #%U message from the client", i);
+		// LOG_INFO("server: recieved #%U message from the client", i);
 		// Send reply
 		status = user_api_send_msg(&params->entry, params->hremote, &msg);
 		ASSERT(status == USER_STATUS_SUCCESS, "Failed to send reply");
-		LOG_INFO("server: replied to #%U message from the client", i);
+		// LOG_INFO("server: replied to #%U message from the client", i);
 	}
 	// Shut down remote stream
 	user_api_drop_handle(&params->entry, params->hremote);
@@ -87,11 +87,11 @@ static void test_ipc_client(struct test_ipc_client_params *params) {
 		// Send request
 		int status = user_api_send_msg(&params->entry, params->hremote, &msg);
 		ASSERT(status == USER_STATUS_SUCCESS, "Failed to send request");
-		LOG_INFO("client: sent #%U message to the server", i);
+		// LOG_INFO("client: sent #%U message to the server", i);
 		// Get notification
 		status = user_api_get_notification(&params->entry, params->hmailbox, &note);
 		ASSERT(status == USER_STATUS_SUCCESS, "Failed to get notification");
-		LOG_INFO("client: recieved #%U notification", i);
+		// LOG_INFO("client: recieved #%U notification", i);
 		// Get reply from the server
 		status = user_api_recv_msg(&params->entry, params->hlocal, &msg);
 		if (status != USER_STATUS_SUCCESS) {
@@ -100,7 +100,7 @@ static void test_ipc_client(struct test_ipc_client_params *params) {
 			LOG_INFO("client: got local_stream close notification");
 			break;
 		} else {
-			LOG_INFO("client: recieved #%U message from the server", i);
+			// LOG_INFO("client: recieved #%U message from the server", i);
 		}
 	}
 	// Shut down remote stream
@@ -121,6 +121,7 @@ static void test_ipc_client(struct test_ipc_client_params *params) {
 
 //! @brief IPC test
 void test_ipc(void) {
+	LOG_INFO("%u messages will be sent", (uint32_t)TEST_IPC_MSGS_NUM);
 	struct test_ipc_server_params server_params;
 	struct test_ipc_client_params client_params;
 	// Create user API entries
@@ -163,13 +164,13 @@ void test_ipc(void) {
 	struct thread_task *client =
 	    thread_task_create_call(CALLBACK_VOID(test_ipc_client, &client_params));
 	ASSERT(client != NULL, "Failed to allocate client thread");
-	thread_balancer_allocate_to_any(client);
+	thread_localsched_associate(2, client);
 	// Start server thread
 	server_params.test_task = thread_localsched_get_current_task();
 	struct thread_task *server =
 	    thread_task_create_call(CALLBACK_VOID(test_ipc_server, &server_params));
 	ASSERT(server != NULL, "Failed to allocate server thread");
-	thread_balancer_allocate_to_any(server);
+	thread_localsched_associate(2, server);
 	// Wait for completition
 	thread_localsched_suspend_current(CALLBACK_VOID_NULL);
 	LOG_SUCCESS("IPC test done");
