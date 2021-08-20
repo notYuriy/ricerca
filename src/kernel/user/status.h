@@ -25,4 +25,6 @@ enum
 	USER_STATUS_INVALID_MSG = 8,
 	//! @brief Invalid handle
 	USER_STATUS_INVALID_HANDLE = 9,
+	//! @brief Invalid handle type
+	USER_STATUS_INVALID_HANDLE_TYPE = 10,
 };

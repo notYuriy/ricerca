@@ -9,28 +9,32 @@
 #include <thread/tasking/balancer.h>
 #include <thread/tasking/localsched.h>
 #include <thread/tasking/task.h>
-#include <user/ipc.h>
+#include <user/entry.h>
 
 MODULE("test/ipc")
 
 //! @brief IPC client parameters
 struct test_ipc_client_params {
-	//! @brief Remote stream end
-	struct user_ipc_stream *remote_stream;
-	//! @brief Local stream end
-	struct user_ipc_stream *local_stream;
-	//! @brief Pointer to the local mailbox
-	struct user_mailbox *mailbox;
+	//! @brief Client user api entry
+	struct user_api_entry entry;
+	//! @brief Mailbox handle
+	size_t hmailbox;
+	//! @brief Remote stream handle
+	size_t hremote;
+	//! @brief Local stream handle
+	size_t hlocal;
 };
 
 //! @brief IPC server parameters
 struct test_ipc_server_params {
-	//! @brief Remote stream end
-	struct user_ipc_stream *remote_stream;
-	//! @brief Local stream end
-	struct user_ipc_stream *local_stream;
-	//! @brief Pointer to the local mailbox
-	struct user_mailbox *mailbox;
+	//! @brief Server user api entry
+	struct user_api_entry entry;
+	//! @brief Mailbox handle
+	size_t hmailbox;
+	//! @brief Remote stream handle
+	size_t hremote;
+	//! @brief Local stream handle
+	size_t hlocal;
 	//! @brief Pointer to the test task
 	struct thread_task *test_task;
 };
@@ -45,27 +49,27 @@ static void test_ipc_server(struct test_ipc_server_params *params) {
 	struct user_notification note;
 	for (size_t i = 0; i < TEST_IPC_MSGS_NUM; ++i) {
 		// Get notification
-		int status = user_recieve_notification(params->mailbox, &note);
+		int status = user_api_get_notification(&params->entry, params->hmailbox, &note);
 		ASSERT(status == USER_STATUS_SUCCESS, "Failed to get notification");
 		LOG_INFO("server: recieved #%U notification", i);
 		// Get message from the client
-		status = user_ipc_recieve_msg(params->local_stream, &msg);
+		status = user_api_recv_msg(&params->entry, params->hlocal, &msg);
 		ASSERT(status == USER_STATUS_SUCCESS, "Failed to get message");
 		LOG_INFO("server: recieved #%U message from the client", i);
 		// Send reply
-		status = user_ipc_send_msg(params->remote_stream, &msg);
+		status = user_api_send_msg(&params->entry, params->hremote, &msg);
 		ASSERT(status == USER_STATUS_SUCCESS, "Failed to send reply");
 		LOG_INFO("server: replied to #%U message from the client", i);
 	}
 	// Shut down remote stream
-	user_ipc_shutdown_stream_producer(params->remote_stream);
+	user_api_drop_handle(&params->entry, params->hremote);
 	// Wait for stream dead notification
-	int status = user_recieve_notification(params->mailbox, &note);
+	int status = user_api_get_notification(&params->entry, params->hmailbox, &note);
 	ASSERT(status == USER_STATUS_SUCCESS, "Failed to get notification");
 	LOG_INFO("server: got local_stream close notification");
 	// Cleanup
-	user_ipc_shutdown_stream_consumer(params->local_stream);
-	user_destroy_mailbox(params->mailbox);
+	user_api_drop_handle(&params->entry, params->hlocal);
+	user_api_drop_handle(&params->entry, params->hmailbox);
 	// Exit
 	LOG_SUCCESS("server: terminating");
 	thread_localsched_wake_up(params->test_task);
@@ -81,15 +85,15 @@ static void test_ipc_client(struct test_ipc_client_params *params) {
 	bool got_dead_note = false;
 	for (size_t i = 0; i < TEST_IPC_MSGS_NUM; ++i) {
 		// Send request
-		int status = user_ipc_send_msg(params->remote_stream, &msg);
+		int status = user_api_send_msg(&params->entry, params->hremote, &msg);
 		ASSERT(status == USER_STATUS_SUCCESS, "Failed to send request");
 		LOG_INFO("client: sent #%U message to the server", i);
 		// Get notification
-		status = user_recieve_notification(params->mailbox, &note);
+		status = user_api_get_notification(&params->entry, params->hmailbox, &note);
 		ASSERT(status == USER_STATUS_SUCCESS, "Failed to get notification");
 		LOG_INFO("client: recieved #%U notification", i);
 		// Get reply from the server
-		status = user_ipc_recieve_msg(params->local_stream, &msg);
+		status = user_api_recv_msg(&params->entry, params->hlocal, &msg);
 		if (status != USER_STATUS_SUCCESS) {
 			ASSERT(status == USER_STATUS_TARGET_UNREACHABLE, "Invalid status");
 			got_dead_note = true;
@@ -100,16 +104,16 @@ static void test_ipc_client(struct test_ipc_client_params *params) {
 		}
 	}
 	// Shut down remote stream
-	user_ipc_shutdown_stream_producer(params->remote_stream);
+	user_api_drop_handle(&params->entry, params->hremote);
 	// Wait for stream dead notification
 	if (!got_dead_note) {
-		int status = user_recieve_notification(params->mailbox, &note);
+		int status = user_api_get_notification(&params->entry, params->hmailbox, &note);
 		ASSERT(status == USER_STATUS_SUCCESS, "Failed to get notification");
 		LOG_INFO("client: got local_stream close notification");
 	}
 	// Cleanup
-	user_ipc_shutdown_stream_consumer(params->local_stream);
-	user_destroy_mailbox(params->mailbox);
+	user_api_drop_handle(&params->entry, params->hlocal);
+	user_api_drop_handle(&params->entry, params->hmailbox);
 	// Exit
 	LOG_SUCCESS("client: terminating");
 	thread_localsched_terminate();
@@ -119,21 +123,42 @@ static void test_ipc_client(struct test_ipc_client_params *params) {
 void test_ipc(void) {
 	struct test_ipc_server_params server_params;
 	struct test_ipc_client_params client_params;
+	// Create user API entries
+	ASSERT(user_api_entry_init(&client_params.entry) == USER_STATUS_SUCCESS,
+	       "Client user API entry init failed");
+	ASSERT(user_api_entry_init(&server_params.entry) == USER_STATUS_SUCCESS,
+	       "Server user API entry init failed");
 	// Create mailboxes
-	ASSERT(user_create_mailbox(&server_params.mailbox, 1) == USER_STATUS_SUCCESS,
-	       "Failed to create mailbox");
-	ASSERT(user_create_mailbox(&client_params.mailbox, 1) == USER_STATUS_SUCCESS,
-	       "Failed to create mailbox");
+	ASSERT(user_api_create_mailbox(&server_params.entry, 1, &server_params.hmailbox) ==
+	           USER_STATUS_SUCCESS,
+	       "Failed to create server mailbox");
+	ASSERT(user_api_create_mailbox(&client_params.entry, 1, &client_params.hmailbox) ==
+	           USER_STATUS_SUCCESS,
+	       "Failed to create client mailbox");
 	// Create streams
-	ASSERT(user_ipc_create_stream(&server_params.local_stream, 1, server_params.mailbox, 69) ==
-	           USER_STATUS_SUCCESS,
-	       "Failed to create token pair");
-	ASSERT(user_ipc_create_stream(&client_params.local_stream, 1, client_params.mailbox, 69) ==
-	           USER_STATUS_SUCCESS,
-	       "Failed to create token pair");
-	// Borrow streams
-	server_params.remote_stream = MEM_REF_BORROW(client_params.local_stream);
-	client_params.remote_stream = MEM_REF_BORROW(server_params.local_stream);
+	ASSERT(user_api_create_stream(&server_params.entry, server_params.hmailbox, 1, 69,
+	                              &server_params.hremote,
+	                              &server_params.hlocal) == USER_STATUS_SUCCESS,
+	       "Failed to create server token pair");
+	ASSERT(user_api_create_stream(&client_params.entry, client_params.hmailbox, 1, 69,
+	                              &client_params.hremote,
+	                              &client_params.hlocal) == USER_STATUS_SUCCESS,
+	       "Failed to create client token pair");
+	// Do some magic to swap remote stream handles across universes, so that client
+	// and server can talk to each other
+	struct user_ref client_stream, server_stream;
+	ASSERT(user_api_entry_move_handle_out(&server_params.entry, server_params.hremote,
+	                                      &server_stream) == USER_STATUS_SUCCESS,
+	       "Failed to move out server stream handle");
+	ASSERT(user_api_entry_move_handle_out(&client_params.entry, client_params.hremote,
+	                                      &client_stream) == USER_STATUS_SUCCESS,
+	       "Failed to move out client stream handle");
+	ASSERT(user_api_entry_move_handle_in(&server_params.entry, client_stream,
+	                                     &server_params.hremote) == USER_STATUS_SUCCESS,
+	       "Failed to move in client stream handle");
+	ASSERT(user_api_entry_move_handle_in(&client_params.entry, server_stream,
+	                                     &client_params.hremote) == USER_STATUS_SUCCESS,
+	       "Failed to move in server stream handle");
 	// Start client thread
 	struct thread_task *client =
 	    thread_task_create_call(CALLBACK_VOID(test_ipc_client, &client_params));

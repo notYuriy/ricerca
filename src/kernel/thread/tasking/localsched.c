@@ -223,14 +223,14 @@ static void thread_localsched_update_unfairness(struct thread_task *task) {
 //! @param ctx Ignored
 static void thread_localsched_timer_int_handler(struct interrupt_frame *frame, void *ctx) {
 	(void)ctx;
-	// Save old task data
 	struct thread_localsched_data *data = &PER_CPU(localsched);
 	struct thread_task *old_task = data->current_task;
+	ASSERT(old_task != NULL, "Timer interrupt not being cancelled properly");
+	// Save old task data
 	thread_localsched_frame_to_task(frame, old_task);
 	// Lock CPU queue
 	const bool int_state = thread_spinlock_lock(&data->lock);
 	// Update unfairness values
-	ASSERT(old_task != NULL, "No active task");
 	thread_localsched_update_unfairness(old_task);
 	// Put task back in the queue
 	thread_localsched_enqueue_nolock(data, old_task);
@@ -279,10 +279,6 @@ static void thread_localsched_preemption_handler(struct interrupt_frame *frame, 
 		// Run callback
 		struct thread_localsched_preemption *preemption =
 		    (struct thread_localsched_preemption *)ctx;
-		if (preemption->callback.func != NULL &&
-		    preemption->callback.func != (void *)thread_spinlock_ungrab) {
-			PANIC("This shit is fucked up");
-		}
 		callback_void_run(preemption->callback);
 	}
 	// Grab a new task to run
