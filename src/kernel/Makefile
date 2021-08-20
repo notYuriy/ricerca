@@ -13,14 +13,12 @@
 # -ffrestanding - do not assume running in standard C library
 # environment (which bare metal does not offer)
 # We don't enable them, as this feature requires runtime support we dont have yet.
-# -fno-pic - do not generate position independent code. Hosted compilers
-# usually enable it by default, as they generate ASLR compatible
-# executables
 # -nostdlib - do not link with any standard libraries (including libgcc and libc)
 # -I$(LAIPATH)/include - include LAI header files
 # "-I." - add current directory as include path (so that we can include files from this directory)
+# -fpie -fno-pic - build position independent executable
 C_HARD_FLAGS := -c -mgeneral-regs-only -mno-red-zone -mcmodel=kernel \
-		-ffreestanding -nostdlib -fno-pic -I$(LAIPATH)/include  -I.
+		-ffreestanding -nostdlib -I$(LAIPATH)/include  -I. -fpie -fno-pic
 
 # Common C flags, that are not essential for correct
 # compilation, but useful anyways. Value of this variable can be changed from the command line
@@ -60,9 +58,8 @@ C_PROFILE_FLAGS = -O2 -g -pg -DPROFILE -fstack-protector -fsanitize=undefined
 # Common linker flags (used both in debug and release mode), that are
 # essential for correct kernel linkage
 # -nostdlib - do not link to C standard library
-# -no-pie - do not link as position independent executable. Hosted linker
-# usually enables PIE by default to make output ASLR compatible
-LD_HARD_FLAGS := -nostdlib -no-pie
+# -static -pie -Wl,--no-dynamic-linker - build static position independent binary
+LD_HARD_FLAGS := -nostdlib -static -pie -Wl,--no-dynamic-linker
 
 # Common linker flags, thare are not essential, but useful anyways.
 # Value of this variable can be changed from the command line

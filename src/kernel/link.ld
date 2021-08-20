@@ -1,39 +1,47 @@
 ENTRY(kernel_init)
+PHDRS
+{
+    null    PT_NULL    FLAGS(0) ;                   /* Null segment */
+    text    PT_LOAD    FLAGS((1 << 0) | (1 << 2)) ; /* Execute + Read */
+    rodata  PT_LOAD    FLAGS((1 << 2)) ;            /* Read only */
+    data    PT_LOAD    FLAGS((1 << 1) | (1 << 2)) ; /* Write + Read */
+    dynamic PT_DYNAMIC FLAGS((1 << 1) | (1 << 2)) ; /* Dynamic segment needed for PIE */
+}
 
-SECTIONS {
-    /* Base of kernel physical window + 2 GB */
+SECTIONS
+{
     . = 0xffffffff80200000;
 
-    /* Stivale 2 info for the bootloader */
-    .stivale2hdr : ALIGN(4K) {
-        KEEP(*(.stivale2hdr))
-    }
-
-    /* Kernel code */
-    _kernel_text_start = .;
-    .text : ALIGN(4K) {
+    .text : {
         *(.text*)
-    }
-    _kernel_text_end = .;
+    } :text
 
-    /* Readonly kernel data */
-    _kernel_rodata_start = .;
-    .rodata : ALIGN(4K) {
+    . += 0x1000;
+
+    .stivalehdr : {
+        KEEP(*(.stivalehdr))
+    } :rodata
+
+    .stivale2hdr : {
+        KEEP(*(.stivale2hdr))
+    } :rodata
+
+    .rodata : {
         *(.rodata*)
-    }
-    _kernel_rodata_end = .;
+    } :rodata
 
-    /* Readable and writable kernel data */
-    _kernel_data_start = .;
-    .data : ALIGN(4K) {
+    . += 0x1000;
+
+    .data : {
         *(.data*)
-    }
-    _kernel_data_end = .;
+    } :data
 
-    /* Readable writeable unitialized kernel memory */
-    _kernel_bss_start = .;
-    .bss : ALIGN(4K) {
+    .dynamic : {
+        *(.dynamic)
+    } :data :dynamic
+
+    .bss : {
+        *(COMMON)
         *(.bss*)
-    }
-    _kernel_bss_end = .;
+    } :data
 }
