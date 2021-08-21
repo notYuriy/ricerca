@@ -20,6 +20,7 @@
 #include <thread/tasking/localsched.h>
 #include <thread/tasking/task.h>
 #include <thread/tasking/tasking.h>
+#include <user/target.h>
 
 MODULE("init")
 
@@ -138,8 +139,8 @@ void kernel_init(struct stivale2_struct *info) {
 	target_execute_plan(profile_plan);
 
 #endif
-	// Compute init plan to initialize multitasking
-	struct target *plan = target_compute_plan(thread_tasking_available);
+	// Compute init plan to initialize userspace
+	struct target *plan = target_compute_plan(userspace_available);
 
 	// Execute plan
 	target_plan_dump(plan);
