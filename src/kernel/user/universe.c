@@ -36,12 +36,10 @@ struct user_universe {
 
 //! @brief Destroy universe
 //! @param universe Pointer to the universe
-//! @param opaque Ignored
-static void user_destroy_universe(struct user_universe *universe, void *opaque) {
-	(void)opaque;
+static void user_destroy_universe(struct user_universe *universe) {
 	for (size_t i = 0; i < dynarray_len(universe->cells); ++i) {
 		if (universe->cells[i].in_use) {
-			user_drop_owning_ref(universe->cells[i].ref);
+			user_drop_ref(universe->cells[i].ref);
 		}
 	}
 	DYNARRAY_DESTROY(universe->cells);
@@ -61,7 +59,7 @@ int user_create_universe(struct user_universe **universe) {
 		mem_heap_free(res_universe, sizeof(struct user_universe));
 		return USER_STATUS_OUT_OF_MEMORY;
 	}
-	MEM_REF_INIT(res_universe, user_destroy_universe, NULL);
+	MEM_REF_INIT(res_universe, user_destroy_universe);
 	res_universe->cells = cells;
 	res_universe->free_list = LIST_INIT;
 	res_universe->lock = THREAD_MUTEX_INIT;
@@ -148,7 +146,7 @@ void user_drop_cell(struct user_universe *universe, size_t cell) {
 		thread_mutex_unlock(&universe->lock);
 		return;
 	}
-	user_drop_owning_ref(universe->cells[cell].ref);
+	user_drop_ref(universe->cells[cell].ref);
 	universe->cells[cell].in_use = false;
 	LIST_APPEND_TAIL(&universe->free_list, &universe->cells[cell], node);
 	thread_mutex_unlock(&universe->lock);

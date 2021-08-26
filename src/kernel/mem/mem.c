@@ -9,7 +9,6 @@
 #include <mem/mem.h>
 #include <mem/misc.h>
 #include <mem/phys/phys.h>
-#include <mem/rc_static_pool.h>
 #include <sys/acpi/numa.h>
 #include <sys/numa/numa.h>
 

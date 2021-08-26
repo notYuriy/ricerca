@@ -12,6 +12,8 @@
 #include <thread/tasking/task.h>
 #include <user/notifications.h>
 
+MODULE("user/notifications")
+
 //! @brief Wait queue nodes
 struct user_wait_queue_node {
 	//! @brief Queue node
@@ -20,14 +22,14 @@ struct user_wait_queue_node {
 	struct thread_task *task;
 	//! @brief Pointer to the notification buffer
 	struct user_notification *notification;
-	//! @brief True if mailbox has been shutdown
-	bool shutdown;
 };
 
 //! @brief Notifications mailbox. Allows to recieve notifications
 struct user_mailbox {
-	//! @brief RC base
-	struct mem_rc rc_base;
+	//! @brief Shutdown RC base
+	struct mem_rc shutdown_rc_base;
+	//! @brief Dealloc RC base
+	struct mem_rc dealloc_rc_base;
 	//! @brief Lock
 	struct thread_spinlock lock;
 	//! @brief Notification buffers
@@ -47,12 +49,23 @@ struct user_mailbox {
 };
 
 //! @brief Deallocate resources associated with the mailbox
-//! @param mailbox Pointer to the mailbox
-//! @param opaque Ignored
-static void user_clear_mailbox(struct user_mailbox *mailbox, void *opaque) {
-	(void)opaque;
+//! @param rc Pointer to the mailbox's dealloc_rc_base
+static void user_clear_mailbox(struct mem_rc *dealloc_rc_base) {
+	struct user_mailbox *mailbox =
+	    CONTAINER_OF(dealloc_rc_base, struct user_mailbox, dealloc_rc_base);
 	mem_heap_free(mailbox->notes, mailbox->max_quota * sizeof(struct user_notification));
 	mem_heap_free(mailbox, sizeof(struct user_mailbox));
+}
+
+//! @brief Shutdown mailbox
+//! @param mailbox Pointer to the mailbox
+static void user_shutdown_mailbox(struct user_mailbox *mailbox) {
+	const bool int_state = thread_spinlock_lock(&mailbox->lock);
+	mailbox->is_shut_down = true;
+	thread_spinlock_unlock(&mailbox->lock, int_state);
+	ASSERT(QUEUE_DEQUEUE(&mailbox->sleep_queue, struct user_wait_queue_node, node) == NULL,
+	       "Someone sleeping on the mailbox that is about to be shut down");
+	MEM_REF_DROP(&mailbox->dealloc_rc_base);
 }
 
 //! @brief Create mailbox
@@ -64,7 +77,8 @@ int user_create_mailbox(struct user_mailbox **mailbox, size_t quota) {
 	if (res_mailbox == NULL) {
 		return USER_STATUS_OUT_OF_MEMORY;
 	}
-	MEM_REF_INIT(res_mailbox, user_clear_mailbox, NULL);
+	MEM_REF_INIT(&res_mailbox->shutdown_rc_base, user_shutdown_mailbox);
+	MEM_REF_INIT(&res_mailbox->dealloc_rc_base, user_clear_mailbox);
 	res_mailbox->current_quota = quota;
 	res_mailbox->head = 0;
 	res_mailbox->is_shut_down = false;
@@ -81,36 +95,19 @@ int user_create_mailbox(struct user_mailbox **mailbox, size_t quota) {
 	return USER_STATUS_SUCCESS;
 }
 
-//! @brief Destroy mailbox
-//! @param mailbox Pointer to the mailbox
-void user_destroy_mailbox(struct user_mailbox *mailbox) {
-	const bool int_state = thread_spinlock_lock(&mailbox->lock);
-	mailbox->is_shut_down = true;
-	thread_spinlock_unlock(&mailbox->lock, int_state);
-	struct user_wait_queue_node *wait;
-	while ((wait = QUEUE_DEQUEUE(&mailbox->sleep_queue, struct user_wait_queue_node, node)) !=
-	       NULL) {
-		wait->shutdown = true;
-		thread_localsched_wake_up(wait->task);
-	}
-	MEM_REF_DROP(mailbox);
-}
-
 //! @brief Reserve one slot in circular notification buffer
 //! @param mailbox Target mailbox
 //! @return API status
 int user_reserve_mailbox_slot(struct user_mailbox *mailbox) {
 	const bool int_state = thread_spinlock_lock(&mailbox->lock);
-	if (mailbox->is_shut_down) {
-		thread_spinlock_unlock(&mailbox->lock, int_state);
-		return USER_STATUS_MAILBOX_SHUTDOWN;
-	}
+	ASSERT(!mailbox->is_shut_down, "Mailbox has been shutdown");
 	if (mailbox->current_quota == 0) {
 		thread_spinlock_unlock(&mailbox->lock, int_state);
 		return USER_STATUS_QUOTA_EXCEEDED;
 	}
 	mailbox->current_quota--;
 	thread_spinlock_unlock(&mailbox->lock, int_state);
+	MEM_REF_BORROW(&mailbox->dealloc_rc_base);
 	return USER_STATUS_SUCCESS;
 }
 
@@ -120,6 +117,7 @@ void user_release_mailbox_slot(struct user_mailbox *mailbox) {
 	const bool int_state = thread_spinlock_lock(&mailbox->lock);
 	mailbox->current_quota++;
 	thread_spinlock_unlock(&mailbox->lock, int_state);
+	MEM_REF_DROP(&mailbox->dealloc_rc_base);
 }
 
 //! @brief Send notification
@@ -135,7 +133,6 @@ int user_send_notification(struct user_mailbox *mailbox, const struct user_notif
 	struct user_wait_queue_node *wait;
 	if ((wait = QUEUE_DEQUEUE(&mailbox->sleep_queue, struct user_wait_queue_node, node)) != NULL) {
 		*wait->notification = *payload;
-		wait->shutdown = false;
 		thread_localsched_wake_up(wait->task);
 	} else {
 		mailbox->notes[mailbox->head % mailbox->max_quota] = *payload;
@@ -151,10 +148,7 @@ int user_send_notification(struct user_mailbox *mailbox, const struct user_notif
 //! @return API status
 int user_recieve_notification(struct user_mailbox *mailbox, struct user_notification *buf) {
 	const bool int_state = thread_spinlock_lock(&mailbox->lock);
-	if (mailbox->is_shut_down) {
-		thread_spinlock_unlock(&mailbox->lock, int_state);
-		return USER_STATUS_MAILBOX_SHUTDOWN;
-	}
+	ASSERT(!mailbox->is_shut_down, "Mailbox has been shutdown");
 	if (mailbox->head != mailbox->tail) {
 		*buf = mailbox->notes[mailbox->tail % mailbox->max_quota];
 		mailbox->tail++;
@@ -166,7 +160,6 @@ int user_recieve_notification(struct user_mailbox *mailbox, struct user_notifica
 	wait.task = thread_localsched_get_current_task();
 	QUEUE_ENQUEUE(&mailbox->sleep_queue, &wait, node);
 	thread_localsched_suspend_current(CALLBACK_VOID(thread_spinlock_ungrab, &mailbox->lock));
-	int status = wait.shutdown ? USER_STATUS_MAILBOX_SHUTDOWN : USER_STATUS_SUCCESS;
 	intlevel_recover(int_state);
-	return status;
+	return USER_STATUS_SUCCESS;
 }

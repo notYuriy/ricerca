@@ -21,7 +21,7 @@ uintptr_t mem_bootstrap_terminate_allocator(void);
 //! @return Pointer to the allocated memory
 static inline void *mem_bootstrap_alloc_rc(size_t size) {
 	struct mem_rc *result = mem_bootstrap_alloc(size);
-	MEM_REF_INIT(result, NULL, NULL);
+	MEM_REF_INIT(result, NULL);
 	return result;
 }
 

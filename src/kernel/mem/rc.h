@@ -9,7 +9,7 @@
 struct mem_rc;
 
 //! @brief Dispose callback type
-typedef void (*mem_rc_dispose_t)(struct mem_rc *, void *);
+typedef void (*mem_rc_dispose_t)(struct mem_rc *);
 
 //! @brief Header of a refcounted object
 struct mem_rc {
@@ -17,8 +17,6 @@ struct mem_rc {
 	size_t refcount;
 	//! @brief Deallocation callback that is called whenever object refcount reaches 0
 	mem_rc_dispose_t drop;
-	//! @brief Opaque pointer passed to the callback
-	void *opaque;
 };
 
 //! @brief Borrow refcounted object
@@ -37,17 +35,16 @@ static inline void mem_rc_drop(struct mem_rc *obj) {
 	// If refcount is 1 (first fetch, then decrement, so if it became zero, we get 1), dispose
 	// object. If callback is zero, data was allocated statically, so we can just silently drop it
 	if (refcount == 1 && obj->drop != NULL) {
-		obj->drop(obj, obj->opaque);
+		obj->drop(obj);
 	}
 }
 
 //! @brief Initialize refcounted object
 //! @param obj Object to initialize
 //! @param callback Callback to be called on object disposal
-static inline void mem_rc_init(struct mem_rc *obj, mem_rc_dispose_t callback, void *opaque) {
+static inline void mem_rc_init(struct mem_rc *obj, mem_rc_dispose_t callback) {
 	obj->refcount = 1;
 	obj->drop = callback;
-	obj->opaque = opaque;
 }
 
 //! @brief Borrow refcounted reference to the object
@@ -65,5 +62,4 @@ static inline void mem_rc_init(struct mem_rc *obj, mem_rc_dispose_t callback, vo
 //! @param callback Destructor callback. null if no deallocation is needed
 //! @param opaque OPaque pointer passed to destructor
 //! @note Requires mem_rc to be right at the start of the pointed object
-#define MEM_REF_INIT(x, callback, opaque)                                                          \
-	mem_rc_init((struct mem_rc *)x, (mem_rc_dispose_t)callback, opaque)
+#define MEM_REF_INIT(x, callback) mem_rc_init((struct mem_rc *)x, (mem_rc_dispose_t)callback)

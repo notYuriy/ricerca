@@ -5,7 +5,6 @@
 #include <lib/panic.h>
 #include <mem/bootstrap.h>
 #include <mem/rc.h>
-#include <mem/rc_static_pool.h>
 #include <sys/acpi/numa.h>
 #include <sys/numa/numa.h>
 #include <thread/locking/spinlock.h>

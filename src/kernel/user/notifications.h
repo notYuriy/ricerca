@@ -31,16 +31,12 @@ struct user_mailbox;
 //! @return API status
 int user_create_mailbox(struct user_mailbox **mailbox, size_t quota);
 
-//! @brief Destroy mailbox
-//! @param mailbox Pointer to the mailbox
-void user_destroy_mailbox(struct user_mailbox *mailbox);
-
-//! @brief Reserve one slot in circular notification buffer
+//! @brief Reserve one slot in circular notification buffer and increment reference count
 //! @param mailbox Target mailbox
 //! @return API status
 int user_reserve_mailbox_slot(struct user_mailbox *mailbox);
 
-//! @brief Release one slot in circular notification buffer
+//! @brief Release one slot in circular notification buffer and decrement reference count
 //! @param mailbox Target mailbox
 void user_release_mailbox_slot(struct user_mailbox *mailbox);
 

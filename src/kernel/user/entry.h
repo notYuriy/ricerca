@@ -3,7 +3,6 @@
 
 #pragma once
 
-#include <user/ipc.h>
 #include <user/notifications.h>
 #include <user/status.h>
 #include <user/universe.h>
@@ -49,30 +48,6 @@ int user_api_create_mailbox(struct user_api_entry *entry, size_t quota, size_t *
 //! @return API status
 int user_api_get_notification(struct user_api_entry *entry, size_t hmailbox,
                               struct user_notification *buf);
-
-//! @brief Create stream
-//! @param entry Pointer to the user API entry
-//! @param hmailbox Mailbox handle
-//! @param quota Max pending messages count
-//! @param opaque Opaque value stored inside the token
-//! @param hproducer Buffer to store producer stream handle in
-//! @param hconsumer Buffer to store consumer stream handle in
-int user_api_create_stream(struct user_api_entry *entry, size_t hmailbox, size_t quota,
-                           size_t opaque, size_t *hproducer, size_t *hconsumer);
-
-//! @brief Send message
-//! @param entry Pointer to the user API entry
-//! @param hstream Producer stream handle
-//! @param msg Message buffer
-//! @return API status
-int user_api_send_msg(struct user_api_entry *entry, size_t hstream, const struct user_ipc_msg *msg);
-
-//! @brief Recieve message
-//! @param entry Pointer to the user API entry
-//! @param hstream Consumer stream handle
-//! @param msg Message buffer
-//! @return API status
-int user_api_recv_msg(struct user_api_entry *entry, size_t hstream, struct user_ipc_msg *msg);
 
 //! @brief Drop cell at index
 //! @param entry Pointer to the user API entry

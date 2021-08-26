@@ -46,7 +46,7 @@ int user_api_create_mailbox(struct user_api_entry *entry, size_t quota, size_t *
 	size_t res_handle;
 	status = user_allocate_cell(entry->universe, ref, &res_handle);
 	if (status != USER_STATUS_SUCCESS) {
-		user_destroy_mailbox(ref.mailbox);
+		MEM_REF_DROP(ref.ref);
 		return status;
 	}
 	*handle = res_handle;
@@ -66,91 +66,11 @@ int user_api_get_notification(struct user_api_entry *entry, size_t hmailbox,
 		return status;
 	}
 	if (ref.type != USER_OBJ_TYPE_MAILBOX) {
-		user_drop_borrowed_ref(ref);
+		user_drop_ref(ref);
 		return USER_STATUS_INVALID_HANDLE_TYPE;
 	}
 	status = user_recieve_notification(ref.mailbox, buf);
-	user_drop_borrowed_ref(ref);
-	return status;
-}
-
-//! @brief Create stream
-//! @param entry Pointer to the user API entry
-//! @param hmailbox Mailbox handle
-//! @param quota Max pending messages count
-//! @param opaque Opaque value stored inside the token
-//! @param hproducer Buffer to store producer stream handle in
-//! @param hconsumer Buffer to store consumer stream handle in
-int user_api_create_stream(struct user_api_entry *entry, size_t hmailbox, size_t quota,
-                           size_t opaque, size_t *hproducer, size_t *hconsumer) {
-	struct user_ref mailbox_ref;
-	int status = user_borrow_ref(entry->universe, hmailbox, &mailbox_ref);
-	if (status != USER_STATUS_SUCCESS) {
-		return status;
-	}
-	if (mailbox_ref.type != USER_OBJ_TYPE_MAILBOX) {
-		user_drop_borrowed_ref(mailbox_ref);
-		return USER_STATUS_INVALID_HANDLE_TYPE;
-	}
-	struct user_ipc_stream *stream;
-	status = user_ipc_create_stream(&stream, quota, mailbox_ref.mailbox, opaque);
-	user_drop_borrowed_ref(mailbox_ref);
-	if (status != USER_STATUS_SUCCESS) {
-		return status;
-	}
-	struct user_ref stream_refs[2];
-	stream_refs[0].type = USER_OBJ_TYPE_STREAM_CONSUMER;
-	stream_refs[1].type = USER_OBJ_TYPE_STREAM_PRODUCER;
-	stream_refs[0].stream = stream;
-	stream_refs[1].stream = MEM_REF_BORROW(stream);
-	size_t cells[2];
-	status = user_allocate_cell_pair(entry->universe, stream_refs, cells);
-	if (status != USER_STATUS_SUCCESS) {
-		MEM_REF_DROP(stream);
-		MEM_REF_DROP(stream);
-		return status;
-	}
-	*hconsumer = cells[0];
-	*hproducer = cells[1];
-	return USER_STATUS_SUCCESS;
-}
-
-//! @brief Send message
-//! @param entry Pointer to the user API entry
-//! @param hstream Producer stream handle
-//! @param msg Message buffer
-//! @return API status
-int user_api_send_msg(struct user_api_entry *entry, size_t hstream,
-                      const struct user_ipc_msg *msg) {
-	struct user_ref producer_ref;
-	int status = user_borrow_ref(entry->universe, hstream, &producer_ref);
-	if (status != USER_STATUS_SUCCESS) {
-		return status;
-	}
-	if (producer_ref.type != USER_OBJ_TYPE_STREAM_PRODUCER) {
-		return USER_STATUS_INVALID_HANDLE_TYPE;
-	}
-	status = user_ipc_send_msg(producer_ref.stream, msg);
-	user_drop_borrowed_ref(producer_ref);
-	return status;
-}
-
-//! @brief Recieve message
-//! @param entry Pointer to the user API entry
-//! @param hstream Consumer stream handle
-//! @param msg Message buffer
-//! @return API status
-int user_api_recv_msg(struct user_api_entry *entry, size_t hstream, struct user_ipc_msg *msg) {
-	struct user_ref consumer_ref;
-	int status = user_borrow_ref(entry->universe, hstream, &consumer_ref);
-	if (status != USER_STATUS_SUCCESS) {
-		return status;
-	}
-	if (consumer_ref.type != USER_OBJ_TYPE_STREAM_CONSUMER) {
-		return USER_STATUS_INVALID_HANDLE_TYPE;
-	}
-	status = user_ipc_recieve_msg(consumer_ref.stream, msg);
-	user_drop_borrowed_ref(consumer_ref);
+	user_drop_ref(ref);
 	return status;
 }
 
