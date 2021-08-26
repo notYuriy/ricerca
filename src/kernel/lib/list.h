@@ -94,7 +94,7 @@ static inline struct list_node *list_remove_tail(struct list *list) {
 //! @brief Remove node from the list
 //! @param list Pointer to the list
 //! @param node Node to remove
-static inline void list_remove_node(struct list *list, struct list_node *node) {
+static inline void list_remove(struct list *list, struct list_node *node) {
 	if (list->head == node) {
 		list_remove_head(list);
 	} else if (list->tail == node) {
@@ -134,3 +134,12 @@ static inline void list_remove_node(struct list *list, struct list_node *node) {
 //! @param node Pointer to the node
 //! @param hook Name of the member inside node struct that points to list_node
 #define LIST_REMOVE(l, node, hook) list_remove(l, &((node)->hook))
+
+//! @brief List iterator
+//! @param l Pointer to the list
+//! @param T Node type
+//! @param hook Name of the member inside node struct that points to list_node
+//! @param name Name of the variable that will be used to store pointer to the node
+#define LIST_FOREACH(l, T, hook, name)                                                             \
+	for (T *name = CONTAINER_OF_NULLABLE(l->first, T, hook); name != NULL;                         \
+	     name = CONTAINER_OF_NULLABLE(name->hook.next, T, hook))

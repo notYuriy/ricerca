@@ -7,18 +7,16 @@
 # that uses extended registers (87 fpu, MMX, SSE, SSE2)
 # The reason for those flags is that using those CPU extensions
 # requires us to enable them explicitely, and we dont do that yet
-# -mno-red-zone - do not assume red zone 
-# -mcmodel=kernel - instruct gcc that kernel will be located
-# in negative 2 gigabytes of the virtual address space
+# -mno-red-zone - do not assume red zone
 # -ffrestanding - do not assume running in standard C library
 # environment (which bare metal does not offer)
 # We don't enable them, as this feature requires runtime support we dont have yet.
 # -nostdlib - do not link with any standard libraries (including libgcc and libc)
 # -I$(LAIPATH)/include - include LAI header files
 # "-I." - add current directory as include path (so that we can include files from this directory)
-# -fpie -fno-pic - build position independent executable
-C_HARD_FLAGS := -c -mgeneral-regs-only -mno-red-zone -mcmodel=kernel \
-		-ffreestanding -nostdlib -I$(LAIPATH)/include  -I. -fpie -fno-pic
+# -fpie - build position independent executable
+C_HARD_FLAGS := -c -mgeneral-regs-only -mno-red-zone \
+		-ffreestanding -nostdlib -I$(LAIPATH)/include  -I. -fpie
 
 # Common C flags, that are not essential for correct
 # compilation, but useful anyways. Value of this variable can be changed from the command line
@@ -58,8 +56,8 @@ C_PROFILE_FLAGS = -O2 -g -pg -DPROFILE -fstack-protector -fsanitize=undefined
 # Common linker flags (used both in debug and release mode), that are
 # essential for correct kernel linkage
 # -nostdlib - do not link to C standard library
-# -static -pie -Wl,--no-dynamic-linker - build static position independent binary
-LD_HARD_FLAGS := -nostdlib -static -pie -Wl,--no-dynamic-linker
+# -static-pie -Wl,--no-dynamic-linker - build static position independent binary
+LD_HARD_FLAGS := -nostdlib -static-pie -Wl,--no-dynamic-linker
 
 # Common linker flags, thare are not essential, but useful anyways.
 # Value of this variable can be changed from the command line
