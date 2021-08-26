@@ -17,14 +17,12 @@ enum
 	USER_STATUS_TARGET_UNREACHABLE = 4,
 	//! @brief Quota exceeded
 	USER_STATUS_QUOTA_EXCEEDED = 5,
-	//! @brief Mailbox shutdown
-	USER_STATUS_MAILBOX_SHUTDOWN = 6,
-	//! @brief Stream empty
-	USER_STATUS_STREAM_EMPTY = 7,
+	//! @brief Empty
+	USER_STATUS_EMPTY = 6,
 	//! @brief Invalid message
-	USER_STATUS_INVALID_MSG = 8,
+	USER_STATUS_INVALID_MSG = 7,
 	//! @brief Invalid handle
-	USER_STATUS_INVALID_HANDLE = 9,
+	USER_STATUS_INVALID_HANDLE = 8,
 	//! @brief Invalid handle type
-	USER_STATUS_INVALID_HANDLE_TYPE = 10,
+	USER_STATUS_INVALID_HANDLE_TYPE = 9,
 };
