@@ -76,26 +76,9 @@ struct user_rpc_callee {
 	//! @brief True if callee has been shut down
 	bool is_shut_down;
 };
-
-//! @brief Deallocate all resources in RPC container
-//! @note Noop for now, in the future this will be used to drop object references passed in RPC
-static void user_rpc_deactivate_container(struct user_rpc_container *container) {
-	(void)container;
-}
-
-//! @brief Deallocate queue of active containers
-//! @param queue Pointer to the queue
-static void user_rpc_destroy_active_queue(struct queue *queue) {
-	struct user_rpc_container *current;
-	while ((current = QUEUE_DEQUEUE(queue, struct user_rpc_container, qnode)) != NULL) {
-		user_rpc_deactivate_container(current);
-		mem_heap_free(current, sizeof(struct user_rpc_msg));
-	}
-}
-
 //! @brief Deallocate queue of inactive containers
 //! @param queue Pointer to the queue
-static void user_rpc_destroy_inactive_queue(struct queue *queue) {
+static void user_rpc_destroy_msg_queue(struct queue *queue) {
 	struct user_rpc_container *current;
 	while ((current = QUEUE_DEQUEUE(queue, struct user_rpc_container, qnode)) != NULL) {
 		mem_heap_free(current, sizeof(struct user_rpc_msg));
@@ -112,7 +95,7 @@ static void user_rpc_shutdown_caller(struct mem_rc *shutdown_rc_base) {
 	caller->is_shut_down = true;
 	thread_spinlock_unlock(&caller->lock, int_state);
 	user_raiser_deinit(&caller->on_reply_raiser);
-	user_rpc_destroy_inactive_queue(&caller->free_containers);
+	user_rpc_destroy_msg_queue(&caller->free_containers);
 	MEM_REF_DROP(&caller->dealloc_rc_base);
 }
 
@@ -121,7 +104,7 @@ static void user_rpc_shutdown_caller(struct mem_rc *shutdown_rc_base) {
 static void user_rpc_dealloc_caller(struct mem_rc *dealloc_rc_base) {
 	struct user_rpc_caller *caller =
 	    CONTAINER_OF(dealloc_rc_base, struct user_rpc_caller, dealloc_rc_base);
-	user_rpc_destroy_active_queue(&caller->incoming_replies);
+	user_rpc_destroy_msg_queue(&caller->incoming_replies);
 	mem_heap_free(caller, sizeof(struct user_rpc_caller));
 }
 

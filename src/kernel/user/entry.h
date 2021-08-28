@@ -102,6 +102,29 @@ int user_api_rpc_return(struct user_api_entry *entry, size_t hcallee,
 //! @return API status
 int user_api_rpc_recv_reply(struct user_api_entry *entry, size_t hcaller, struct user_rpc_msg *ret);
 
+//! @brief Create universe
+//! @param entry Pointer to the user API entry
+//! @param huniverse Buffer to store handle to the universe in
+int user_api_create_universe(struct user_api_entry *entry, size_t *huniverse);
+
+//! @brief Move handle across universes
+//! @param entry Pointer to the user API entry
+//! @param hsrc Handle to the source universe
+//! @param hdst Handle to the destination universe
+//! @param hsrci Handle IN the source universe
+//! @param hdsti Buffer to store handle in the destination universe
+int user_api_move_across_universes(struct user_api_entry *entry, size_t hsrc, size_t hdst,
+                                   size_t hsrci, size_t *hdsti);
+
+//! @brief Borrow handle across universes
+//! @param entry Pointer to the user API entry
+//! @param hsrc Handle to the source universe
+//! @param hdst Handle to the destination universe
+//! @param hsrci Handle IN the source universe
+//! @param hdsti Buffer to store handle in the destination universe
+int user_api_borrow_across_universes(struct user_api_entry *entry, size_t hsrc, size_t hdst,
+                                     size_t hsrci, size_t *hdsti);
+
 //! @brief Drop cell at index
 //! @param entry Pointer to the user API entry
 //! @param handle Handle to drop

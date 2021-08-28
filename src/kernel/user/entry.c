@@ -7,7 +7,7 @@
 //! @param entry Pointer to the user API entry
 //! @return User API error
 int user_api_entry_init(struct user_api_entry *entry) {
-	int status = user_create_universe(&entry->universe);
+	int status = user_universe_create(&entry->universe);
 	return status;
 }
 
@@ -18,7 +18,7 @@ int user_api_entry_init(struct user_api_entry *entry) {
 //! @return API status
 int user_api_entry_move_handle_out(struct user_api_entry *entry, size_t handle,
                                    struct user_ref *buf) {
-	return user_move_out_ref(entry->universe, handle, buf);
+	return user_universe_move_ref(entry->universe, handle, buf);
 }
 
 //! @brief Allocate place for the reference within user entry
@@ -27,7 +27,7 @@ int user_api_entry_move_handle_out(struct user_api_entry *entry, size_t handle,
 //! @param buf Buffer to store handle in
 //! @return API status
 int user_api_entry_move_handle_in(struct user_api_entry *entry, struct user_ref ref, size_t *buf) {
-	return user_allocate_cell(entry->universe, ref, buf);
+	return user_universe_move_in(entry->universe, ref, buf);
 }
 
 //! @brief Create mailbox
@@ -44,7 +44,7 @@ int user_api_create_mailbox(struct user_api_entry *entry, size_t quota, size_t *
 	}
 
 	size_t res_handle;
-	status = user_allocate_cell(entry->universe, ref, &res_handle);
+	status = user_universe_move_in(entry->universe, ref, &res_handle);
 	if (status != USER_STATUS_SUCCESS) {
 		MEM_REF_DROP(ref.ref);
 		return status;
@@ -61,7 +61,7 @@ int user_api_create_mailbox(struct user_api_entry *entry, size_t quota, size_t *
 int user_api_get_notification(struct user_api_entry *entry, size_t hmailbox,
                               struct user_notification *buf) {
 	struct user_ref ref;
-	int status = user_borrow_ref(entry->universe, hmailbox, &ref);
+	int status = user_universe_borrow_ref(entry->universe, hmailbox, &ref);
 	if (status != USER_STATUS_SUCCESS) {
 		return status;
 	}
@@ -83,7 +83,7 @@ int user_api_get_notification(struct user_api_entry *entry, size_t hmailbox,
 int user_api_create_caller(struct user_api_entry *entry, size_t hmailbox, size_t opaque,
                            size_t *hcaller) {
 	struct user_ref mailbox_ref;
-	int status = user_borrow_ref(entry->universe, hmailbox, &mailbox_ref);
+	int status = user_universe_borrow_ref(entry->universe, hmailbox, &mailbox_ref);
 	if (status != USER_STATUS_SUCCESS) {
 		return status;
 	}
@@ -101,7 +101,7 @@ int user_api_create_caller(struct user_api_entry *entry, size_t hmailbox, size_t
 	caller_ref.caller = caller;
 	caller_ref.type = USER_OBJ_TYPE_CALLER;
 	size_t result;
-	status = user_allocate_cell(entry->universe, caller_ref, &result);
+	status = user_universe_move_in(entry->universe, caller_ref, &result);
 	if (status != USER_STATUS_SUCCESS) {
 		MEM_REF_DROP(caller);
 		return status;
@@ -121,7 +121,7 @@ int user_api_create_caller(struct user_api_entry *entry, size_t hmailbox, size_t
 int user_api_create_callee(struct user_api_entry *entry, size_t hmailbox, size_t opaque,
                            size_t buckets, size_t *hcallee, size_t *htoken) {
 	struct user_ref mailbox_ref;
-	int status = user_borrow_ref(entry->universe, hmailbox, &mailbox_ref);
+	int status = user_universe_borrow_ref(entry->universe, hmailbox, &mailbox_ref);
 	if (status != USER_STATUS_SUCCESS) {
 		return status;
 	}
@@ -142,7 +142,7 @@ int user_api_create_callee(struct user_api_entry *entry, size_t hmailbox, size_t
 	refs[1].type = USER_OBJ_TYPE_TOKEN;
 	refs[1].token = token;
 	size_t cells[2];
-	status = user_allocate_cell_pair(entry->universe, refs, cells);
+	status = user_universe_alloc_cell_pair(entry->universe, refs, cells);
 	if (status != USER_STATUS_SUCCESS) {
 		MEM_REF_DROP(callee);
 		MEM_REF_DROP(token);
@@ -162,7 +162,7 @@ int user_api_create_callee(struct user_api_entry *entry, size_t hmailbox, size_t
 int user_api_rpc_call(struct user_api_entry *entry, size_t hcaller, size_t htoken,
                       const struct user_rpc_msg *args) {
 	struct user_ref caller_ref, token_ref;
-	int status = user_borrow_ref(entry->universe, hcaller, &caller_ref);
+	int status = user_universe_borrow_ref(entry->universe, hcaller, &caller_ref);
 	if (status != USER_STATUS_SUCCESS) {
 		return status;
 	}
@@ -170,7 +170,7 @@ int user_api_rpc_call(struct user_api_entry *entry, size_t hcaller, size_t htoke
 		user_drop_ref(caller_ref);
 		return USER_STATUS_INVALID_HANDLE_TYPE;
 	}
-	status = user_borrow_ref(entry->universe, htoken, &token_ref);
+	status = user_universe_borrow_ref(entry->universe, htoken, &token_ref);
 	if (status != USER_STATUS_SUCCESS) {
 		user_drop_ref(caller_ref);
 		return status;
@@ -193,7 +193,7 @@ int user_api_rpc_call(struct user_api_entry *entry, size_t hcaller, size_t htoke
 //! @return API status
 int user_api_rpc_accept(struct user_api_entry *entry, size_t hcallee, struct user_rpc_msg *args) {
 	struct user_ref callee_ref;
-	int status = user_borrow_ref(entry->universe, hcallee, &callee_ref);
+	int status = user_universe_borrow_ref(entry->universe, hcallee, &callee_ref);
 	if (status != USER_STATUS_SUCCESS) {
 		return status;
 	}
@@ -214,7 +214,7 @@ int user_api_rpc_accept(struct user_api_entry *entry, size_t hcallee, struct use
 int user_api_rpc_return(struct user_api_entry *entry, size_t hcallee,
                         const struct user_rpc_msg *ret) {
 	struct user_ref callee_ref;
-	int status = user_borrow_ref(entry->universe, hcallee, &callee_ref);
+	int status = user_universe_borrow_ref(entry->universe, hcallee, &callee_ref);
 	if (status != USER_STATUS_SUCCESS) {
 		return status;
 	}
@@ -235,7 +235,7 @@ int user_api_rpc_return(struct user_api_entry *entry, size_t hcallee,
 int user_api_rpc_recv_reply(struct user_api_entry *entry, size_t hcaller,
                             struct user_rpc_msg *ret) {
 	struct user_ref caller_ref;
-	int status = user_borrow_ref(entry->universe, hcaller, &caller_ref);
+	int status = user_universe_borrow_ref(entry->universe, hcaller, &caller_ref);
 	if (status != USER_STATUS_SUCCESS) {
 		return status;
 	}
@@ -248,11 +248,101 @@ int user_api_rpc_recv_reply(struct user_api_entry *entry, size_t hcaller,
 	return status;
 }
 
+//! @brief Create universe
+//! @param entry Pointer to the user API entry
+//! @param huniverse Buffer to store handle to the universe in
+int user_api_create_universe(struct user_api_entry *entry, size_t *huniverse) {
+	struct user_universe *universe;
+	int status = user_universe_create(&universe);
+	if (status != USER_STATUS_SUCCESS) {
+		return status;
+	}
+	struct user_ref universe_ref;
+	universe_ref.type = USER_OBJ_TYPE_UNIVERSE;
+	universe_ref.universe = universe;
+	size_t cell;
+	status = user_universe_move_in(entry->universe, universe_ref, &cell);
+	if (status != USER_STATUS_SUCCESS) {
+		MEM_REF_DROP(universe);
+		return status;
+	}
+	*huniverse = cell;
+	return USER_STATUS_SUCCESS;
+}
+
+//! @brief Extract universe pair
+//! @param entry Pointer to the user API entry
+//! @param hsrc Handle to the source universe
+//! @param hdst Handle to the dest universe
+//! @param src_ref Buffer to store reference to the source universe in
+//! @param dst_ref Buffer to store reference to the destination universe in
+//! @return API status
+static int user_entry_extract_universe_pair(struct user_api_entry *entry, size_t hsrc, size_t hdst,
+                                            struct user_ref *src_ref, struct user_ref *dst_ref) {
+	int status = user_universe_borrow_ref(entry->universe, hsrc, src_ref);
+	if (status != USER_STATUS_SUCCESS) {
+		return status;
+	}
+	if (src_ref->type != USER_OBJ_TYPE_UNIVERSE) {
+		user_drop_ref(*src_ref);
+		return USER_STATUS_INVALID_HANDLE_TYPE;
+	}
+	status = user_universe_borrow_ref(entry->universe, hdst, dst_ref);
+	if (status != USER_STATUS_SUCCESS) {
+		user_drop_ref(*src_ref);
+		return status;
+	}
+	if (dst_ref->type != USER_OBJ_TYPE_UNIVERSE) {
+		user_drop_ref(*src_ref);
+		user_drop_ref(*dst_ref);
+		return USER_STATUS_INVALID_HANDLE_TYPE;
+	}
+	return USER_STATUS_SUCCESS;
+}
+
+//! @brief Move handle across universes
+//! @param entry Pointer to the user API entry
+//! @param hsrc Handle to the source universe
+//! @param hdst Handle to the destination universe
+//! @param hsrci Handle IN the source universe
+//! @param hdsti Buffer to store handle in the destination universe
+int user_api_move_across_universes(struct user_api_entry *entry, size_t hsrc, size_t hdst,
+                                   size_t hsrci, size_t *hdsti) {
+	struct user_ref source_ref, dest_ref;
+	int status = user_entry_extract_universe_pair(entry, hsrc, hdst, &source_ref, &dest_ref);
+	if (status != USER_STATUS_SUCCESS) {
+		return status;
+	}
+	status = user_universe_move_across(source_ref.universe, dest_ref.universe, hsrci, hdsti);
+	user_drop_ref(source_ref);
+	user_drop_ref(dest_ref);
+	return status;
+}
+
+//! @brief Borrow handle across universes
+//! @param entry Pointer to the user API entry
+//! @param hsrc Handle to the source universe
+//! @param hdst Handle to the destination universe
+//! @param hsrci Handle IN the source universe
+//! @param hdsti Buffer to store handle in the destination universe
+int user_api_borrow_across_universes(struct user_api_entry *entry, size_t hsrc, size_t hdst,
+                                     size_t hsrci, size_t *hdsti) {
+	struct user_ref source_ref, dest_ref;
+	int status = user_entry_extract_universe_pair(entry, hsrc, hdst, &source_ref, &dest_ref);
+	if (status != USER_STATUS_SUCCESS) {
+		return status;
+	}
+	status = user_universe_borrow_across(source_ref.universe, dest_ref.universe, hsrci, hdsti);
+	user_drop_ref(source_ref);
+	user_drop_ref(dest_ref);
+	return status;
+}
+
 //! @brief Drop cell at index
 //! @param entry Pointer to the user API entry
 //! @param handle Handle to drop
 void user_api_drop_handle(struct user_api_entry *entry, size_t handle) {
-	return user_drop_cell(entry->universe, handle);
+	return user_universe_drop_cell(entry->universe, handle);
 }
 
 //! @brief Deinitialize user API entry

@@ -27,4 +27,6 @@ enum
 	USER_STATUS_INVALID_HANDLE_TYPE = 9,
 	//! @brief Invalid RPC id
 	USER_STATUS_INVALID_RPC_ID = 10,
+	//! @brief Invalid universes order
+	USER_STATUS_INVALID_UNIVERSE_ORDER = 11,
 };
