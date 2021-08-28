@@ -11,3 +11,6 @@ void test_pairing_heap(void);
 
 //! @brief Dynarray test
 void test_dynarray(void);
+
+//! @brief RPC test
+void test_rpc(void);

@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <lib/log.h>
+#include <lib/panic.h>
 #include <misc/atomics.h>
 #include <misc/types.h>
 
@@ -32,6 +34,13 @@ static inline struct mem_rc *mem_rc_borrow(struct mem_rc *obj) {
 static inline void mem_rc_drop(struct mem_rc *obj) {
 	// Decrement reference count
 	const size_t refcount = ATOMIC_FETCH_DECREMENT(&obj->refcount);
+	// If refcount was 0, there is a UAF bug.
+#ifdef DEBUG
+	if (refcount == 0) {
+		log_logf(LOG_TYPE_PANIC, "mem/rc", "rc == 0 in mem_rc_drop for %p", obj);
+		hang();
+	}
+#endif
 	// If refcount is 1 (first fetch, then decrement, so if it became zero, we get 1), dispose
 	// object. If callback is zero, data was allocated statically, so we can just silently drop it
 	if (refcount == 1 && obj->drop != NULL) {

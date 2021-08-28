@@ -4,6 +4,7 @@
 #pragma once
 
 #include <user/notifications.h>
+#include <user/rpc.h>
 #include <user/status.h>
 #include <user/universe.h>
 
@@ -43,11 +44,63 @@ int user_api_create_mailbox(struct user_api_entry *entry, size_t quota, size_t *
 
 //! @brief Wait for notification
 //! @param entry Pointer to the user API entry
-//! @param hmailbox Handle to the mailbox
+//! @param hmailbox Mailbox handle
 //! @param buf Buffer to store recieved notification in
+//! @return API status
 //! @return API status
 int user_api_get_notification(struct user_api_entry *entry, size_t hmailbox,
                               struct user_notification *buf);
+
+//! @brief Create caller
+//! @param entry Pointer to the user API entry
+//! @param hmailbox Mailbox handle
+//! @param opaque Opaque value (will be sent in notifications)
+//! @param hcaller Buffer to store caller handle in
+//! @return API status
+int user_api_create_caller(struct user_api_entry *entry, size_t hmailbox, size_t opaque,
+                           size_t *hcaller);
+
+//! @brief Create callee
+//! @param entry Pointer to the user API entry
+//! @param hmailbox Mailbox handle
+//! @param opaque Opaque value (will be sent in notifications)
+//! @param buckets Number of buckets hint
+//! @param hcallee Buffer to store callee handle in
+//! @param htoken Buffer to store token in
+//! @return API status
+int user_api_create_callee(struct user_api_entry *entry, size_t hmailbox, size_t opaque,
+                           size_t buckets, size_t *hcallee, size_t *htoken);
+
+//! @brief Initiate RPC
+//! @param entry Pointer to the user API entry
+//! @param hcaller Caller handle
+//! @param htoken Token handle
+//! @param args RPC args
+//! @return API status
+int user_api_rpc_call(struct user_api_entry *entry, size_t hcaller, size_t htoken,
+                      const struct user_rpc_msg *args);
+
+//! @brief Accept RPC call
+//! @param entry Pointer to the user API entry
+//! @param hcallee Pointer to the callee
+//! @param args Buffer to store RPC args in
+//! @return API status
+int user_api_rpc_accept(struct user_api_entry *entry, size_t hcallee, struct user_rpc_msg *args);
+
+//! @brief Reply to RPC
+//! @param entry Pointer to the user API entry
+//! @param hcallee Pointer to the callee
+//! @param ret RPC return message
+//! @return API status
+int user_api_rpc_return(struct user_api_entry *entry, size_t hcallee,
+                        const struct user_rpc_msg *ret);
+
+//! @brief Recieve reply
+//! @param entry Pointer to the user API entry
+//! @param hcaller Caller handle
+//! @param ret Buffer to store returned message in
+//! @return API status
+int user_api_rpc_recv_reply(struct user_api_entry *entry, size_t hcaller, struct user_rpc_msg *ret);
 
 //! @brief Drop cell at index
 //! @param entry Pointer to the user API entry
@@ -56,4 +109,5 @@ void user_api_drop_handle(struct user_api_entry *entry, size_t handle);
 
 //! @brief Deinitialize user API entry
 //! @param entry Pointer to the user API entry
+//! @return API status
 void user_api_entry_deinit(struct user_api_entry *entry);

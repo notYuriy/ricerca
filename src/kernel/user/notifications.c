@@ -40,8 +40,6 @@ struct user_mailbox {
 	size_t tail;
 	//! @brief Size of the notification pending queue
 	size_t max_quota;
-	//! @brief Remaining quota for new events
-	size_t current_quota;
 	//! @brief Sleep queue
 	struct queue sleep_queue;
 	//! @brief True if mailbox has been shutdown
@@ -73,13 +71,15 @@ static void user_shutdown_mailbox(struct user_mailbox *mailbox) {
 //! @param quota Pending notification queue max size
 //! @return API status
 int user_create_mailbox(struct user_mailbox **mailbox, size_t quota) {
+	if (quota == 0) {
+		quota = 1;
+	}
 	struct user_mailbox *res_mailbox = mem_heap_alloc(sizeof(struct user_mailbox));
 	if (res_mailbox == NULL) {
 		return USER_STATUS_OUT_OF_MEMORY;
 	}
 	MEM_REF_INIT(&res_mailbox->shutdown_rc_base, user_shutdown_mailbox);
 	MEM_REF_INIT(&res_mailbox->dealloc_rc_base, user_clear_mailbox);
-	res_mailbox->current_quota = quota;
 	res_mailbox->head = 0;
 	res_mailbox->is_shut_down = false;
 	res_mailbox->lock = THREAD_SPINLOCK_INIT;
@@ -98,25 +98,13 @@ int user_create_mailbox(struct user_mailbox **mailbox, size_t quota) {
 //! @brief Reserve one slot in circular notification buffer
 //! @param mailbox Target mailbox
 //! @return API status
-int user_reserve_mailbox_slot(struct user_mailbox *mailbox) {
-	const bool int_state = thread_spinlock_lock(&mailbox->lock);
-	ASSERT(!mailbox->is_shut_down, "Mailbox has been shutdown");
-	if (mailbox->current_quota == 0) {
-		thread_spinlock_unlock(&mailbox->lock, int_state);
-		return USER_STATUS_QUOTA_EXCEEDED;
-	}
-	mailbox->current_quota--;
-	thread_spinlock_unlock(&mailbox->lock, int_state);
+void user_reserve_mailbox_slot(struct user_mailbox *mailbox) {
 	MEM_REF_BORROW(&mailbox->dealloc_rc_base);
-	return USER_STATUS_SUCCESS;
 }
 
 //! @brief Release one slot in circular notification buffer
 //! @param mailbox Target mailbox
 void user_release_mailbox_slot(struct user_mailbox *mailbox) {
-	const bool int_state = thread_spinlock_lock(&mailbox->lock);
-	mailbox->current_quota++;
-	thread_spinlock_unlock(&mailbox->lock, int_state);
 	MEM_REF_DROP(&mailbox->dealloc_rc_base);
 }
 

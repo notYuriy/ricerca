@@ -10,8 +10,12 @@
 //! @brief Notification type
 enum
 {
-	//! @brief New message for the stream has been recieved/other side of the stream has been closed
-	USER_NOTE_TYPE_IPC_STREAM_UPDATE = 0,
+	//! @brief Incoming RPC call
+	USER_NOTE_TYPE_RPC_INCOMING = 0,
+	//! @brief RPC reply
+	USER_NOTE_TYPE_RPC_REPLY = 1,
+	//! @brief Callee lost
+	USER_NOTE_TYPE_RPC_CALLEE_LOST = 2,
 };
 
 //! @brief One notification
@@ -33,8 +37,7 @@ int user_create_mailbox(struct user_mailbox **mailbox, size_t quota);
 
 //! @brief Reserve one slot in circular notification buffer and increment reference count
 //! @param mailbox Target mailbox
-//! @return API status
-int user_reserve_mailbox_slot(struct user_mailbox *mailbox);
+void user_reserve_mailbox_slot(struct user_mailbox *mailbox);
 
 //! @brief Release one slot in circular notification buffer and decrement reference count
 //! @param mailbox Target mailbox

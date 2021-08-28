@@ -141,5 +141,5 @@ static inline void list_remove(struct list *list, struct list_node *node) {
 //! @param hook Name of the member inside node struct that points to list_node
 //! @param name Name of the variable that will be used to store pointer to the node
 #define LIST_FOREACH(l, T, hook, name)                                                             \
-	for (T *name = CONTAINER_OF_NULLABLE(l->first, T, hook); name != NULL;                         \
+	for (T *name = CONTAINER_OF_NULLABLE(l->head, T, hook); name != NULL;                          \
 	     name = CONTAINER_OF_NULLABLE(name->hook.next, T, hook))

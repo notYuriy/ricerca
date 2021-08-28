@@ -17,6 +17,6 @@
 //! @return Pointer to the structure that contains member structure at the specified address
 #define CONTAINER_OF_NULLABLE(ptr, P, name)                                                        \
 	({                                                                                             \
-		__auto_type _ptr = (ptr);                                                                  \
-		(_ptr == NULL) ? NULL : CONTAINER_OF(_ptr, P, name);                                       \
+		__auto_type _p123 = (ptr);                                                                 \
+		(_p123 == NULL) ? NULL : CONTAINER_OF(_p123, P, name);                                     \
 	})

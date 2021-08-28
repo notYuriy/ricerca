@@ -25,4 +25,6 @@ enum
 	USER_STATUS_INVALID_HANDLE = 8,
 	//! @brief Invalid handle type
 	USER_STATUS_INVALID_HANDLE_TYPE = 9,
+	//! @brief Invalid RPC id
+	USER_STATUS_INVALID_RPC_ID = 10,
 };

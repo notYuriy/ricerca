@@ -30,6 +30,9 @@ static inline bool intmap_init(struct intmap *intmap, size_t buckets) {
 	if (nodes == NULL) {
 		return false;
 	}
+	for (size_t i = 0; i < buckets; ++i) {
+		nodes[i] = LIST_INIT;
+	}
 	intmap->nodes = nodes;
 	intmap->buckets_count = buckets;
 	return true;
@@ -54,6 +57,7 @@ static inline struct intmap_node *intmap_search(struct intmap *intmap, size_t ke
 			return current;
 		}
 	}
+	return NULL;
 }
 
 //! @brief Remove node form the int map
@@ -62,4 +66,11 @@ static inline struct intmap_node *intmap_search(struct intmap *intmap, size_t ke
 static inline void intmap_remove(struct intmap *intmap, struct intmap_node *node) {
 	size_t mod = node->key % intmap->buckets_count;
 	LIST_REMOVE(intmap->nodes + mod, node, node);
+}
+
+//! @brief Destroy intmap
+//! @param intmap Pointer to the intmap
+//! @note Does not deallocate nodes themselves!!!
+static inline void intmap_destroy(struct intmap *intmap) {
+	mem_heap_free(intmap->nodes, intmap->buckets_count * sizeof(struct list));
 }
