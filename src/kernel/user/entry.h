@@ -40,7 +40,7 @@ int user_api_entry_move_handle_in(struct user_api_entry *entry, struct user_ref 
 //! @param quota Max pending notifications count
 //! @param handle Buffer to store mailbox handle in
 //! @return API status
-int user_api_create_mailbox(struct user_api_entry *entry, size_t quota, size_t *handle);
+int user_sys_create_mailbox(struct user_api_entry *entry, size_t quota, size_t *handle);
 
 //! @brief Wait for notification
 //! @param entry Pointer to the user API entry
@@ -48,7 +48,7 @@ int user_api_create_mailbox(struct user_api_entry *entry, size_t quota, size_t *
 //! @param buf Buffer to store recieved notification in
 //! @return API status
 //! @return API status
-int user_api_get_notification(struct user_api_entry *entry, size_t hmailbox,
+int user_sys_get_notification(struct user_api_entry *entry, size_t hmailbox,
                               struct user_notification *buf);
 
 //! @brief Create caller
@@ -57,7 +57,7 @@ int user_api_get_notification(struct user_api_entry *entry, size_t hmailbox,
 //! @param opaque Opaque value (will be sent in notifications)
 //! @param hcaller Buffer to store caller handle in
 //! @return API status
-int user_api_create_caller(struct user_api_entry *entry, size_t hmailbox, size_t opaque,
+int user_sys_create_caller(struct user_api_entry *entry, size_t hmailbox, size_t opaque,
                            size_t *hcaller);
 
 //! @brief Create callee
@@ -68,7 +68,7 @@ int user_api_create_caller(struct user_api_entry *entry, size_t hmailbox, size_t
 //! @param hcallee Buffer to store callee handle in
 //! @param htoken Buffer to store token in
 //! @return API status
-int user_api_create_callee(struct user_api_entry *entry, size_t hmailbox, size_t opaque,
+int user_sys_create_callee(struct user_api_entry *entry, size_t hmailbox, size_t opaque,
                            size_t buckets, size_t *hcallee, size_t *htoken);
 
 //! @brief Initiate RPC
@@ -77,7 +77,7 @@ int user_api_create_callee(struct user_api_entry *entry, size_t hmailbox, size_t
 //! @param htoken Token handle
 //! @param args RPC args
 //! @return API status
-int user_api_rpc_call(struct user_api_entry *entry, size_t hcaller, size_t htoken,
+int user_sys_rpc_call(struct user_api_entry *entry, size_t hcaller, size_t htoken,
                       const struct user_rpc_msg *args);
 
 //! @brief Accept RPC call
@@ -85,14 +85,14 @@ int user_api_rpc_call(struct user_api_entry *entry, size_t hcaller, size_t htoke
 //! @param hcallee Pointer to the callee
 //! @param args Buffer to store RPC args in
 //! @return API status
-int user_api_rpc_accept(struct user_api_entry *entry, size_t hcallee, struct user_rpc_msg *args);
+int user_sys_rpc_accept(struct user_api_entry *entry, size_t hcallee, struct user_rpc_msg *args);
 
 //! @brief Reply to RPC
 //! @param entry Pointer to the user API entry
 //! @param hcallee Pointer to the callee
 //! @param ret RPC return message
 //! @return API status
-int user_api_rpc_return(struct user_api_entry *entry, size_t hcallee,
+int user_sys_rpc_return(struct user_api_entry *entry, size_t hcallee,
                         const struct user_rpc_msg *ret);
 
 //! @brief Recieve reply
@@ -100,12 +100,12 @@ int user_api_rpc_return(struct user_api_entry *entry, size_t hcallee,
 //! @param hcaller Caller handle
 //! @param ret Buffer to store returned message in
 //! @return API status
-int user_api_rpc_recv_reply(struct user_api_entry *entry, size_t hcaller, struct user_rpc_msg *ret);
+int user_sys_rpc_recv_reply(struct user_api_entry *entry, size_t hcaller, struct user_rpc_msg *ret);
 
 //! @brief Create universe
 //! @param entry Pointer to the user API entry
 //! @param huniverse Buffer to store handle to the universe in
-int user_api_create_universe(struct user_api_entry *entry, size_t *huniverse);
+int user_sys_create_universe(struct user_api_entry *entry, size_t *huniverse);
 
 //! @brief Move handle across universes
 //! @param entry Pointer to the user API entry
@@ -113,7 +113,7 @@ int user_api_create_universe(struct user_api_entry *entry, size_t *huniverse);
 //! @param hdst Handle to the destination universe
 //! @param hsrci Handle IN the source universe
 //! @param hdsti Buffer to store handle in the destination universe
-int user_api_move_across_universes(struct user_api_entry *entry, size_t hsrc, size_t hdst,
+int user_sys_move_across_universes(struct user_api_entry *entry, size_t hsrc, size_t hdst,
                                    size_t hsrci, size_t *hdsti);
 
 //! @brief Borrow handle across universes
@@ -122,13 +122,13 @@ int user_api_move_across_universes(struct user_api_entry *entry, size_t hsrc, si
 //! @param hdst Handle to the destination universe
 //! @param hsrci Handle IN the source universe
 //! @param hdsti Buffer to store handle in the destination universe
-int user_api_borrow_across_universes(struct user_api_entry *entry, size_t hsrc, size_t hdst,
+int user_sys_borrow_across_universes(struct user_api_entry *entry, size_t hsrc, size_t hdst,
                                      size_t hsrci, size_t *hdsti);
 
 //! @brief Drop cell at index
 //! @param entry Pointer to the user API entry
 //! @param handle Handle to drop
-void user_api_drop_handle(struct user_api_entry *entry, size_t handle);
+void user_sys_drop(struct user_api_entry *entry, size_t handle);
 
 //! @brief Deinitialize user API entry
 //! @param entry Pointer to the user API entry

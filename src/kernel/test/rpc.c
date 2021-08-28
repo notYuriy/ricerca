@@ -32,24 +32,24 @@ struct test_rpc_server_params {
 void test_rpc_server(struct test_rpc_server_params *params) {
 	for (size_t i = 0; i < TEST_RPC_CALLS_NUM; ++i) {
 		struct user_notification notification;
-		int status = user_api_get_notification(params->entry, params->hmailbox, &notification);
+		int status = user_sys_get_notification(params->entry, params->hmailbox, &notification);
 		ASSERT(status == USER_STATUS_SUCCESS, "Failed to recieve notification");
 		LOG_INFO("Recieved notification for call #%U", i);
 		ASSERT(notification.type == USER_NOTE_TYPE_RPC_INCOMING, "Wrong notification type");
 		ASSERT(notification.opaque == 0xdeadbeef, "Wrong notification opaque value");
 
 		struct user_rpc_msg msg;
-		status = user_api_rpc_accept(params->entry, params->hcallee, &msg);
+		status = user_sys_rpc_accept(params->entry, params->hcallee, &msg);
 		ASSERT(status == USER_STATUS_SUCCESS, "Failed to accept RPC");
 		LOG_INFO("Accepted RPC #%U", i);
 		ASSERT(msg.opaque == i, "Invalid key value");
 
-		status = user_api_rpc_return(params->entry, params->hcallee, &msg);
+		status = user_sys_rpc_return(params->entry, params->hcallee, &msg);
 		ASSERT(status == USER_STATUS_SUCCESS, "Failed to return RPC");
 		LOG_INFO("Returned RPC #%U", i);
 	}
 	struct user_notification notification;
-	int status = user_api_get_notification(params->entry, params->hmailbox, &notification);
+	int status = user_sys_get_notification(params->entry, params->hmailbox, &notification);
 	LOG_INFO("Recieved callee lost notification");
 	ASSERT(status == USER_STATUS_SUCCESS, "Failed to recieve callee lost notification");
 	ASSERT(notification.type == USER_NOTE_TYPE_RPC_CALLEE_LOST, "Wrong notification type");
@@ -81,18 +81,18 @@ void test_rpc_client(struct test_rpc_client_params *params) {
 		struct user_rpc_msg msg;
 		msg.len = 0;
 		msg.opaque = 0xabacaba;
-		int status = user_api_rpc_call(params->entry, params->hcaller, params->htoken, &msg);
+		int status = user_sys_rpc_call(params->entry, params->hcaller, params->htoken, &msg);
 		ASSERT(status == USER_STATUS_SUCCESS, "Failed to initiate RPC call");
 		LOG_INFO("Initiated RPC #%U", i);
 
 		struct user_notification notification;
-		status = user_api_get_notification(params->entry, params->hmailbox, &notification);
+		status = user_sys_get_notification(params->entry, params->hmailbox, &notification);
 		ASSERT(status == USER_STATUS_SUCCESS, "Failed to recieve notification");
 		LOG_INFO("Recieved notification for reply to call #%U", i);
 		ASSERT(notification.type == USER_NOTE_TYPE_RPC_REPLY, "Wrong notification type");
 		ASSERT(notification.opaque == 0xcafebabe, "Wrong notification opaque value");
 
-		status = user_api_rpc_recv_reply(params->entry, params->hcaller, &msg);
+		status = user_sys_rpc_recv_reply(params->entry, params->hcaller, &msg);
 		ASSERT(status == USER_STATUS_SUCCESS, "Failed to recieve reply");
 		LOG_INFO("Recieved reply to call #%U", i);
 		ASSERT(msg.opaque == 0xabacaba, "Wrong opaque value");
@@ -116,18 +116,18 @@ void test_rpc(void) {
 	}
 	client_params.entry = &client_entry;
 	server_params.entry = &server_entry;
-	if (user_api_create_mailbox(&client_entry, 1, &client_params.hmailbox) != USER_STATUS_SUCCESS) {
+	if (user_sys_create_mailbox(&client_entry, 1, &client_params.hmailbox) != USER_STATUS_SUCCESS) {
 		PANIC("Failed to initialize client mailbox");
 	}
-	if (user_api_create_mailbox(&server_entry, 2, &server_params.hmailbox) != USER_STATUS_SUCCESS) {
+	if (user_sys_create_mailbox(&server_entry, 2, &server_params.hmailbox) != USER_STATUS_SUCCESS) {
 		PANIC("Failed to initialize server mailbox");
 	}
 	int error;
-	if ((error = user_api_create_caller(&client_entry, client_params.hmailbox, 0xcafebabe,
+	if ((error = user_sys_create_caller(&client_entry, client_params.hmailbox, 0xcafebabe,
 	                                    &client_params.hcaller)) != USER_STATUS_SUCCESS) {
 		PANIC("Failed to initialize client caller (%d)", error);
 	}
-	if (user_api_create_callee(&server_entry, server_params.hmailbox, 0xdeadbeef, 0,
+	if (user_sys_create_callee(&server_entry, server_params.hmailbox, 0xdeadbeef, 0,
 	                           &server_params.hcallee,
 	                           &client_params.htoken) != USER_STATUS_SUCCESS) {
 		PANIC("Failed to initialize server callee");
