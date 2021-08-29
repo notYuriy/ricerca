@@ -22,8 +22,11 @@ enum
 	USER_OBJ_TYPE_UNIVERSE = 5,
 };
 
+//! @brief Pinned cookie (no one except kernel can duplicate/move/drop ref)
+#define USER_COOKIE_PIN 0
+
 //! @brief Unpinned cookie (no restrictions on duplicating/moving/dropping ref)
-#define USER_COOKIE_UNPIN 0
+#define USER_COOKIE_UNPIN 1
 
 //! @brief Object reference
 struct user_ref {

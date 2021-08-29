@@ -13,7 +13,7 @@
 MODULE("user/universe")
 
 //! @brief Last universe identifier
-size_t user_universe_last_id = 0;
+size_t user_universe_last_id = 2;
 
 //! @brief Universe cell
 struct user_universe_cell {
