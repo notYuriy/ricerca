@@ -125,6 +125,41 @@ int user_sys_move_across_universes(struct user_api_entry *entry, size_t hsrc, si
 int user_sys_borrow_across_universes(struct user_api_entry *entry, size_t hsrc, size_t hdst,
                                      size_t hsrci, size_t *hdsti);
 
+//! @brief Move handle and store it in universe
+//! @param entry Pointer to the user API entry
+//! @param huniverse Universe handle
+//! @param outer Handle in the outer universe
+//! @param inner Buffer to store handle in inner universe
+int user_sys_move_in(struct user_api_entry *entry, size_t huniverse, size_t outer, size_t *inner);
+
+//! @brief Move handle out of universe
+//! @param entry Pointer to the user API entry
+//! @param huniverse Universe handle
+//! @param inner Handle in the inner universe
+//! @param outer Buffer to store handle in outer universe
+int user_sys_move_out(struct user_api_entry *entry, size_t huniverse, size_t inner, size_t *outer);
+
+//! @brief Move handle and store it in universe
+//! @param entry Pointer to the user API entry
+//! @param huniverse Universe handle
+//! @param outer Handle in the outer universe
+//! @param inner Buffer to store handle in inner universe
+int user_sys_borrow_in(struct user_api_entry *entry, size_t huniverse, size_t outer, size_t *inner);
+
+//! @brief Move handle out of universe
+//! @param entry Pointer to the user API entry
+//! @param huniverse Universe handle
+//! @param inner Handle in the inner universe
+//! @param outer Buffer to store handle in outer universe
+int user_sys_borrow_out(struct user_api_entry *entry, size_t huniverse, size_t inner,
+                        size_t *outer);
+
+//! @brief Drop handle in the universe
+//! @param entry Pointer to the user API entry
+//! @param huniverse Universe handle
+//! @param inner Inner handle to drop
+int user_sys_drop_in(struct user_api_entry *entry, size_t huniverse, size_t inner);
+
 //! @brief Drop cell at index
 //! @param entry Pointer to the user API entry
 //! @param handle Handle to drop

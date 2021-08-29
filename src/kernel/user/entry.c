@@ -338,6 +338,107 @@ int user_sys_borrow_across_universes(struct user_api_entry *entry, size_t hsrc, 
 	return status;
 }
 
+//! @brief Move handle and store it in universe
+//! @param entry Pointer to the user API entry
+//! @param huniverse Universe handle
+//! @param outer Handle in the outer universe
+//! @param inner Buffer to store handle in inner universe
+int user_sys_move_in(struct user_api_entry *entry, size_t huniverse, size_t outer, size_t *inner) {
+	struct user_ref universe_ref;
+	int status = user_universe_borrow_ref(entry->universe, huniverse, &universe_ref);
+	if (status != USER_STATUS_SUCCESS) {
+		return status;
+	}
+	if (universe_ref.type != USER_OBJ_TYPE_UNIVERSE) {
+		user_drop_ref(universe_ref);
+		return USER_STATUS_INVALID_HANDLE_TYPE;
+	}
+	status = user_universe_move_across(entry->universe, universe_ref.universe, outer, inner);
+	user_drop_ref(universe_ref);
+	return USER_STATUS_SUCCESS;
+}
+
+//! @brief Move handle out of universe
+//! @param entry Pointer to the user API entry
+//! @param huniverse Universe handle
+//! @param inner Handle in the inner universe
+//! @param outer Buffer to store handle in outer universe
+int user_sys_move_out(struct user_api_entry *entry, size_t huniverse, size_t inner, size_t *outer) {
+	struct user_ref universe_ref;
+	int status = user_universe_borrow_ref(entry->universe, huniverse, &universe_ref);
+	if (status != USER_STATUS_SUCCESS) {
+		return status;
+	}
+	if (universe_ref.type != USER_OBJ_TYPE_UNIVERSE) {
+		user_drop_ref(universe_ref);
+		return USER_STATUS_INVALID_HANDLE_TYPE;
+	}
+	status = user_universe_move_across(universe_ref.universe, entry->universe, inner, outer);
+	user_drop_ref(universe_ref);
+	return USER_STATUS_SUCCESS;
+}
+
+//! @brief Move handle and store it in universe
+//! @param entry Pointer to the user API entry
+//! @param huniverse Universe handle
+//! @param outer Handle in the outer universe
+//! @param inner Buffer to store handle in inner universe
+int user_sys_borrow_in(struct user_api_entry *entry, size_t huniverse, size_t outer,
+                       size_t *inner) {
+	struct user_ref universe_ref;
+	int status = user_universe_borrow_ref(entry->universe, huniverse, &universe_ref);
+	if (status != USER_STATUS_SUCCESS) {
+		return status;
+	}
+	if (universe_ref.type != USER_OBJ_TYPE_UNIVERSE) {
+		user_drop_ref(universe_ref);
+		return USER_STATUS_INVALID_HANDLE_TYPE;
+	}
+	status = user_universe_borrow_across(entry->universe, universe_ref.universe, outer, inner);
+	user_drop_ref(universe_ref);
+	return USER_STATUS_SUCCESS;
+}
+
+//! @brief Move handle out of universe
+//! @param entry Pointer to the user API entry
+//! @param huniverse Universe handle
+//! @param inner Handle in the inner universe
+//! @param outer Buffer to store handle in outer universe
+int user_sys_borrow_out(struct user_api_entry *entry, size_t huniverse, size_t inner,
+                        size_t *outer) {
+	struct user_ref universe_ref;
+	int status = user_universe_borrow_ref(entry->universe, huniverse, &universe_ref);
+	if (status != USER_STATUS_SUCCESS) {
+		return status;
+	}
+	if (universe_ref.type != USER_OBJ_TYPE_UNIVERSE) {
+		user_drop_ref(universe_ref);
+		return USER_STATUS_INVALID_HANDLE_TYPE;
+	}
+	status = user_universe_borrow_across(universe_ref.universe, entry->universe, inner, outer);
+	user_drop_ref(universe_ref);
+	return USER_STATUS_SUCCESS;
+}
+
+//! @brief Drop handle in the universe
+//! @param entry Pointer to the user API entry
+//! @param huniverse Universe handle
+//! @param inner Inner handle to drop
+int user_sys_drop_in(struct user_api_entry *entry, size_t huniverse, size_t inner) {
+	struct user_ref universe_ref;
+	int status = user_universe_borrow_ref(entry->universe, huniverse, &universe_ref);
+	if (status != USER_STATUS_SUCCESS) {
+		return status;
+	}
+	if (universe_ref.type != USER_OBJ_TYPE_UNIVERSE) {
+		user_drop_ref(universe_ref);
+		return USER_STATUS_INVALID_HANDLE_TYPE;
+	}
+	user_universe_drop_cell(universe_ref.universe, inner);
+	user_drop_ref(universe_ref);
+	return USER_STATUS_SUCCESS;
+}
+
 //! @brief Drop cell at index
 //! @param entry Pointer to the user API entry
 //! @param handle Handle to drop
