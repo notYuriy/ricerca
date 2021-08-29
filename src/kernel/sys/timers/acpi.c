@@ -1,19 +1,16 @@
 //! @file acpi.c
 //! @brief File containing implementations of ACPI timing functions
 
-#include <lai/helpers/sci.h>
 #include <lib/log.h>
 #include <lib/panic.h>
 #include <mem/misc.h>
 #include <sys/acpi/acpi.h>
-#include <sys/acpi/laihost.h>
 #include <sys/ports.h>
 #include <sys/timers/acpi.h>
 #include <sys/timers/timer.h>
 
 MODULE("sys/timer/acpi")
-TARGET(acpi_timer_available, acpi_timer_init,
-       {acpi_available, lai_available, mem_misc_collect_info_available})
+TARGET(acpi_timer_available, acpi_timer_init, {acpi_available, mem_misc_collect_info_available})
 
 //! @brief struct timer structure used to register ACPI timer
 static struct timer acpi_timer;
@@ -92,7 +89,6 @@ static void acpi_timer_init() {
 	if ((acpi_boot_fadt->flags & (1 << 8)) != 0) {
 		acpi_timer_32bit = true;
 	}
-	lai_set_sci_event(lai_get_sci_event() | ACPI_TIMER);
 	acpi_timer.make_goal = acpi_timer_make_goal;
 	acpi_timer.is_goal_reached = acpi_timer_is_goal_reached;
 	acpi_timer.coolness = TIMER_ACPI_COOLNESS;

@@ -12,11 +12,10 @@
 # environment (which bare metal does not offer)
 # We don't enable them, as this feature requires runtime support we dont have yet.
 # -nostdlib - do not link with any standard libraries (including libgcc and libc)
-# -I$(LAIPATH)/include - include LAI header files
 # "-I." - add current directory as include path (so that we can include files from this directory)
 # -fpie - build position independent executable
 C_HARD_FLAGS := -c -mgeneral-regs-only -mno-red-zone \
-		-ffreestanding -nostdlib -I$(LAIPATH)/include  -I. -fpie
+		-ffreestanding -nostdlib  -I. -fpie
 
 # Common C flags, that are not essential for correct
 # compilation, but useful anyways. Value of this variable can be changed from the command line
@@ -88,7 +87,7 @@ OUTPUT_PATH = $(DESTDIR)/ricerca-kernel.elf
 ### Source files and object lists ###
 
 # List of all C source files for the kernel
-C_SOURCES = $(shell find . -type f -name '*.c') $(shell find $(LAIPATH) -type f -name '*.c')
+C_SOURCES = $(shell find . -type f -name '*.c')
 
 # List of all Assembly files for the kernel
 AS_SOURCES = $(shell find . -type f -name '*.asm')
@@ -152,7 +151,6 @@ profile: $(C_PROFILE_OBJS) $(AS_OBJS)
 
 # Clean object files
 obj_clean:
-	rm -f $(shell find $(LAIPATH) -type f -name '*.o')
 	rm -f $(shell find . -type f -name '*.o')
 
 # Clean rule that cleans everything, along with kernel binaries
