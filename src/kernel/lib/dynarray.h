@@ -50,12 +50,8 @@ inline static void *dynarray_new() {
 //! @param len Size of one dynarray cell
 //! @param newcap New capacity
 //! @return Pointer to the new dynarray
-//! @note If newcap < meta->count, meta->count will be set to newcap
 inline static struct dynarray_meta *dynarray_change_cap(struct dynarray_meta *meta, size_t len,
                                                         size_t newcap) {
-	if (newcap < meta->count) {
-		meta->count = len;
-	}
 	size_t total_old_size = sizeof(struct dynarray_meta) + meta->capacity * len;
 	size_t total_new_size = sizeof(struct dynarray_meta) + newcap * len;
 	struct dynarray_meta *new_meta =
@@ -73,7 +69,7 @@ inline static struct dynarray_meta *dynarray_change_cap(struct dynarray_meta *me
 //! @brief Try to push a new element
 //! @param dynarray Pointer to the dynarray
 //! @param elem Pointer to the elem
-//! @param len Size of the element
+//! @param len Size of one dynarray element
 //! @return Pointer to the new dynarray or NULL if push failed
 inline static void *dynarray_push(void *dynarray, void *elem, size_t len) {
 	struct dynarray_meta *meta = dynarray_to_meta(dynarray);
@@ -102,6 +98,31 @@ inline static void *dynarray_push(void *dynarray, void *elem, size_t len) {
 		__auto_type _12083047Buf = (elem);                                                         \
 		dynarray_push(dynarray, &_12083047Buf, sizeof(_12083047Buf));                              \
 	})
+
+//! @brief Resize dynarray
+//! @param dynarray Pointer to the dynarray
+//! @param len Size of one dynarray element
+//! @param newisze New dynarray size
+inline static void *dynarray_resize(void *dynarray, size_t len, size_t newsize) {
+	struct dynarray_meta *meta = dynarray_to_meta(dynarray);
+	size_t newcap = align_up(newsize, DYNARRAY_GROWTH_DELTA);
+	if (newcap == meta->capacity) {
+		meta->count = newsize;
+		return dynarray;
+	}
+	struct dynarray_meta *new_dynarray = dynarray_change_cap(meta, len, newcap);
+	if (new_dynarray == NULL) {
+		return NULL;
+	}
+	new_dynarray->count = newsize;
+	return new_dynarray;
+}
+
+//! @brief Dynarray generic resize method
+//! @param dynarray Pointer to the dynarray
+//! @param size New size
+//! @return Pointer to the new dynarray or null
+#define DYNARRAY_RESIZE(dynarray, size) dynarray_resize(dynarray, size, sizeof(*dynarray))
 
 //! @brief Destroy dynarray
 //! @param dynarray Pointer to the dynarray

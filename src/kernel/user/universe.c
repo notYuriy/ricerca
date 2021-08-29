@@ -215,8 +215,14 @@ int user_universe_move_out(struct user_universe *universe, size_t cell, struct u
 }
 
 //! @brief Lock universes pair
+//! @param universe1 First universe to lock
+//! @param universe2 Second universe to lock
 static void user_universe_lock_pair(struct user_universe *universe1,
                                     struct user_universe *universe2) {
+	// If universe1 and universe2 are the same, we only need to lock once
+	if (universe1 == universe2) {
+		thread_mutex_lock(&universe1->lock);
+	}
 	// Lock universes in order based on their id
 	if (universe1->universe_id < universe2->universe_id) {
 		thread_mutex_lock(&universe1->lock);
@@ -224,6 +230,18 @@ static void user_universe_lock_pair(struct user_universe *universe1,
 	} else {
 		thread_mutex_lock(&universe2->lock);
 		thread_mutex_lock(&universe1->lock);
+	}
+}
+
+//! @brief Unlock universes pair
+//! @param universe1 First universe to unlock
+//! @param universe2 Second universe to unlock
+static void user_universe_unlock_pair(struct user_universe *universe1,
+                                      struct user_universe *universe2) {
+	// If universes are the same, unlock once
+	thread_mutex_unlock(&universe1->lock);
+	if (universe1 != universe2) {
+		thread_mutex_unlock(&universe2->lock);
 	}
 }
 
@@ -254,8 +272,7 @@ int user_universe_move_across(struct user_universe *src, struct user_universe *d
 	src->cells[hsrc].in_use = false;
 	LIST_APPEND_TAIL(&src->free_list, &src->cells[hsrc], node);
 cleanup:
-	thread_mutex_unlock(&src->lock);
-	thread_mutex_unlock(&dst->lock);
+	user_universe_unlock_pair(src, dst);
 	return status;
 }
 
@@ -270,8 +287,7 @@ int user_universe_borrow_across(struct user_universe *src, struct user_universe 
 	user_universe_lock_pair(src, dst);
 	int status = USER_STATUS_SUCCESS;
 	if (!user_universe_check_ref_nolock(src, hsrc)) {
-		thread_mutex_unlock(&src->lock);
-		thread_mutex_unlock(&dst->lock);
+		user_universe_unlock_pair(src, dst);
 		return USER_STATUS_INVALID_HANDLE;
 	}
 	struct user_ref moved_ref = user_borrow_ref(src->cells[hsrc].ref);
@@ -281,8 +297,7 @@ int user_universe_borrow_across(struct user_universe *src, struct user_universe 
 	}
 	status = user_universe_move_in_nolock(dst, moved_ref, hdst);
 drop_and_cleanup:
-	thread_mutex_unlock(&src->lock);
-	thread_mutex_unlock(&dst->lock);
+	user_universe_unlock_pair(src, dst);
 	if (status != USER_STATUS_SUCCESS) {
 		user_drop_ref(moved_ref);
 	}
@@ -326,5 +341,49 @@ int user_universe_pin(struct user_universe *universe, size_t handle, size_t cook
 	}
 	universe->cells[handle].ref.pin_cookie = cookie;
 	thread_mutex_unlock(&universe->lock);
+	return USER_STATUS_SUCCESS;
+}
+
+//! @brief Fork universe
+//! @param src Pointer to the universe
+//! @param dst Buffer to store reference to the new universe in
+//! @param cookie Pin cookie
+//! @return API status
+int user_universe_fork(struct user_universe *src, struct user_universe **dst, size_t cookie) {
+	struct user_universe *forked = mem_heap_alloc(sizeof(struct user_universe));
+	if (forked == NULL) {
+		return USER_STATUS_OUT_OF_MEMORY;
+	}
+	DYNARRAY(struct user_universe_cell) cells = DYNARRAY_NEW(struct user_universe_cell);
+	if (cells == NULL) {
+		mem_heap_free(forked, sizeof(struct user_universe));
+		return USER_STATUS_OUT_OF_MEMORY;
+	}
+	forked->free_list = LIST_INIT;
+	forked->lock = THREAD_MUTEX_INIT;
+	forked->universe_id = ATOMIC_FETCH_INCREMENT(&user_universe_last_id);
+	MEM_REF_INIT(forked, user_universe_destroy);
+
+	thread_mutex_lock(&src->lock);
+	size_t length = dynarray_len(src->cells);
+	DYNARRAY(struct user_universe_cell)
+	resized = DYNARRAY_RESIZE(forked->cells, dynarray_len(src->cells));
+	if (resized == NULL) {
+		thread_mutex_unlock(&src->lock);
+		MEM_REF_DROP(forked);
+		return USER_STATUS_OUT_OF_MEMORY;
+	}
+	forked->cells = resized;
+	for (size_t i = 0; i < length; ++i) {
+		if (src->cells[i].in_use && user_unpinned_for(src->cells[i].ref, cookie)) {
+			forked->cells[i].ref = user_borrow_ref(src->cells[i].ref);
+			forked->cells[i].in_use = true;
+		} else {
+			forked->cells[i].in_use = false;
+			LIST_APPEND_TAIL(&forked->free_list, forked->cells + i, node);
+		}
+	}
+	thread_mutex_unlock(&src->lock);
+	*dst = forked;
 	return USER_STATUS_SUCCESS;
 }

@@ -168,6 +168,13 @@ int user_sys_unpin(struct user_api_entry *entry, size_t handle);
 //! @return API status
 int user_sys_pin(struct user_api_entry *entry, size_t handle);
 
+//! @brief Fork universe (Create a new one and copy all accessible handles)
+//! @param entry Pointer to the user API entry
+//! @param hsrc Universe handle
+//! @param hdst Buffer to store new universe handle in
+//! @return API status
+int user_sys_fork_universe(struct user_api_entry *entry, size_t hsrc, size_t *hdst);
+
 //! @brief Drop handle in the universe
 //! @param entry Pointer to the user API entry
 //! @param huniverse Universe handle

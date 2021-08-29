@@ -82,3 +82,10 @@ int user_universe_unpin(struct user_universe *universe, size_t handle, size_t co
 //! @param cookie Pin cookie
 //! @return API status
 int user_universe_pin(struct user_universe *universe, size_t handle, size_t cookie);
+
+//! @brief Fork universe (create new universe and copy all accessible handles)
+//! @param src Pointer to the universe
+//! @param dst Buffer to store reference to the new universe in
+//! @param cookie Pin cookie
+//! @return API status
+int user_universe_fork(struct user_universe *src, struct user_universe **dst, size_t cookie);

@@ -451,6 +451,37 @@ int user_sys_pin(struct user_api_entry *entry, size_t handle) {
 	return user_universe_pin(entry->universe, handle, entry->pin_cookie);
 }
 
+//! @brief Fork universe (Create a new one and copy all accessible handles)
+//! @param entry Pointer to the user API entry
+//! @param hsrc Universe handle
+//! @param hdst Buffer to store new universe handle in
+//! @return API status
+int user_sys_fork_universe(struct user_api_entry *entry, size_t hsrc, size_t *hdst) {
+	struct user_ref universe_ref;
+	int status = user_universe_borrow_out(entry->universe, hsrc, &universe_ref);
+	if (status != USER_STATUS_SUCCESS) {
+		return status;
+	}
+	if (universe_ref.type != USER_OBJ_TYPE_UNIVERSE) {
+		user_drop_ref(universe_ref);
+		return USER_STATUS_INVALID_HANDLE_TYPE;
+	}
+	struct user_ref forked_ref;
+	forked_ref.type = USER_OBJ_TYPE_UNIVERSE;
+	forked_ref.pin_cookie = entry->pin_cookie;
+	status = user_universe_fork(entry->universe, &forked_ref.universe, entry->pin_cookie);
+	user_drop_ref(universe_ref);
+	if (status != USER_STATUS_SUCCESS) {
+		return status;
+	}
+	status = user_universe_move_in(entry->universe, forked_ref, hdst);
+	if (status != USER_STATUS_SUCCESS) {
+		user_drop_ref(forked_ref);
+		return status;
+	}
+	return USER_STATUS_SUCCESS;
+}
+
 //! @brief Drop handle in the universe
 //! @param entry Pointer to the user API entry
 //! @param huniverse Universe handle
