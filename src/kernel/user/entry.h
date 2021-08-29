@@ -13,6 +13,8 @@
 struct user_api_entry {
 	//! @brief Pointer to the universe
 	struct user_universe *universe;
+	//! @brief Pin cookie
+	size_t pin_cookie;
 };
 
 //! @brief Initialize user API entry
@@ -154,16 +156,30 @@ int user_sys_borrow_in(struct user_api_entry *entry, size_t huniverse, size_t ou
 int user_sys_borrow_out(struct user_api_entry *entry, size_t huniverse, size_t inner,
                         size_t *outer);
 
+//! @brief Unpin reference (allow everyone with universe handle to borrow/move/drop it)
+//! @param entry Pointer to the user API entry
+//! @param handle Handle
+//! @return API status
+int user_sys_unpin(struct user_api_entry *entry, size_t handle);
+
+//! @brief Pin reference (restrict borrow/move/and drop operations to caller's cookie)
+//! @param entry Pointer to the user API entry
+//! @param handle Handle
+//! @return API status
+int user_sys_pin(struct user_api_entry *entry, size_t handle);
+
 //! @brief Drop handle in the universe
 //! @param entry Pointer to the user API entry
 //! @param huniverse Universe handle
 //! @param inner Inner handle to drop
+//! @return API status
 int user_sys_drop_in(struct user_api_entry *entry, size_t huniverse, size_t inner);
 
 //! @brief Drop cell at index
 //! @param entry Pointer to the user API entry
 //! @param handle Handle to drop
-void user_sys_drop(struct user_api_entry *entry, size_t handle);
+//! @return API status
+int user_sys_drop(struct user_api_entry *entry, size_t handle);
 
 //! @brief Deinitialize user API entry
 //! @param entry Pointer to the user API entry

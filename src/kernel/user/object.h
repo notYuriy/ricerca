@@ -22,6 +22,9 @@ enum
 	USER_OBJ_TYPE_UNIVERSE = 5,
 };
 
+//! @brief Unpinned cookie (no restrictions on duplicating/moving/dropping ref)
+#define USER_COOKIE_UNPIN 0
+
 //! @brief Object reference
 struct user_ref {
 	union {
@@ -40,7 +43,14 @@ struct user_ref {
 	};
 	//! @brief Referenced object type
 	int type;
+	//! @brief Pin cookie (controls who is allowed to duplicate/move/drop reference)
+	size_t pin_cookie;
 };
+
+//! @brief Check if duplicate/move/drop operation could be performed on this reference
+static inline bool user_unpinned_for(struct user_ref ref, size_t cookie) {
+	return ref.pin_cookie == USER_COOKIE_UNPIN || ref.pin_cookie == cookie;
+}
 
 //! @brief Drop reference to the object
 //! @param ref Reference to drop

@@ -26,41 +26,59 @@ int user_universe_move_in(struct user_universe *universe, struct user_ref ref, s
 //! @param refs Array of two references to store
 //! @param cells Array of two cell indices to store results in
 //! @return API status
-int user_universe_alloc_cell_pair(struct user_universe *universe, struct user_ref *refs,
-                                  size_t *cells);
+int user_universe_move_in_pair(struct user_universe *universe, struct user_ref *refs,
+                               size_t *cells);
 
 //! @brief Drop reference at index
 //! @param universe Universe to drop reference from
 //! @param cell Index of cell
+//! @param cookie Pin cookie
 //! @return API status
-void user_universe_drop_cell(struct user_universe *universe, size_t cell);
+int user_universe_drop_cell(struct user_universe *universe, size_t cell, size_t cookie);
 
 //! @brief Borrow reference to the object at index
 //! @param universe Universe to borrow reference from
 //! @param cell Index of cell with the reference
 //! @param buf Buffer to store borrowed reference in
 //! @return API status
-int user_universe_borrow_ref(struct user_universe *universe, size_t cell, struct user_ref *buf);
+int user_universe_borrow_out(struct user_universe *universe, size_t cell, struct user_ref *buf);
 
 //! @brief Move reference to the object at index
 //! @param universe Universe to move reference from
 //! @param cell Index of cell with the references
 //! @param buf Buffer to store reference in
 //! @return API status
-int user_universe_move_ref(struct user_universe *universe, size_t cell, struct user_ref *buf);
+int user_universe_move_out(struct user_universe *universe, size_t cell, struct user_ref *buf);
 
 //! @brief Move reference from one universe to the other
 //! @param src Source universe
 //! @param dst Destination universe
 //! @param hsrc Handle in source universe
 //! @param hdst Buffer to store handle for destination universe
+//! @param cookie Pin cookie
+//! @return API status
 int user_universe_move_across(struct user_universe *src, struct user_universe *dst, size_t hsrc,
-                              size_t *hdst);
+                              size_t *hdst, size_t cookie);
 
 //! @brief Borrow reference from one universe to the other
 //! @param src Source universe
 //! @param dst Destination universe
 //! @param hsrc Handle in source universe
 //! @param hdst Buffer to store handle for destination universe
+//! @return API status
 int user_universe_borrow_across(struct user_universe *src, struct user_universe *dst, size_t hsrc,
-                                size_t *hdst);
+                                size_t *hdst, size_t cookie);
+
+//! @brief Unpin reference
+//! @param universe Pointer to the universe
+//! @param handle Handle to unpin
+//! @param cookie Pin cookie
+//! @return API status
+int user_universe_unpin(struct user_universe *universe, size_t handle, size_t cookie);
+
+//! @brief Pin reference
+//! @param universe Pointer to the universe
+//! @param handle Handle to unpin
+//! @param cookie Pin cookie
+//! @return API status
+int user_universe_pin(struct user_universe *universe, size_t handle, size_t cookie);

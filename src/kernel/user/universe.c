@@ -123,8 +123,8 @@ int user_universe_move_in(struct user_universe *universe, struct user_ref ref, s
 //! @param refs Array of two references to store
 //! @param cells Array of two cell indices to store results in
 //! @return API status
-int user_universe_alloc_cell_pair(struct user_universe *universe, struct user_ref *refs,
-                                  size_t *cells) {
+int user_universe_move_in_pair(struct user_universe *universe, struct user_ref *refs,
+                               size_t *cells) {
 	ASSERT(refs[0].type != USER_OBJ_TYPE_UNIVERSE, "Universe passed to user_allocate_ceil_pair");
 	ASSERT(refs[1].type != USER_OBJ_TYPE_UNIVERSE, "Universe passed to user_allocate_ceil_pair");
 	thread_mutex_lock(&universe->lock);
@@ -149,9 +149,8 @@ int user_universe_alloc_cell_pair(struct user_universe *universe, struct user_re
 //! @param universe Universe
 //! @param cell Cell index
 //! @return True if reference at index is valid
-bool user_check_ref_nolock(struct user_universe *universe, size_t cell) {
+bool user_universe_check_ref_nolock(struct user_universe *universe, size_t cell) {
 	if (cell > dynarray_len(universe->cells) || !universe->cells[cell].in_use) {
-		thread_mutex_unlock(&universe->lock);
 		return false;
 	}
 	return true;
@@ -160,13 +159,24 @@ bool user_check_ref_nolock(struct user_universe *universe, size_t cell) {
 //! @brief Drop reference at index
 //! @param universe Universe to drop reference from
 //! @param cell Index of cell
+//! @param cookie Pin cookie
 //! @return API status
-void user_universe_drop_cell(struct user_universe *universe, size_t cell) {
-	struct user_ref ref;
-	int status = user_universe_move_ref(universe, cell, &ref);
-	if (status == USER_STATUS_SUCCESS) {
-		user_drop_ref(ref);
+int user_universe_drop_cell(struct user_universe *universe, size_t cell, size_t cookie) {
+	thread_mutex_lock(&universe->lock);
+	if (!user_universe_check_ref_nolock(universe, cell)) {
+		thread_mutex_unlock(&universe->lock);
+		return USER_STATUS_INVALID_HANDLE;
 	}
+	struct user_ref ref = universe->cells[cell].ref;
+	if (!user_unpinned_for(ref, cookie)) {
+		thread_mutex_unlock(&universe->lock);
+		return USER_STATUS_PIN_COOKIE_MISMATCH;
+	}
+	universe->cells[cell].in_use = false;
+	LIST_APPEND_TAIL(&universe->free_list, &universe->cells[cell], node);
+	thread_mutex_unlock(&universe->lock);
+	user_drop_ref(ref);
+	return USER_STATUS_SUCCESS;
 }
 
 //! @brief Borrow reference to the object at index
@@ -174,9 +184,10 @@ void user_universe_drop_cell(struct user_universe *universe, size_t cell) {
 //! @param cell Index of cell with the reference
 //! @param buf Buffer to store borrowed reference in
 //! @return API status
-int user_universe_borrow_ref(struct user_universe *universe, size_t cell, struct user_ref *buf) {
+int user_universe_borrow_out(struct user_universe *universe, size_t cell, struct user_ref *buf) {
 	thread_mutex_lock(&universe->lock);
-	if (!user_check_ref_nolock(universe, cell)) {
+	if (!user_universe_check_ref_nolock(universe, cell)) {
+		thread_mutex_unlock(&universe->lock);
 		return USER_STATUS_INVALID_HANDLE;
 	}
 	buf->type = universe->cells[cell].ref.type;
@@ -190,9 +201,9 @@ int user_universe_borrow_ref(struct user_universe *universe, size_t cell, struct
 //! @param cell Index of cell with the references
 //! @param buf Buffer to store reference in
 //! @return API status
-int user_universe_move_ref(struct user_universe *universe, size_t cell, struct user_ref *buf) {
+int user_universe_move_out(struct user_universe *universe, size_t cell, struct user_ref *buf) {
 	thread_mutex_lock(&universe->lock);
-	if (!user_check_ref_nolock(universe, cell)) {
+	if (!user_universe_check_ref_nolock(universe, cell)) {
 		thread_mutex_unlock(&universe->lock);
 		return USER_STATUS_INVALID_HANDLE;
 	}
@@ -220,16 +231,22 @@ static void user_universe_lock_pair(struct user_universe *universe1,
 //! @param src Source universe
 //! @param dst Destination universe
 //! @param hsrc Handle in source universe
-//! @param hdst Buffer to store handle in destination universe
+//! @param hdst Buffer to store handle for destination universe
+//! @param cookie Pin cookie
+//! @return API status
 int user_universe_move_across(struct user_universe *src, struct user_universe *dst, size_t hsrc,
-                              size_t *hdst) {
+                              size_t *hdst, size_t cookie) {
 	user_universe_lock_pair(src, dst);
 	int status = USER_STATUS_SUCCESS;
-	if (!user_check_ref_nolock(src, hsrc)) {
+	if (!user_universe_check_ref_nolock(src, hsrc)) {
 		status = USER_STATUS_INVALID_HANDLE;
 		goto cleanup;
 	}
 	struct user_ref moved_ref = src->cells[hsrc].ref;
+	if (!user_unpinned_for(moved_ref, cookie)) {
+		status = USER_STATUS_PIN_COOKIE_MISMATCH;
+		goto cleanup;
+	}
 	status = user_universe_move_in_nolock(dst, moved_ref, hdst);
 	if (status != USER_STATUS_SUCCESS) {
 		goto cleanup;
@@ -247,24 +264,67 @@ cleanup:
 //! @param dst Destination universe
 //! @param hsrc Handle in source universe
 //! @param hdst Buffer to store handle for destination universe
+//! @return API status
 int user_universe_borrow_across(struct user_universe *src, struct user_universe *dst, size_t hsrc,
-                                size_t *hdst) {
+                                size_t *hdst, size_t cookie) {
 	user_universe_lock_pair(src, dst);
 	int status = USER_STATUS_SUCCESS;
-	if (!user_check_ref_nolock(src, hsrc)) {
+	if (!user_universe_check_ref_nolock(src, hsrc)) {
 		thread_mutex_unlock(&src->lock);
 		thread_mutex_unlock(&dst->lock);
 		return USER_STATUS_INVALID_HANDLE;
 	}
-	struct user_ref moved_ref = user_borrow_ref(moved_ref);
-	status = user_universe_move_in_nolock(dst, moved_ref, hdst);
-	if (status != USER_STATUS_SUCCESS) {
-		thread_mutex_unlock(&src->lock);
-		thread_mutex_unlock(&dst->lock);
-		user_drop_ref(moved_ref);
-		return status;
+	struct user_ref moved_ref = user_borrow_ref(src->cells[hsrc].ref);
+	if (!user_unpinned_for(moved_ref, cookie)) {
+		status = USER_STATUS_PIN_COOKIE_MISMATCH;
+		goto drop_and_cleanup;
 	}
+	status = user_universe_move_in_nolock(dst, moved_ref, hdst);
+drop_and_cleanup:
 	thread_mutex_unlock(&src->lock);
 	thread_mutex_unlock(&dst->lock);
+	if (status != USER_STATUS_SUCCESS) {
+		user_drop_ref(moved_ref);
+	}
+	return status;
+}
+
+//! @brief Unpin reference
+//! @param universe Pointer to the universe
+//! @param handle Handle to unpin
+//! @param cookie Security cookie
+//! @return API status
+int user_universe_unpin(struct user_universe *universe, size_t handle, size_t cookie) {
+	thread_mutex_lock(&universe->lock);
+	if (!user_universe_check_ref_nolock(universe, handle)) {
+		thread_mutex_unlock(&universe->lock);
+		return USER_STATUS_INVALID_HANDLE;
+	}
+	if (!user_unpinned_for(universe->cells[handle].ref, cookie)) {
+		thread_mutex_unlock(&universe->lock);
+		return USER_STATUS_PIN_COOKIE_MISMATCH;
+	}
+	universe->cells[handle].ref.pin_cookie = USER_COOKIE_UNPIN;
+	thread_mutex_unlock(&universe->lock);
+	return USER_STATUS_SUCCESS;
+}
+
+//! @brief Pin reference
+//! @param universe Pointer to the universe
+//! @param handle Handle to unpin
+//! @param cookie Pin cookie
+//! @return API status
+int user_universe_pin(struct user_universe *universe, size_t handle, size_t cookie) {
+	thread_mutex_lock(&universe->lock);
+	if (!user_universe_check_ref_nolock(universe, handle)) {
+		thread_mutex_unlock(&universe->lock);
+		return USER_STATUS_INVALID_HANDLE;
+	}
+	if (!user_unpinned_for(universe->cells[handle].ref, cookie)) {
+		thread_mutex_unlock(&universe->lock);
+		return USER_STATUS_PIN_COOKIE_MISMATCH;
+	}
+	universe->cells[handle].ref.pin_cookie = cookie;
+	thread_mutex_unlock(&universe->lock);
 	return USER_STATUS_SUCCESS;
 }
