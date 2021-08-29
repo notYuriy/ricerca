@@ -71,7 +71,7 @@ clean:
 # Binary clean rule
 # Clears only kenrel binaries and object files
 kernel-clean:
-	make -C src/kernel clean
+	LAIPATH=$(shell pwd)/build/libraries/lai make -C src/kernel clean
 
 # Run release image in QEMU with KVM enabled
 run-release-kvm: ricerca-release.iso
