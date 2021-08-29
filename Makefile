@@ -163,13 +163,17 @@ build-safe: ricerca-safe.iso
 build-profile: ricerca-profile.iso
 
 # Find symbol by address rule
-addr2line:
+kernel-addr2line:
 	addr2line -e build/system-root/boot/ricerca-kernel.elf $(SYMBOL)
 
 # List kernel symbols
-nm:
+kernel-nm:
 	nm -n build/system-root/boot/ricerca-kernel.elf
 
 # Output lines of code info
-cloc:
+kernel-cloc:
 	cloc src/kernel
+
+# Run bloaty on kernel binary
+kernel-bloaty:
+	bloaty build/system-root/boot/ricerca-kernel.elf -d compileunits
