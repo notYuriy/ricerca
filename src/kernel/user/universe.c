@@ -367,7 +367,7 @@ int user_universe_fork(struct user_universe *src, struct user_universe **dst, si
 	thread_mutex_lock(&src->lock);
 	size_t length = dynarray_len(src->cells);
 	DYNARRAY(struct user_universe_cell)
-	resized = DYNARRAY_RESIZE(forked->cells, dynarray_len(src->cells));
+	resized = DYNARRAY_RESIZE(cells, length);
 	if (resized == NULL) {
 		thread_mutex_unlock(&src->lock);
 		MEM_REF_DROP(forked);

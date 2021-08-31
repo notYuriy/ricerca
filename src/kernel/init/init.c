@@ -42,6 +42,7 @@ static struct stivale2_tag stivale2_5lvl_paging_tag = {
     .next = 0,
 };
 
+/*
 //! @brief Stivale2 framebuffer tag
 static struct stivale2_header_tag_framebuffer stivale2_fb_tag = {
     .tag = {.identifier = STIVALE2_HEADER_TAG_FRAMEBUFFER_ID,
@@ -50,13 +51,14 @@ static struct stivale2_header_tag_framebuffer stivale2_fb_tag = {
     .framebuffer_width = 0,
     .framebuffer_bpp = 0,
 };
+*/
 
 //! @brief Stivale2 terminal tag
 static struct stivale2_header_tag_terminal stivale2_term_tag = {
     .tag =
         {
             .identifier = STIVALE2_HEADER_TAG_TERMINAL_ID,
-            .next = (uint64_t)&stivale2_fb_tag,
+            .next = (uint64_t)&stivale2_5lvl_paging_tag,
         },
     .flags = 0};
 
@@ -109,7 +111,7 @@ void kernel_unload_stivale2_term(void) {
 //! @brief Kernel init stage2
 void kernel_init_stage2() {
 	LOG_SUCCESS("Running in stage 2");
-	test_rpc();
+	tests_run();
 	while (true)
 		;
 }

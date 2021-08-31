@@ -102,8 +102,10 @@ attribute_noinline void __ubsan_handle_negate_overflow() {
 	hang();
 }
 
-attribute_noinline void __ubsan_handle_load_invalid_value() {
-	LOG_PANIC("load invalid value");
+attribute_noinline void __ubsan_handle_load_invalid_value(void *data_raw) {
+	struct ubsan_invalid_value_data *data = (struct ubsan_invalid_value_data *)data_raw;
+	LOG_PANIC(UBSAN_LOC_FMT " load of invalid value (type \"%s\")", UBSAN_FROM_LOC(data->location),
+	          data->type->name);
 	hang();
 }
 

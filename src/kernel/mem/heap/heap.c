@@ -247,5 +247,7 @@ void *mem_heap_realloc(void *mem, size_t newsize, size_t oldsize) {
 	}
 	// Copy data from old region
 	memcpy(result, mem, min);
+	// Free old region
+	mem_heap_free(mem, oldsize);
 	return result;
 }

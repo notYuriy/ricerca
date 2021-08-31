@@ -73,7 +73,7 @@ inline static struct dynarray_meta *dynarray_change_cap(struct dynarray_meta *me
 //! @return Pointer to the new dynarray or NULL if push failed
 inline static void *dynarray_push(void *dynarray, void *elem, size_t len) {
 	struct dynarray_meta *meta = dynarray_to_meta(dynarray);
-	if (meta->capacity < meta->count) {
+	if (meta->count < meta->capacity) {
 		memcpy(meta->data + meta->count * len, elem, len);
 		meta->count++;
 		return dynarray;
@@ -129,7 +129,7 @@ inline static void *dynarray_resize(void *dynarray, size_t len, size_t newsize) 
 //! @param len Length of one element
 inline static void dynarray_destroy(void *dynarray, size_t len) {
 	struct dynarray_meta *meta = dynarray_to_meta(dynarray);
-	mem_heap_free(meta, meta->count * len + sizeof(struct dynarray_meta));
+	mem_heap_free(meta, meta->capacity * len + sizeof(struct dynarray_meta));
 }
 
 //! @brief Generic dynarray destroy macro

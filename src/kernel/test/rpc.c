@@ -13,7 +13,7 @@
 MODULE("test/rpc")
 
 //! @brief Number of messages to be passed
-#define TEST_RPC_CALLS_NUM 100
+#define TEST_RPC_CALLS_NUM 1000000
 
 //! @brief RPC server paramenters
 struct test_rpc_server_params {
@@ -34,19 +34,19 @@ void test_rpc_server(struct test_rpc_server_params *params) {
 		struct user_notification notification;
 		int status = user_sys_get_notification(params->entry, params->hmailbox, &notification);
 		ASSERT(status == USER_STATUS_SUCCESS, "Failed to recieve notification");
-		LOG_INFO("Recieved notification for call #%U", i);
+		// LOG_INFO("Recieved notification for call #%U", i);
 		ASSERT(notification.type == USER_NOTE_TYPE_RPC_INCOMING, "Wrong notification type");
 		ASSERT(notification.opaque == 0xdeadbeef, "Wrong notification opaque value");
 
 		struct user_rpc_msg msg;
 		status = user_sys_rpc_accept(params->entry, params->hcallee, &msg);
 		ASSERT(status == USER_STATUS_SUCCESS, "Failed to accept RPC");
-		LOG_INFO("Accepted RPC #%U", i);
+		// LOG_INFO("Accepted RPC #%U", i);
 		ASSERT(msg.opaque == i, "Invalid key value");
 
 		status = user_sys_rpc_return(params->entry, params->hcallee, &msg);
 		ASSERT(status == USER_STATUS_SUCCESS, "Failed to return RPC");
-		LOG_INFO("Returned RPC #%U", i);
+		// LOG_INFO("Returned RPC #%U", i);
 	}
 	struct user_notification notification;
 	int status = user_sys_get_notification(params->entry, params->hmailbox, &notification);
@@ -83,18 +83,18 @@ void test_rpc_client(struct test_rpc_client_params *params) {
 		msg.opaque = 0xabacaba;
 		int status = user_sys_rpc_call(params->entry, params->hcaller, params->htoken, &msg);
 		ASSERT(status == USER_STATUS_SUCCESS, "Failed to initiate RPC call");
-		LOG_INFO("Initiated RPC #%U", i);
+		// LOG_INFO("Initiated RPC #%U", i);
 
 		struct user_notification notification;
 		status = user_sys_get_notification(params->entry, params->hmailbox, &notification);
 		ASSERT(status == USER_STATUS_SUCCESS, "Failed to recieve notification");
-		LOG_INFO("Recieved notification for reply to call #%U", i);
+		// LOG_INFO("Recieved notification for reply to call #%U", i);
 		ASSERT(notification.type == USER_NOTE_TYPE_RPC_REPLY, "Wrong notification type");
 		ASSERT(notification.opaque == 0xcafebabe, "Wrong notification opaque value");
 
 		status = user_sys_rpc_recv_reply(params->entry, params->hcaller, &msg);
 		ASSERT(status == USER_STATUS_SUCCESS, "Failed to recieve reply");
-		LOG_INFO("Recieved reply to call #%U", i);
+		// LOG_INFO("Recieved reply to call #%U", i);
 		ASSERT(msg.opaque == 0xabacaba, "Wrong opaque value");
 	}
 	user_api_entry_deinit(params->entry);
@@ -158,5 +158,4 @@ void test_rpc(void) {
 	while (ATOMIC_ACQUIRE_LOAD(&client_params.finished) != 1) {
 		asm volatile("pause");
 	}
-	LOG_SUCCESS("IPC test done");
 }

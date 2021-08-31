@@ -13,7 +13,7 @@ MODULE("test/heap")
 //! @brief Maximum number of kept-alive pointers
 #define MAX_OBJ 256
 //! @brief Number of iterations (allocation/free attempts)
-#define ITERATIONS 1048576
+#define ITERATIONS 65536
 //! @brief Progress bar size
 #define PROGRESS_BAR_SIZE 50
 

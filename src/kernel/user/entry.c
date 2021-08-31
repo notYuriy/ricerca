@@ -367,7 +367,7 @@ int user_sys_move_in(struct user_api_entry *entry, size_t huniverse, size_t oute
 	status = user_universe_move_across(entry->universe, universe_ref.universe, outer, inner,
 	                                   entry->pin_cookie);
 	user_drop_ref(universe_ref);
-	return USER_STATUS_SUCCESS;
+	return status;
 }
 
 //! @brief Move handle out of universe
@@ -388,7 +388,7 @@ int user_sys_move_out(struct user_api_entry *entry, size_t huniverse, size_t inn
 	status = user_universe_move_across(universe_ref.universe, entry->universe, inner, outer,
 	                                   entry->pin_cookie);
 	user_drop_ref(universe_ref);
-	return USER_STATUS_SUCCESS;
+	return status;
 }
 
 //! @brief Move handle and store it in universe
@@ -410,7 +410,7 @@ int user_sys_borrow_in(struct user_api_entry *entry, size_t huniverse, size_t ou
 	status = user_universe_borrow_across(entry->universe, universe_ref.universe, outer, inner,
 	                                     entry->pin_cookie);
 	user_drop_ref(universe_ref);
-	return USER_STATUS_SUCCESS;
+	return status;
 }
 
 //! @brief Move handle out of universe
@@ -432,7 +432,7 @@ int user_sys_borrow_out(struct user_api_entry *entry, size_t huniverse, size_t i
 	status = user_universe_borrow_across(universe_ref.universe, entry->universe, inner, outer,
 	                                     entry->pin_cookie);
 	user_drop_ref(universe_ref);
-	return USER_STATUS_SUCCESS;
+	return status;
 }
 
 //! @brief Unpin reference (allow everyone with universe handle to borrow/move/drop it)
