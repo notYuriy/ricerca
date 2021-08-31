@@ -110,19 +110,19 @@ inline static void *dynarray_resize(void *dynarray, size_t len, size_t newsize) 
 		meta->count = newsize;
 		return dynarray;
 	}
-	struct dynarray_meta *new_dynarray = dynarray_change_cap(meta, len, newcap);
-	if (new_dynarray == NULL) {
+	struct dynarray_meta *new_meta = dynarray_change_cap(meta, len, newcap);
+	if (new_meta == NULL) {
 		return NULL;
 	}
-	new_dynarray->count = newsize;
-	return new_dynarray;
+	new_meta->count = newsize;
+	return &new_meta->data;
 }
 
 //! @brief Dynarray generic resize method
 //! @param dynarray Pointer to the dynarray
 //! @param size New size
 //! @return Pointer to the new dynarray or null
-#define DYNARRAY_RESIZE(dynarray, size) dynarray_resize(dynarray, size, sizeof(*dynarray))
+#define DYNARRAY_RESIZE(dynarray, size) dynarray_resize(dynarray, sizeof(*dynarray), size)
 
 //! @brief Destroy dynarray
 //! @param dynarray Pointer to the dynarray

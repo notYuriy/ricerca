@@ -140,4 +140,5 @@ attribute_noinline void __ubsan_handle_vla_bound_not_positive(void *data_raw, vo
 attribute_noinline void __ubsan_handle_invalid_builtin(void *data_raw) {
 	struct ubsan_invalid_builtin_data *data = (struct ubsan_invalid_builtin_data *)data_raw;
 	LOG_PANIC(UBSAN_LOC_FMT " invalid builtin", UBSAN_FROM_LOC(data->location));
+	hang();
 }

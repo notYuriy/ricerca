@@ -231,6 +231,7 @@ void *mem_heap_realloc(void *mem, size_t newsize, size_t oldsize) {
 	// If newsize = 0, use mem_heap_free
 	if (newsize == 0) {
 		mem_heap_free(mem, oldsize);
+		return NULL;
 	}
 	// If orders match, we can just reuse mem. If not, reallocate to a new region
 	// NOTE: We assume here that PMM also allocates orders of 2

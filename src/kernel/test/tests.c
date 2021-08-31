@@ -40,11 +40,12 @@ static void tests_run_unit(struct test_unit *unit) {
 
 //! @brief Test units
 static struct test_unit units[] = {
-    /*{.name = "Heap integrity test", .callback = test_heap_integrity},*/
     {.name = "Pairing heap test", .callback = test_pairing_heap},
     {.name = "Resizable arrays test", .callback = test_dynarray},
+    {.name = "Universes test", .callback = test_universe},
     {.name = "RPC test", .callback = test_rpc},
-    {.name = "Universes test", .callback = test_universe}};
+    {.name = "Heap integrity test", .callback = test_heap_integrity},
+};
 
 //! @brief Run tests
 void tests_run(void) {
