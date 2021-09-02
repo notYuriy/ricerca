@@ -3,16 +3,20 @@
 
 #include <user/entry.h>
 
-//! @brief Last allocated pin cookie
-size_t user_api_last_pin_cookie = 0;
-
 //! @brief Initialize user API entry
 //! @param entry Pointer to the user API entry
 //! @return User API error
 int user_api_entry_init(struct user_api_entry *entry) {
-	entry->pin_cookie = ATOMIC_FETCH_INCREMENT(&user_api_last_pin_cookie);
 	int status = user_universe_create(&entry->universe);
-	return status;
+	if (status != USER_STATUS_SUCCESS) {
+		return status;
+	}
+	status = user_entry_cookie_create(&entry->cookie);
+	if (status != USER_STATUS_SUCCESS) {
+		MEM_REF_DROP(entry->universe);
+		return status;
+	}
+	return USER_STATUS_SUCCESS;
 }
 
 //! @brief Move out handle at position
@@ -42,7 +46,7 @@ int user_api_entry_move_handle_in(struct user_api_entry *entry, struct user_ref 
 int user_sys_create_mailbox(struct user_api_entry *entry, size_t quota, size_t *handle) {
 	struct user_ref ref;
 	ref.type = USER_OBJ_TYPE_MAILBOX;
-	ref.pin_cookie = entry->pin_cookie;
+	ref.pin_cookie = user_entry_cookie_get_key(entry->cookie);
 	int status = user_create_mailbox(&ref.mailbox, quota);
 	if (status != USER_STATUS_SUCCESS) {
 		return status;
@@ -79,6 +83,146 @@ int user_sys_get_notification(struct user_api_entry *entry, size_t hmailbox,
 	return status;
 }
 
+//! @brief Create group cookie object
+//! @param entry Pointer to the user API entry
+//! @param handle Buffer to to store group cookie handle in
+//! @return API status
+int user_sys_create_group_cookie(struct user_api_entry *entry, size_t *handle) {
+	struct user_ref group_cookie_ref;
+	group_cookie_ref.type = USER_OBJ_TYPE_GROUP_COOKIE;
+	group_cookie_ref.pin_cookie = user_entry_cookie_get_key(entry->cookie);
+	int status = user_group_cookie_create(&group_cookie_ref.group_cookie);
+	if (status != USER_STATUS_SUCCESS) {
+		return status;
+	}
+	status = user_universe_move_in(entry->universe, group_cookie_ref, handle);
+	if (status != USER_STATUS_SUCCESS) {
+		user_drop_ref(group_cookie_ref);
+		return status;
+	}
+	return USER_STATUS_SUCCESS;
+}
+
+//! @brief Create entry cookie object
+//! @param entry Pointer to the user API entry
+//! @param handle Buffer to to store entry cookie handle in
+//! @return API status
+int user_sys_create_entry_cookie(struct user_api_entry *entry, size_t *handle) {
+	struct user_ref entry_cookie_ref;
+	entry_cookie_ref.type = USER_OBJ_TYPE_ENTRY_COOKIE;
+	entry_cookie_ref.pin_cookie = user_entry_cookie_get_key(entry->cookie);
+	int status = user_entry_cookie_create(&entry_cookie_ref.entry_cookie);
+	if (status != USER_STATUS_SUCCESS) {
+		return status;
+	}
+	status = user_universe_move_in(entry->universe, entry_cookie_ref, handle);
+	if (status != USER_STATUS_SUCCESS) {
+		user_drop_ref(entry_cookie_ref);
+		return status;
+	}
+	return USER_STATUS_SUCCESS;
+}
+
+//! @brief Join the group
+//! @param entry Pointer to the user API entry
+//! @param hgrp Group cookie handle
+//! @return API status
+int user_sys_join_group(struct user_api_entry *entry, size_t hgrp) {
+	struct user_ref group_ref;
+	int status = user_universe_borrow_out(entry->universe, hgrp, &group_ref);
+	if (status != USER_STATUS_SUCCESS) {
+		return status;
+	}
+	if (group_ref.type != USER_OBJ_TYPE_GROUP_COOKIE) {
+		user_drop_ref(group_ref);
+		return USER_STATUS_INVALID_HANDLE_TYPE;
+	}
+	status = user_entry_cookie_add_to_grp(entry->cookie, group_ref.group_cookie);
+	user_drop_ref(group_ref);
+	return status;
+}
+
+//! @brief Leave the group
+//! @param entry Pointer to the user API entry
+//! @param hgrp Group cookie handle
+//! @return API status
+int user_sys_leave_group(struct user_api_entry *entry, size_t hgrp) {
+	struct user_ref group_ref;
+	int status = user_universe_borrow_out(entry->universe, hgrp, &group_ref);
+	if (status != USER_STATUS_SUCCESS) {
+		return status;
+	}
+	if (group_ref.type != USER_OBJ_TYPE_GROUP_COOKIE) {
+		user_drop_ref(group_ref);
+		return USER_STATUS_INVALID_HANDLE_TYPE;
+	}
+	status = user_entry_cookie_remove_from_grp(entry->cookie, group_ref.group_cookie);
+	user_drop_ref(group_ref);
+	return status;
+}
+
+//! @brief Add entry cookie to the group
+//! @param entry Pointer to the user API entry
+//! @param hentry Entry cookie handle
+//! @param hgrp Group handle
+//! @return API status
+int user_sys_add_entry_to_group(struct user_api_entry *entry, size_t hentry, size_t hgrp) {
+	struct user_ref entry_ref, group_ref;
+	int status = user_universe_borrow_out(entry->universe, hentry, &entry_ref);
+	if (status != USER_STATUS_SUCCESS) {
+		return status;
+	}
+	if (entry_ref.type != USER_OBJ_TYPE_ENTRY_COOKIE) {
+		user_drop_ref(entry_ref);
+		return USER_STATUS_INVALID_HANDLE_TYPE;
+	}
+	status = user_universe_borrow_out(entry->universe, hgrp, &group_ref);
+	if (status != USER_STATUS_SUCCESS) {
+		user_drop_ref(entry_ref);
+		return status;
+	}
+	if (group_ref.type != USER_OBJ_TYPE_GROUP_COOKIE) {
+		user_drop_ref(entry_ref);
+		user_drop_ref(group_ref);
+		return USER_STATUS_INVALID_HANDLE_TYPE;
+	}
+	status = user_entry_cookie_add_to_grp(entry_ref.entry_cookie, group_ref.group_cookie);
+	user_drop_ref(entry_ref);
+	user_drop_ref(group_ref);
+	return status;
+}
+
+//! @brief Remove entry cookie to the group
+//! @param entry Pointer to the user API entry
+//! @param hentry Entry cookie handle
+//! @param hgrp Group handle
+//! @return API status
+int user_sys_remove_entry_from_group(struct user_api_entry *entry, size_t hentry, size_t hgrp) {
+	struct user_ref entry_ref, group_ref;
+	int status = user_universe_borrow_out(entry->universe, hentry, &entry_ref);
+	if (status != USER_STATUS_SUCCESS) {
+		return status;
+	}
+	if (entry_ref.type != USER_OBJ_TYPE_ENTRY_COOKIE) {
+		user_drop_ref(entry_ref);
+		return USER_STATUS_INVALID_HANDLE_TYPE;
+	}
+	status = user_universe_borrow_out(entry->universe, hgrp, &group_ref);
+	if (status != USER_STATUS_SUCCESS) {
+		user_drop_ref(entry_ref);
+		return status;
+	}
+	if (group_ref.type != USER_OBJ_TYPE_GROUP_COOKIE) {
+		user_drop_ref(entry_ref);
+		user_drop_ref(group_ref);
+		return USER_STATUS_INVALID_HANDLE_TYPE;
+	}
+	status = user_entry_cookie_remove_from_grp(entry_ref.entry_cookie, group_ref.group_cookie);
+	user_drop_ref(entry_ref);
+	user_drop_ref(group_ref);
+	return status;
+}
+
 //! @brief Create caller
 //! @param entry Pointer to the user API entry
 //! @param hmailbox Mailbox handle
@@ -105,7 +249,7 @@ int user_sys_create_caller(struct user_api_entry *entry, size_t hmailbox, size_t
 	struct user_ref caller_ref;
 	caller_ref.caller = caller;
 	caller_ref.type = USER_OBJ_TYPE_CALLER;
-	caller_ref.pin_cookie = entry->pin_cookie;
+	caller_ref.pin_cookie = user_entry_cookie_get_key(entry->cookie);
 	size_t result;
 	status = user_universe_move_in(entry->universe, caller_ref, &result);
 	if (status != USER_STATUS_SUCCESS) {
@@ -145,10 +289,10 @@ int user_sys_create_callee(struct user_api_entry *entry, size_t hmailbox, size_t
 	struct user_ref refs[2];
 	refs[0].type = USER_OBJ_TYPE_CALLEE;
 	refs[0].callee = callee;
-	refs[0].pin_cookie = entry->pin_cookie;
+	refs[0].pin_cookie = user_entry_cookie_get_key(entry->cookie);
 	refs[1].type = USER_OBJ_TYPE_TOKEN;
 	refs[1].token = token;
-	refs[1].pin_cookie = entry->pin_cookie;
+	refs[1].pin_cookie = refs[0].pin_cookie;
 	size_t cells[2];
 	status = user_universe_move_in_pair(entry->universe, refs, cells);
 	if (status != USER_STATUS_SUCCESS) {
@@ -268,7 +412,7 @@ int user_sys_create_universe(struct user_api_entry *entry, size_t *huniverse) {
 	struct user_ref universe_ref;
 	universe_ref.type = USER_OBJ_TYPE_UNIVERSE;
 	universe_ref.universe = universe;
-	universe_ref.pin_cookie = entry->pin_cookie;
+	universe_ref.pin_cookie = user_entry_cookie_get_key(entry->cookie);
 	size_t cell;
 	status = user_universe_move_in(entry->universe, universe_ref, &cell);
 	if (status != USER_STATUS_SUCCESS) {
@@ -323,7 +467,7 @@ int user_sys_move_across_universes(struct user_api_entry *entry, size_t hsrc, si
 		return status;
 	}
 	status = user_universe_move_across(source_ref.universe, dest_ref.universe, hsrci, hdsti,
-	                                   entry->pin_cookie);
+	                                   entry->cookie);
 	user_drop_ref(source_ref);
 	user_drop_ref(dest_ref);
 	return status;
@@ -343,7 +487,7 @@ int user_sys_borrow_across_universes(struct user_api_entry *entry, size_t hsrc, 
 		return status;
 	}
 	status = user_universe_borrow_across(source_ref.universe, dest_ref.universe, hsrci, hdsti,
-	                                     entry->pin_cookie);
+	                                     entry->cookie);
 	user_drop_ref(source_ref);
 	user_drop_ref(dest_ref);
 	return status;
@@ -365,7 +509,7 @@ int user_sys_move_in(struct user_api_entry *entry, size_t huniverse, size_t oute
 		return USER_STATUS_INVALID_HANDLE_TYPE;
 	}
 	status = user_universe_move_across(entry->universe, universe_ref.universe, outer, inner,
-	                                   entry->pin_cookie);
+	                                   entry->cookie);
 	user_drop_ref(universe_ref);
 	return status;
 }
@@ -386,7 +530,7 @@ int user_sys_move_out(struct user_api_entry *entry, size_t huniverse, size_t inn
 		return USER_STATUS_INVALID_HANDLE_TYPE;
 	}
 	status = user_universe_move_across(universe_ref.universe, entry->universe, inner, outer,
-	                                   entry->pin_cookie);
+	                                   entry->cookie);
 	user_drop_ref(universe_ref);
 	return status;
 }
@@ -408,7 +552,7 @@ int user_sys_borrow_in(struct user_api_entry *entry, size_t huniverse, size_t ou
 		return USER_STATUS_INVALID_HANDLE_TYPE;
 	}
 	status = user_universe_borrow_across(entry->universe, universe_ref.universe, outer, inner,
-	                                     entry->pin_cookie);
+	                                     entry->cookie);
 	user_drop_ref(universe_ref);
 	return status;
 }
@@ -430,7 +574,7 @@ int user_sys_borrow_out(struct user_api_entry *entry, size_t huniverse, size_t i
 		return USER_STATUS_INVALID_HANDLE_TYPE;
 	}
 	status = user_universe_borrow_across(universe_ref.universe, entry->universe, inner, outer,
-	                                     entry->pin_cookie);
+	                                     entry->cookie);
 	user_drop_ref(universe_ref);
 	return status;
 }
@@ -440,7 +584,7 @@ int user_sys_borrow_out(struct user_api_entry *entry, size_t huniverse, size_t i
 //! @param handle Handle
 //! @return API status
 int user_sys_unpin(struct user_api_entry *entry, size_t handle) {
-	return user_universe_unpin(entry->universe, handle, entry->pin_cookie);
+	return user_universe_unpin(entry->universe, handle, entry->cookie);
 }
 
 //! @brief Pin reference (restrict borrow/move/and drop operations to caller's cookie)
@@ -448,7 +592,51 @@ int user_sys_unpin(struct user_api_entry *entry, size_t handle) {
 //! @param handle Handle
 //! @return API status
 int user_sys_pin(struct user_api_entry *entry, size_t handle) {
-	return user_universe_pin(entry->universe, handle, entry->pin_cookie);
+	return user_universe_pin(entry->universe, handle, entry->cookie);
+}
+
+//! @brief Unpin reference (allow everyone with universe handle to borrow/move/drop it), that
+//! previously was unpinned only for one group (via user_sys_pin_to_group)
+//! @param entry Pointer to the user API entry
+//! @param handle Handle
+//! @param hgrp Group handle
+//! @return API status
+int user_sys_unpin_from_group(struct user_api_entry *entry, size_t handle, size_t hgrp) {
+	struct user_ref group_ref;
+	int status = user_universe_borrow_out(entry->universe, hgrp, &group_ref);
+	if (status != USER_STATUS_SUCCESS) {
+		return USER_STATUS_INVALID_HANDLE;
+	}
+	if (group_ref.type != USER_OBJ_TYPE_GROUP_COOKIE) {
+		user_drop_ref(group_ref);
+		return USER_STATUS_INVALID_HANDLE_TYPE;
+	}
+	status = user_universe_unpin_from_group(entry->universe, handle, entry->cookie,
+	                                        group_ref.group_cookie);
+	user_drop_ref(group_ref);
+	return status;
+}
+
+//! @brief Pin reference (restrict borrow/move/and drop operations to caller's cookie), leaving it
+//! unpinned only for one group
+//! @param entry Pointer to the user API entry
+//! @param handle Handle
+//! @param hgrp Group handle
+//! @return API status
+int user_sys_pin_to_group(struct user_api_entry *entry, size_t handle, size_t hgrp) {
+	struct user_ref group_ref;
+	int status = user_universe_borrow_out(entry->universe, hgrp, &group_ref);
+	if (status != USER_STATUS_SUCCESS) {
+		return USER_STATUS_INVALID_HANDLE;
+	}
+	if (group_ref.type != USER_OBJ_TYPE_GROUP_COOKIE) {
+		user_drop_ref(group_ref);
+		return USER_STATUS_INVALID_HANDLE_TYPE;
+	}
+	status =
+	    user_universe_pin_to_group(entry->universe, handle, entry->cookie, group_ref.group_cookie);
+	user_drop_ref(group_ref);
+	return status;
 }
 
 //! @brief Fork universe (Create a new one and copy all accessible handles)
@@ -468,8 +656,8 @@ int user_sys_fork_universe(struct user_api_entry *entry, size_t hsrc, size_t *hd
 	}
 	struct user_ref forked_ref;
 	forked_ref.type = USER_OBJ_TYPE_UNIVERSE;
-	forked_ref.pin_cookie = entry->pin_cookie;
-	status = user_universe_fork(entry->universe, &forked_ref.universe, entry->pin_cookie);
+	forked_ref.pin_cookie = user_entry_cookie_get_key(entry->cookie);
+	status = user_universe_fork(entry->universe, &forked_ref.universe, entry->cookie);
 	user_drop_ref(universe_ref);
 	if (status != USER_STATUS_SUCCESS) {
 		return status;
@@ -497,7 +685,7 @@ int user_sys_drop_in(struct user_api_entry *entry, size_t huniverse, size_t inne
 		user_drop_ref(universe_ref);
 		return USER_STATUS_INVALID_HANDLE_TYPE;
 	}
-	status = user_universe_drop_cell(universe_ref.universe, inner, entry->pin_cookie);
+	status = user_universe_drop_cell(universe_ref.universe, inner, entry->cookie);
 	user_drop_ref(universe_ref);
 	return status;
 }
@@ -507,7 +695,7 @@ int user_sys_drop_in(struct user_api_entry *entry, size_t huniverse, size_t inne
 //! @param handle Handle to drop
 //! @return API status
 int user_sys_drop(struct user_api_entry *entry, size_t handle) {
-	return user_universe_drop_cell(entry->universe, handle, entry->pin_cookie);
+	return user_universe_drop_cell(entry->universe, handle, entry->cookie);
 }
 
 //! @brief Deinitialize user API entry

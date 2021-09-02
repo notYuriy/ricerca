@@ -68,33 +68,11 @@ void test_universe(void) {
 	if (status != USER_STATUS_SUCCESS) {
 		PANIC("Failed to drop handle in the 3rd universe (status: %d)", status);
 	}
-	// Modify entry cookie to test pinning
-	size_t old_cookie = entry.pin_cookie;
-	entry.pin_cookie = 0xcafebabe;
-	status = user_sys_drop(&entry, hmailbox);
-	if (status != USER_STATUS_PIN_COOKIE_MISMATCH) {
-		PANIC("Pin cookie overlooked (status: %d)", status);
-	}
-	// Try to unpin (expected to fail)
-	status = user_sys_unpin(&entry, hmailbox);
-	if (status != USER_STATUS_PIN_COOKIE_MISMATCH) {
-		PANIC("Pin cookie overlooked (status: %d)", status);
-	}
-	entry.pin_cookie = old_cookie;
-	// Actually unpin
-	status = user_sys_unpin(&entry, hmailbox);
-	if (status != USER_STATUS_SUCCESS) {
-		PANIC("Failed to unpin mailbox handle");
-	}
-	// Modify entry cookie again
-	entry.pin_cookie = 0xcafebabe;
 	// Drop mailbox handle
 	status = user_sys_drop(&entry, hmailbox);
 	if (status != USER_STATUS_SUCCESS) {
 		PANIC("Failed to drop mailbox handle (status: %d)", status);
 	}
-	// Recover old cookie
-	entry.pin_cookie = old_cookie;
 	// Test universe ordering guarantees
 	status = user_sys_move_in(&entry, huniverse3, huniverse1, &hmailbox);
 	if (status != USER_STATUS_INVALID_UNIVERSE_ORDER) {

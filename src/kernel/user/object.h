@@ -4,6 +4,7 @@
 #pragma once
 
 #include <mem/rc.h>
+#include <user/cookie.h>
 
 //! @brief Object type
 enum
@@ -20,13 +21,11 @@ enum
 	USER_OBJ_TYPE_MAILBOX = 4,
 	//! @brief Universe
 	USER_OBJ_TYPE_UNIVERSE = 5,
+	//! @brief Group cookie
+	USER_OBJ_TYPE_GROUP_COOKIE = 6,
+	//! @brief Entry cookie
+	USER_OBJ_TYPE_ENTRY_COOKIE = 7,
 };
-
-//! @brief Pinned cookie (no one except kernel can duplicate/move/drop ref)
-#define USER_COOKIE_PIN 0
-
-//! @brief Unpinned cookie (no restrictions on duplicating/moving/dropping ref)
-#define USER_COOKIE_UNPIN 1
 
 //! @brief Object reference
 struct user_ref {
@@ -43,16 +42,22 @@ struct user_ref {
 		struct user_mailbox *mailbox;
 		//! @brief Pointer to the universe
 		struct user_universe *universe;
+		//! @brief Pointer to the group cookie
+		struct user_group_cookie *group_cookie;
+		//! @brief Pointer to the entry cookie
+		struct user_entry_cookie *entry_cookie;
 	};
 	//! @brief Referenced object type
 	int type;
-	//! @brief Pin cookie (controls who is allowed to duplicate/move/drop reference)
-	size_t pin_cookie;
+	//! @brief Pin cookie key (controls who is allowed to duplicate/move/drop reference)
+	user_cookie_key_t pin_cookie;
 };
 
 //! @brief Check if duplicate/move/drop operation could be performed on this reference
-static inline bool user_unpinned_for(struct user_ref ref, size_t cookie) {
-	return ref.pin_cookie == USER_COOKIE_UNPIN || ref.pin_cookie == cookie;
+//! @param ref Reference to check
+//! @param cookie Pointer to the user API entry cookie
+static inline bool user_unpinned_for(struct user_ref ref, struct user_entry_cookie *cookie) {
+	return user_entry_cookie_auth(cookie, ref.pin_cookie);
 }
 
 //! @brief Drop reference to the object

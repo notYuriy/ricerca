@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <user/cookie.h>
 #include <user/notifications.h>
 #include <user/rpc.h>
 #include <user/status.h>
@@ -13,8 +14,8 @@
 struct user_api_entry {
 	//! @brief Pointer to the universe
 	struct user_universe *universe;
-	//! @brief Pin cookie
-	size_t pin_cookie;
+	//! @brief Entry cookie
+	struct user_entry_cookie *cookie;
 };
 
 //! @brief Initialize user API entry
@@ -52,6 +53,44 @@ int user_sys_create_mailbox(struct user_api_entry *entry, size_t quota, size_t *
 //! @return API status
 int user_sys_get_notification(struct user_api_entry *entry, size_t hmailbox,
                               struct user_notification *buf);
+
+//! @brief Create group cookie object
+//! @param entry Pointer to the user API entry
+//! @param handle Buffer to to store group cookie handle in
+//! @return API status
+int user_sys_create_group_cookie(struct user_api_entry *entry, size_t *handle);
+
+//! @brief Create entry cookie object
+//! @param entry Pointer to the user API entry
+//! @param handle Buffer to to store entry cookie handle in
+//! @return API status
+int user_sys_create_entry_cookie(struct user_api_entry *entry, size_t *handle);
+
+//! @brief Join the group
+//! @param entry Pointer to the user API entry
+//! @param hgrp Group cookie handle
+//! @return API status
+int user_sys_join_group(struct user_api_entry *entry, size_t hgrp);
+
+//! @brief Leave the group
+//! @param entry Pointer to the user API entry
+//! @param hgrp Group cookie handle
+//! @return API status
+int user_sys_leave_group(struct user_api_entry *entry, size_t hgrp);
+
+//! @brief Add entry cookie to the group
+//! @param entry Pointer to the user API entry
+//! @param hentry Entry cookie handle
+//! @param hgrp Group handle
+//! @return API status
+int user_sys_add_entry_to_group(struct user_api_entry *entry, size_t hentry, size_t hgrp);
+
+//! @brief Remove entry cookie from the group
+//! @param entry Pointer to the user API entry
+//! @param hentry Entry cookie handle
+//! @param hgrp Group handle
+//! @return API status
+int user_sys_remove_entry_from_group(struct user_api_entry *entry, size_t hentry, size_t hgrp);
 
 //! @brief Create caller
 //! @param entry Pointer to the user API entry
@@ -162,11 +201,28 @@ int user_sys_borrow_out(struct user_api_entry *entry, size_t huniverse, size_t i
 //! @return API status
 int user_sys_unpin(struct user_api_entry *entry, size_t handle);
 
-//! @brief Pin reference (restrict borrow/move/and drop operations to caller's cookie)
+//! @brief Pin reference (restrict borrow/move/and drop operations to caller's cookie), leaving it
+//! unpinned only for the aller
 //! @param entry Pointer to the user API entry
 //! @param handle Handle
 //! @return API status
 int user_sys_pin(struct user_api_entry *entry, size_t handle);
+
+//! @brief Unpin reference (allow everyone with universe handle to borrow/move/drop it), that
+//! previously was unpinned only for one group (via user_sys_pin_to_group)
+//! @param entry Pointer to the user API entry
+//! @param handle Handle
+//! @param hgrp Group handle
+//! @return API status
+int user_sys_unpin_from_group(struct user_api_entry *entry, size_t handle, size_t hgrp);
+
+//! @brief Pin reference (restrict borrow/move/and drop operations to caller's cookie), leaving it
+//! unpinned only for one group
+//! @param entry Pointer to the user API entry
+//! @param handle Handle
+//! @param hgrp Group handle
+//! @return API status
+int user_sys_pin_to_group(struct user_api_entry *entry, size_t handle, size_t hgrp);
 
 //! @brief Fork universe (Create a new one and copy all accessible handles)
 //! @param entry Pointer to the user API entry

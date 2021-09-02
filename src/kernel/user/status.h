@@ -29,6 +29,6 @@ enum
 	USER_STATUS_INVALID_RPC_ID = 10,
 	//! @brief Invalid universes order
 	USER_STATUS_INVALID_UNIVERSE_ORDER = 11,
-	//! @brief User has no permission to duplicate/move/drop handle
-	USER_STATUS_PIN_COOKIE_MISMATCH = 12,
+	//! @brief User does not have perms to perform the operation
+	USER_STATUS_SECURITY_VIOLATION = 12,
 };

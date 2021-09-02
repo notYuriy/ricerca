@@ -159,9 +159,10 @@ bool user_universe_check_ref_nolock(struct user_universe *universe, size_t cell)
 //! @brief Drop reference at index
 //! @param universe Universe to drop reference from
 //! @param cell Index of cell
-//! @param cookie Pin cookie
+//! @param cookie Entry cookie
 //! @return API status
-int user_universe_drop_cell(struct user_universe *universe, size_t cell, size_t cookie) {
+int user_universe_drop_cell(struct user_universe *universe, size_t cell,
+                            struct user_entry_cookie *cookie) {
 	thread_mutex_lock(&universe->lock);
 	if (!user_universe_check_ref_nolock(universe, cell)) {
 		thread_mutex_unlock(&universe->lock);
@@ -170,7 +171,7 @@ int user_universe_drop_cell(struct user_universe *universe, size_t cell, size_t 
 	struct user_ref ref = universe->cells[cell].ref;
 	if (!user_unpinned_for(ref, cookie)) {
 		thread_mutex_unlock(&universe->lock);
-		return USER_STATUS_PIN_COOKIE_MISMATCH;
+		return USER_STATUS_SECURITY_VIOLATION;
 	}
 	universe->cells[cell].in_use = false;
 	LIST_APPEND_TAIL(&universe->free_list, &universe->cells[cell], node);
@@ -250,10 +251,10 @@ static void user_universe_unlock_pair(struct user_universe *universe1,
 //! @param dst Destination universe
 //! @param hsrc Handle in source universe
 //! @param hdst Buffer to store handle for destination universe
-//! @param cookie Pin cookie
+//! @param cookie Entry cookie
 //! @return API status
 int user_universe_move_across(struct user_universe *src, struct user_universe *dst, size_t hsrc,
-                              size_t *hdst, size_t cookie) {
+                              size_t *hdst, struct user_entry_cookie *cookie) {
 	user_universe_lock_pair(src, dst);
 	int status = USER_STATUS_SUCCESS;
 	if (!user_universe_check_ref_nolock(src, hsrc)) {
@@ -262,7 +263,7 @@ int user_universe_move_across(struct user_universe *src, struct user_universe *d
 	}
 	struct user_ref moved_ref = src->cells[hsrc].ref;
 	if (!user_unpinned_for(moved_ref, cookie)) {
-		status = USER_STATUS_PIN_COOKIE_MISMATCH;
+		status = USER_STATUS_SECURITY_VIOLATION;
 		goto cleanup;
 	}
 	status = user_universe_move_in_nolock(dst, moved_ref, hdst);
@@ -281,9 +282,10 @@ cleanup:
 //! @param dst Destination universe
 //! @param hsrc Handle in source universe
 //! @param hdst Buffer to store handle for destination universe
+//! @param cookie Entry cookie
 //! @return API status
 int user_universe_borrow_across(struct user_universe *src, struct user_universe *dst, size_t hsrc,
-                                size_t *hdst, size_t cookie) {
+                                size_t *hdst, struct user_entry_cookie *cookie) {
 	user_universe_lock_pair(src, dst);
 	int status = USER_STATUS_SUCCESS;
 	if (!user_universe_check_ref_nolock(src, hsrc)) {
@@ -292,7 +294,7 @@ int user_universe_borrow_across(struct user_universe *src, struct user_universe 
 	}
 	struct user_ref moved_ref = user_borrow_ref(src->cells[hsrc].ref);
 	if (!user_unpinned_for(moved_ref, cookie)) {
-		status = USER_STATUS_PIN_COOKIE_MISMATCH;
+		status = USER_STATUS_SECURITY_VIOLATION;
 		goto drop_and_cleanup;
 	}
 	status = user_universe_move_in_nolock(dst, moved_ref, hdst);
@@ -307,19 +309,22 @@ drop_and_cleanup:
 //! @brief Unpin reference
 //! @param universe Pointer to the universe
 //! @param handle Handle to unpin
-//! @param cookie Security cookie
+//! @param cookie Entry cookie
 //! @return API status
-int user_universe_unpin(struct user_universe *universe, size_t handle, size_t cookie) {
+int user_universe_unpin(struct user_universe *universe, size_t handle,
+                        struct user_entry_cookie *cookie) {
 	thread_mutex_lock(&universe->lock);
 	if (!user_universe_check_ref_nolock(universe, handle)) {
 		thread_mutex_unlock(&universe->lock);
 		return USER_STATUS_INVALID_HANDLE;
 	}
-	if (!user_unpinned_for(universe->cells[handle].ref, cookie)) {
+	size_t pin_cookie = universe->cells[handle].ref.pin_cookie;
+	if (pin_cookie != user_entry_cookie_get_key(cookie) &&
+	    pin_cookie != USER_COOKIE_KEY_UNIVERSAL) {
 		thread_mutex_unlock(&universe->lock);
-		return USER_STATUS_PIN_COOKIE_MISMATCH;
+		return USER_STATUS_SECURITY_VIOLATION;
 	}
-	universe->cells[handle].ref.pin_cookie = USER_COOKIE_UNPIN;
+	universe->cells[handle].ref.pin_cookie = USER_COOKIE_KEY_UNIVERSAL;
 	thread_mutex_unlock(&universe->lock);
 	return USER_STATUS_SUCCESS;
 }
@@ -327,29 +332,87 @@ int user_universe_unpin(struct user_universe *universe, size_t handle, size_t co
 //! @brief Pin reference
 //! @param universe Pointer to the universe
 //! @param handle Handle to unpin
-//! @param cookie Pin cookie
+//! @param cookie Entry cookie
 //! @return API status
-int user_universe_pin(struct user_universe *universe, size_t handle, size_t cookie) {
+int user_universe_pin(struct user_universe *universe, size_t handle,
+                      struct user_entry_cookie *cookie) {
 	thread_mutex_lock(&universe->lock);
 	if (!user_universe_check_ref_nolock(universe, handle)) {
 		thread_mutex_unlock(&universe->lock);
 		return USER_STATUS_INVALID_HANDLE;
 	}
-	if (!user_unpinned_for(universe->cells[handle].ref, cookie)) {
+	size_t pin_cookie = universe->cells[handle].ref.pin_cookie;
+	size_t entry_cookie = user_entry_cookie_get_key(cookie);
+	if (pin_cookie != USER_COOKIE_KEY_UNIVERSAL && pin_cookie != entry_cookie) {
 		thread_mutex_unlock(&universe->lock);
-		return USER_STATUS_PIN_COOKIE_MISMATCH;
+		return USER_STATUS_SECURITY_VIOLATION;
 	}
-	universe->cells[handle].ref.pin_cookie = cookie;
+	universe->cells[handle].ref.pin_cookie = entry_cookie;
 	thread_mutex_unlock(&universe->lock);
 	return USER_STATUS_SUCCESS;
 }
 
-//! @brief Fork universe
+//! @brief Unpin reference from group
+//! @param universe Pointer to the universe
+//! @param handle Handle to unpin
+//! @param entry Entry cookie
+//! @param group Group cookie
+//! @return API status
+int user_universe_unpin_from_group(struct user_universe *universe, size_t handle,
+                                   struct user_entry_cookie *entry,
+                                   struct user_group_cookie *group) {
+	thread_mutex_lock(&universe->lock);
+	if (!user_universe_check_ref_nolock(universe, handle)) {
+		thread_mutex_unlock(&universe->lock);
+		return USER_STATUS_INVALID_HANDLE;
+	}
+	user_cookie_key_t group_key = user_group_cookie_get_key(group);
+	user_cookie_key_t entry_key = user_entry_cookie_get_key(entry);
+	user_cookie_key_t pin_cookie = universe->cells[handle].ref.pin_cookie;
+	if (pin_cookie != group_key && pin_cookie != USER_COOKIE_KEY_UNIVERSAL &&
+	    pin_cookie != entry_key) {
+		thread_mutex_unlock(&universe->lock);
+		return USER_STATUS_SECURITY_VIOLATION;
+	}
+	universe->cells[handle].ref.pin_cookie = USER_COOKIE_KEY_UNIVERSAL;
+	thread_mutex_unlock(&universe->lock);
+	return USER_STATUS_SUCCESS;
+}
+
+//! @brief Pin reference to group
+//! @param universe Pointer to the universe
+//! @param handle Handle to unpin
+//! @param cookie Entry cookie
+//! @param entry Entry cookie
+//! @param group Group cookie
+//! @return API status
+int user_universe_pin_to_group(struct user_universe *universe, size_t handle,
+                               struct user_entry_cookie *entry, struct user_group_cookie *group) {
+	thread_mutex_lock(&universe->lock);
+	if (!user_universe_check_ref_nolock(universe, handle)) {
+		thread_mutex_unlock(&universe->lock);
+		return USER_STATUS_INVALID_HANDLE;
+	}
+	user_cookie_key_t group_key = user_group_cookie_get_key(group);
+	user_cookie_key_t entry_key = user_entry_cookie_get_key(entry);
+	user_cookie_key_t pin_cookie = universe->cells[handle].ref.pin_cookie;
+	if (pin_cookie != USER_COOKIE_KEY_UNIVERSAL && pin_cookie != group_key &&
+	    pin_cookie != entry_key) {
+		thread_mutex_unlock(&universe->lock);
+		return USER_STATUS_SECURITY_VIOLATION;
+	}
+	universe->cells[handle].ref.pin_cookie = group_key;
+	thread_mutex_unlock(&universe->lock);
+	return USER_STATUS_SUCCESS;
+}
+
+//! @brief Fork universe (create new universe and copy all accessible handles)
 //! @param src Pointer to the universe
 //! @param dst Buffer to store reference to the new universe in
-//! @param cookie Pin cookie
+//! @param cookie Entry cookie
 //! @return API status
-int user_universe_fork(struct user_universe *src, struct user_universe **dst, size_t cookie) {
+int user_universe_fork(struct user_universe *src, struct user_universe **dst,
+                       struct user_entry_cookie *cookie) {
 	struct user_universe *forked = mem_heap_alloc(sizeof(struct user_universe));
 	if (forked == NULL) {
 		return USER_STATUS_OUT_OF_MEMORY;

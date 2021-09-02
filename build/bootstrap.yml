@@ -19,7 +19,7 @@ sources:
 
   - name: limine
     git: "https://github.com/limine-bootloader/limine.git"
-    tag: "v2.47.1-binary"
+    tag: "v2.49.2-binary"
     subdir: build-tools
 
   - name: lai
