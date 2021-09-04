@@ -25,6 +25,12 @@ enum
 	USER_OBJ_TYPE_GROUP_COOKIE = 6,
 	//! @brief Entry cookie
 	USER_OBJ_TYPE_ENTRY_COOKIE = 7,
+	//! @brief SHM owner reference
+	USER_OBJ_TYPE_SHM_OWNER = 8,
+	//! @brief SHM RW reference
+	USER_OBJ_TYPE_SHM_RW_REF = 9,
+	//! @brief SHM RO reference
+	USER_OBJ_TYPE_SHM_RO_REF = 10,
 };
 
 //! @brief Object reference
@@ -46,6 +52,10 @@ struct user_ref {
 		struct user_group_cookie *group_cookie;
 		//! @brief Pointer to the entry cookie
 		struct user_entry_cookie *entry_cookie;
+		//! @brief Pointer to the SHM owner objcet
+		struct user_shm_owner *shm_owner;
+		//! @brief Pointer to the SHM ref object (shared by RW and RO ref types)
+		struct user_shm_ref *shm_ref;
 	};
 	//! @brief Referenced object type
 	int type;

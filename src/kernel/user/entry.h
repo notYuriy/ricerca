@@ -6,6 +6,7 @@
 #include <user/cookie.h>
 #include <user/notifications.h>
 #include <user/rpc.h>
+#include <user/shm.h>
 #include <user/status.h>
 #include <user/universe.h>
 
@@ -237,6 +238,89 @@ int user_sys_fork_universe(struct user_api_entry *entry, size_t hsrc, size_t *hd
 //! @param inner Inner handle to drop
 //! @return API status
 int user_sys_drop_in(struct user_api_entry *entry, size_t huniverse, size_t inner);
+
+//! @brief Create SHM object
+//! @param entry Pointer to the user API entry
+//! @param hbuf Buffer to store handle to a new SHM owner object object in
+//! @param idbuf Buffer to store ID of the SHM object in
+//! @param size Size of the SHM object
+//! @return API status
+int user_sys_create_shm_owned(struct user_api_entry *entry, size_t *hbuf, size_t *idbuf,
+                              size_t size);
+
+//! @brief Create borrowed readable + writable SHM reference
+//! @param entry Pointer to the user API entry
+//! @param hshm Handle pointing to SHM owner object
+//! @param hbuf Buffer to store handle to a new SHM ref object in
+//! @return API status
+int user_sys_borrow_shm_rw(struct user_api_entry *entry, size_t hshm, size_t *hbuf);
+
+//! @brief Create borrowed readonly SHM reference
+//! @param entry Pointer to the user API entry
+//! @param hshm Handle pointing to SHM owner object
+//! @param hbuf Buffer to store handle to a new SHM ref object in
+//! @return API status
+int user_sys_borrow_shm_ro(struct user_api_entry *entry, size_t hshm, size_t *hbuf);
+
+//! @brief Read from SHM object given a reference to it
+//! @param entry Pointer to the user API entry
+//! @param hshmref Handle pointing to SHM ref object
+//! @param offset Offset in SHM
+//! @param len Number of bytes to write
+//! @param data Pointer to the data to read
+//! @return API status
+int user_sys_read_from_shm_ref(struct user_api_entry *entry, size_t hshmref, size_t offset,
+                               size_t len, uintptr_t data);
+
+//! @brief Read from SHM object given a reference to it
+//! @param entry Pointer to the user API entry
+//! @param hshmref Handle pointing to SHM ref object
+//! @param offset Offset in SHM
+//! @param len Number of bytes to write
+//! @param data Pointer to the data to read
+//! @return API status
+int user_sys_write_from_shm_ref(struct user_api_entry *entry, size_t hshmref, size_t offset,
+                                size_t len, uintptr_t data);
+
+//! @brief Read from SHM object given its ID
+//! @param entry Pointer to the user API entry
+//! @param id ID of the SHM object
+//! @param offset Offset in SHM
+//! @param len Number of bytes to write
+//! @param data Pointer to the data to read
+//! @return API status
+int user_sys_read_from_shm_id(struct user_api_entry *entry, size_t id, size_t offset, size_t len,
+                              uintptr_t data);
+
+//! @brief Read from SHM object given its ID
+//! @param entry Pointer to the user API entry
+//! @param id ID of the SHM object
+//! @param offset Offset in SHM
+//! @param len Number of bytes to write
+//! @param data Pointer to the data to read
+//! @return API status
+int user_sys_write_from_shm_id(struct user_api_entry *entry, size_t id, size_t offset, size_t len,
+                               uintptr_t data);
+
+//! @brief Make SHM object accessible to the entire system
+//! @param entry Pointer to the user API entry
+//! @param hshm Handle pointing to SHM owner object
+//! @param rw True if write perms should be made accessible too
+//! @return API status
+int user_sys_unrestrict_shm(struct user_api_entry *entry, size_t hshm, bool rw);
+
+//! @brief Restrict global access to SHM object to the current thread
+//! @param hshm Handle pointing to SHM owner object
+//! @param rw True if write perms should be made not accessible too
+//! @return API status
+int user_sys_restrict_shm(struct user_api_entry *entry, size_t hshm, bool rw);
+
+//! @brief Restrict global access to SHM to members of a specified group
+//! @param hshm Handle pointing to SHM owner object
+//! @param hgrp Group cookie handle
+//! @param rw True if write perms should be transfered as well
+//! @return API status
+int user_sys_restrict_shm_to_group(struct user_api_entry *entry, size_t hshm, size_t hgrp, bool rw);
 
 //! @brief Drop cell at index
 //! @param entry Pointer to the user API entry

@@ -690,6 +690,230 @@ int user_sys_drop_in(struct user_api_entry *entry, size_t huniverse, size_t inne
 	return status;
 }
 
+//! @brief Create SHM object
+//! @param entry Pointer to the user API entry
+//! @param hbuf Buffer to store handle to a new SHM owner object object in
+//! @param idbuf Buffer to store ID of the SHM object in
+//! @param size Size of the shared object
+//! @return API status
+int user_sys_create_shm_owned(struct user_api_entry *entry, size_t *hbuf, size_t *idbuf,
+                              size_t size) {
+	struct user_ref shm_owner_ref;
+	shm_owner_ref.type = USER_OBJ_TYPE_SHM_OWNER;
+	shm_owner_ref.pin_cookie = user_entry_cookie_get_key(entry->cookie);
+	size_t id;
+	int status = user_shm_create(&shm_owner_ref.shm_owner, &id, size, entry->cookie);
+	if (status != USER_STATUS_SUCCESS) {
+		return status;
+	}
+	status = user_universe_move_in(entry->universe, shm_owner_ref, hbuf);
+	if (status != USER_STATUS_SUCCESS) {
+		user_drop_ref(shm_owner_ref);
+		return status;
+	}
+	*idbuf = id;
+	return USER_STATUS_SUCCESS;
+}
+
+//! @brief Create borrowed readable + writable SHM reference
+//! @param entry Pointer to the user API entry
+//! @param hshm Handle pointing to SHM owner object
+//! @param hbuf Buffer to store handle to a new SHM ref object in
+//! @return API status
+int user_sys_borrow_shm_rw(struct user_api_entry *entry, size_t hshm, size_t *hbuf) {
+	struct user_ref shm_owner_ref;
+	int status = user_universe_borrow_out(entry->universe, hshm, &shm_owner_ref);
+	if (status != USER_STATUS_SUCCESS) {
+		return status;
+	}
+	if (shm_owner_ref.type != USER_OBJ_TYPE_SHM_OWNER) {
+		user_drop_ref(shm_owner_ref);
+		return USER_STATUS_INVALID_HANDLE_TYPE;
+	}
+	struct user_shm_ref *ref = user_shm_create_ref(shm_owner_ref.shm_owner);
+	user_drop_ref(shm_owner_ref);
+	struct user_ref shm_ref;
+	shm_ref.shm_ref = ref;
+	shm_ref.type = USER_OBJ_TYPE_SHM_RW_REF;
+	shm_ref.pin_cookie = user_entry_cookie_get_key(entry->cookie);
+	status = user_universe_move_in(entry->universe, shm_ref, hbuf);
+	if (status != USER_STATUS_SUCCESS) {
+		user_drop_ref(shm_ref);
+		return status;
+	}
+	return USER_STATUS_SUCCESS;
+}
+
+//! @brief Create borrowed readonly SHM reference
+//! @param entry Pointer to the user API entry
+//! @param hshm Handle pointing to SHM owner object
+//! @param hbuf Buffer to store handle to a new SHM ref object in
+//! @return API status
+int user_sys_borrow_shm_ro(struct user_api_entry *entry, size_t hshm, size_t *hbuf) {
+	struct user_ref shm_owner_ref;
+	int status = user_universe_borrow_out(entry->universe, hshm, &shm_owner_ref);
+	if (status != USER_STATUS_SUCCESS) {
+		return status;
+	}
+	if (shm_owner_ref.type != USER_OBJ_TYPE_SHM_OWNER) {
+		user_drop_ref(shm_owner_ref);
+		return USER_STATUS_INVALID_HANDLE_TYPE;
+	}
+	struct user_shm_ref *ref = user_shm_create_ref(shm_owner_ref.shm_owner);
+	user_drop_ref(shm_owner_ref);
+	struct user_ref shm_ref;
+	shm_ref.shm_ref = ref;
+	shm_ref.type = USER_OBJ_TYPE_SHM_RO_REF;
+	shm_ref.pin_cookie = user_entry_cookie_get_key(entry->cookie);
+	status = user_universe_move_in(entry->universe, shm_ref, hbuf);
+	if (status != USER_STATUS_SUCCESS) {
+		user_drop_ref(shm_ref);
+		return status;
+	}
+	return USER_STATUS_SUCCESS;
+}
+
+//! @brief Read from SHM object given a reference to it
+//! @param entry Pointer to the user API entry
+//! @param hshmref Handle pointing to SHM ref object
+//! @param offset Offset in SHM
+//! @param len Number of bytes to write
+//! @param data Pointer to the data to read
+//! @return API status
+int user_sys_read_from_shm_ref(struct user_api_entry *entry, size_t hshmref, size_t offset,
+                               size_t len, uintptr_t data) {
+	struct user_ref shm_ref;
+	int status = user_universe_borrow_out(entry->universe, hshmref, &shm_ref);
+	if (status != USER_STATUS_SUCCESS) {
+		return status;
+	}
+	if (shm_ref.type != USER_OBJ_TYPE_SHM_RO_REF || shm_ref.type != USER_OBJ_TYPE_SHM_RW_REF) {
+		user_drop_ref(shm_ref);
+		return USER_STATUS_INVALID_HANDLE;
+	}
+	status = user_shm_read_by_ref(shm_ref.shm_ref, offset, len, (void *)data);
+	user_drop_ref(shm_ref);
+	return USER_STATUS_SUCCESS;
+}
+
+//! @brief Read from SHM object given a reference to it
+//! @param entry Pointer to the user API entry
+//! @param hshmref Handle pointing to SHM ref object
+//! @param offset Offset in SHM
+//! @param len Number of bytes to write
+//! @param data Pointer to the data to read
+//! @return API status
+int user_sys_write_from_shm_ref(struct user_api_entry *entry, size_t hshmref, size_t offset,
+                                size_t len, uintptr_t data) {
+	struct user_ref shm_ref;
+	int status = user_universe_borrow_out(entry->universe, hshmref, &shm_ref);
+	if (status != USER_STATUS_SUCCESS) {
+		return status;
+	}
+	if (shm_ref.type != USER_OBJ_TYPE_SHM_RW_REF) {
+		user_drop_ref(shm_ref);
+		return USER_STATUS_INVALID_HANDLE;
+	}
+	status = user_shm_write_by_ref(shm_ref.shm_ref, offset, len, (void *)data);
+	user_drop_ref(shm_ref);
+	return USER_STATUS_SUCCESS;
+}
+
+//! @brief Read from SHM object given its ID
+//! @param entry Pointer to the user API entry
+//! @param id ID of the SHM object
+//! @param offset Offset in SHM
+//! @param len Number of bytes to write
+//! @param data Pointer to the data to read
+//! @return API status
+int user_sys_read_from_shm_id(struct user_api_entry *entry, size_t id, size_t offset, size_t len,
+                              uintptr_t data) {
+	return user_shm_read_by_id(id, offset, len, (void *)data, entry->cookie);
+}
+
+//! @brief Read from SHM object given its ID
+//! @param entry Pointer to the user API entry
+//! @param id ID of the SHM object
+//! @param offset Offset in SHM
+//! @param len Number of bytes to write
+//! @param data Pointer to the data to read
+//! @return API status
+int user_sys_write_from_shm_id(struct user_api_entry *entry, size_t id, size_t offset, size_t len,
+                               uintptr_t data) {
+	return user_shm_write_by_id(id, offset, len, (void *)data, entry->cookie);
+}
+
+//! @brief Make SHM object accessible to the entire system
+//! @param entry Pointer to the user API entry
+//! @param hshm Handle pointing to SHM owner object
+//! @param rw True if write perms should be made accessible too
+//! @return API status
+int user_sys_unrestrict_shm(struct user_api_entry *entry, size_t hshm, bool rw) {
+	struct user_ref shm_owner_ref;
+	int status = user_universe_borrow_out(entry->universe, hshm, &shm_owner_ref);
+	if (status != USER_STATUS_SUCCESS) {
+		return status;
+	}
+	if (shm_owner_ref.type != USER_OBJ_TYPE_SHM_OWNER) {
+		user_drop_ref(shm_owner_ref);
+		return USER_STATUS_INVALID_HANDLE_TYPE;
+	}
+	status = user_shm_drop_ownership(shm_owner_ref.shm_owner, rw);
+	user_drop_ref(shm_owner_ref);
+	return status;
+}
+
+//! @brief Restrict global access to SHM object to the current thread
+//! @param hshm Handle pointing to SHM owner object
+//! @param rw True if write perms should be made not accessible too
+//! @return API status
+int user_sys_restrict_shm(struct user_api_entry *entry, size_t hshm, bool rw) {
+	struct user_ref shm_owner_ref;
+	int status = user_universe_borrow_out(entry->universe, hshm, &shm_owner_ref);
+	if (status != USER_STATUS_SUCCESS) {
+		return status;
+	}
+	if (shm_owner_ref.type != USER_OBJ_TYPE_SHM_OWNER) {
+		user_drop_ref(shm_owner_ref);
+		return USER_STATUS_INVALID_HANDLE_TYPE;
+	}
+	status = user_shm_acquire_ownership(shm_owner_ref.shm_owner, entry->cookie, rw);
+	user_drop_ref(shm_owner_ref);
+	return status;
+}
+
+//! @brief Restrict global access to SHM to members of a specified group
+//! @param hshm Handle pointing to SHM owner object
+//! @param hgrp Group cookie handle
+//! @param rw True if write perms should be transfered as well
+//! @return API status
+int user_sys_restrict_shm_to_group(struct user_api_entry *entry, size_t hshm, size_t hgrp,
+                                   bool rw) {
+	struct user_ref shm_owner_ref, group_ref;
+	int status = user_universe_borrow_out(entry->universe, hshm, &shm_owner_ref);
+	if (status != USER_STATUS_SUCCESS) {
+		return status;
+	}
+	if (shm_owner_ref.type != USER_OBJ_TYPE_SHM_OWNER) {
+		user_drop_ref(shm_owner_ref);
+		return USER_STATUS_INVALID_HANDLE_TYPE;
+	}
+	status = user_universe_borrow_out(entry->universe, hgrp, &group_ref);
+	if (status != USER_STATUS_SUCCESS) {
+		user_drop_ref(shm_owner_ref);
+		return status;
+	}
+	if (group_ref.type != USER_OBJ_TYPE_GROUP_COOKIE) {
+		user_drop_ref(shm_owner_ref);
+		user_drop_ref(group_ref);
+		return USER_STATUS_INVALID_HANDLE_TYPE;
+	}
+	status = user_shm_give_ownership_to_grp(shm_owner_ref.shm_owner, group_ref.group_cookie, rw);
+	user_drop_ref(shm_owner_ref);
+	user_drop_ref(group_ref);
+	return status;
+}
+
 //! @brief Drop cell at index
 //! @param entry Pointer to the user API entry
 //! @param handle Handle to drop

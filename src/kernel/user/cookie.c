@@ -129,10 +129,10 @@ int user_entry_cookie_remove_from_grp(struct user_entry_cookie *entry,
 		if (entry->grp_keys[i] == cookie->key) {
 			entry->grp_keys[i] = 0;
 			thread_mutex_unlock(&entry->lock);
-			return USER_STATUS_SUCCESS;
+			break;
 		}
 	}
-	return USER_STATUS_NOT_IN_GROUP;
+	return USER_STATUS_SUCCESS;
 }
 
 //! @brief Check perms for entry cookie

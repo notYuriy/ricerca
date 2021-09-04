@@ -31,4 +31,6 @@ enum
 	USER_STATUS_INVALID_UNIVERSE_ORDER = 11,
 	//! @brief User does not have perms to perform the operation
 	USER_STATUS_SECURITY_VIOLATION = 12,
+	//! @brief Invalid userspace pointer
+	USER_STATUS_INVALID_MEM = 13,
 };
