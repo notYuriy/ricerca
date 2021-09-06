@@ -27,7 +27,7 @@ void test_universe(void) {
 	}
 	// Create mailbox handle to pass around
 	size_t hmailbox;
-	status = user_sys_create_mailbox(&entry, 1, &hmailbox);
+	status = user_sys_create_mailbox(&entry, false, &hmailbox);
 	if (status != USER_STATUS_SUCCESS) {
 		PANIC("Failed to create mailbox (status: %d)", status);
 	}

@@ -9,7 +9,6 @@
 #include <mem/heap/heap.h>
 #include <mem/rc.h>
 #include <thread/locking/spinlock.h>
-#include <user/raiser.h>
 #include <user/rpc.h>
 
 MODULE("user/rpc")
@@ -41,7 +40,7 @@ struct user_rpc_caller {
 	//! @brief Deallocation RC base
 	struct mem_rc dealloc_rc_base;
 	//! @brief On-reply notificaton raiser
-	struct user_raiser on_reply_raiser;
+	struct user_raiser *on_reply_raiser;
 	//! @brief Queue of free RPC containers
 	struct queue free_containers;
 	//! @brief Queue of incoming RPC replies
@@ -62,9 +61,7 @@ struct user_rpc_callee {
 	//! @brief Attached token
 	struct user_rpc_token token;
 	//! @brief On-incoming notification raiser
-	struct user_raiser on_incoming_raiser;
-	//! @brief Discoverability loss notification raiser
-	struct user_raiser no_discovery_raiser;
+	struct user_raiser *on_incoming_raiser;
 	//! @brief Incoming RPC calls queue
 	struct queue incoming_rpcs;
 	//! @brief Hashmap with RPC calls waiting for reply
@@ -94,7 +91,7 @@ static void user_rpc_shutdown_caller(struct mem_rc *shutdown_rc_base) {
 	ASSERT(!caller->is_shut_down, "Caller has already been shutdown");
 	caller->is_shut_down = true;
 	thread_spinlock_unlock(&caller->lock, int_state);
-	user_raiser_deinit(&caller->on_reply_raiser);
+	MEM_REF_DROP(caller->on_reply_raiser);
 	user_rpc_destroy_msg_queue(&caller->free_containers);
 	MEM_REF_DROP(&caller->dealloc_rc_base);
 }
@@ -121,7 +118,7 @@ int user_rpc_create_caller(struct user_mailbox *mailbox, size_t opaque,
 	struct user_notification template;
 	template.opaque = opaque;
 	template.type = USER_NOTE_TYPE_RPC_REPLY;
-	int status = user_raiser_init(&res_caller->on_reply_raiser, mailbox, template);
+	int status = user_create_raiser(mailbox, &res_caller->on_reply_raiser, template);
 	if (status != USER_STATUS_SUCCESS) {
 		mem_heap_free(res_caller, sizeof(struct user_rpc_caller));
 		return status;
@@ -144,16 +141,10 @@ static void user_rpc_dealloc_callee(struct mem_rc *dealloc_rc_base) {
 	mem_heap_free(callee, sizeof(struct user_rpc_callee));
 }
 
-//! @brief Send discoverability loss notification to the callee
+//! @brief Handler invoked when callee is no longer discoverable
 //! @param token Pointer to the callee's token
 static void user_rpc_notify_callee_undiscoverable(struct user_rpc_token *token) {
 	struct user_rpc_callee *callee = CONTAINER_OF(token, struct user_rpc_callee, token);
-	const bool int_state = thread_spinlock_lock(&callee->lock);
-	if (!callee->is_shut_down) {
-		user_raiser_raise(&callee->no_discovery_raiser);
-	}
-	thread_spinlock_unlock(&callee->lock, int_state);
-	user_raiser_deinit(&callee->no_discovery_raiser);
 	MEM_REF_DROP(&callee->dealloc_rc_base);
 }
 
@@ -164,7 +155,7 @@ static void user_rpc_enqueue_reply_container(struct user_rpc_container *containe
 	const bool int_state = thread_spinlock_lock(&caller->lock);
 	QUEUE_ENQUEUE(&caller->incoming_replies, container, qnode);
 	if (!caller->is_shut_down) {
-		user_raiser_raise(&caller->on_reply_raiser);
+		user_send_notification(caller->on_reply_raiser);
 	}
 	thread_spinlock_unlock(&caller->lock, int_state);
 	MEM_REF_DROP(&caller->dealloc_rc_base);
@@ -198,7 +189,7 @@ static void user_rpc_shutdown_callee(struct mem_rc *shutdown_rc_base) {
 		}
 	}
 	intmap_destroy(&callee->awaiting_reply);
-	user_raiser_deinit(&callee->on_incoming_raiser);
+	MEM_REF_DROP(callee->on_incoming_raiser);
 	MEM_REF_DROP(&callee->dealloc_rc_base);
 }
 
@@ -217,21 +208,13 @@ int user_rpc_create_callee(struct user_mailbox *mailbox, size_t opaque, size_t b
 	struct user_notification template;
 	template.opaque = opaque;
 	template.type = USER_NOTE_TYPE_RPC_INCOMING;
-	int status = user_raiser_init(&res_callee->on_incoming_raiser, mailbox, template);
+	int status = user_create_raiser(mailbox, &res_callee->on_incoming_raiser, template);
 	if (status != USER_STATUS_SUCCESS) {
-		mem_heap_free(res_callee, sizeof(struct user_rpc_caller));
-		return status;
-	}
-	template.type = USER_NOTE_TYPE_RPC_CALLEE_LOST;
-	status = user_raiser_init(&res_callee->no_discovery_raiser, mailbox, template);
-	if (status != USER_STATUS_SUCCESS) {
-		user_raiser_deinit(&res_callee->no_discovery_raiser);
 		mem_heap_free(res_callee, sizeof(struct user_rpc_caller));
 		return status;
 	}
 	if (!intmap_init(&res_callee->awaiting_reply, buckets == 0 ? 1 : buckets)) {
-		user_raiser_deinit(&res_callee->on_incoming_raiser);
-		user_raiser_deinit(&res_callee->no_discovery_raiser);
+		MEM_REF_DROP(res_callee->on_incoming_raiser);
 		mem_heap_free(res_callee, sizeof(struct user_rpc_caller));
 		return status;
 	}
@@ -323,7 +306,7 @@ int user_rpc_initiate(struct user_rpc_caller *caller, const struct user_rpc_toke
 	// Enqueue in callee incoming queue
 	QUEUE_ENQUEUE(&callee->incoming_rpcs, container, qnode);
 	// Raise notification
-	user_raiser_raise(&callee->on_incoming_raiser);
+	user_send_notification(callee->on_incoming_raiser);
 	thread_spinlock_unlock(&callee->lock, int_state);
 	return USER_STATUS_SUCCESS;
 }
@@ -340,7 +323,6 @@ int user_rpc_accept(struct user_rpc_callee *callee, struct user_rpc_msg *msg) {
 		thread_spinlock_unlock(&callee->lock, int_state);
 		return USER_STATUS_EMPTY;
 	}
-	user_raiser_ack(&callee->on_incoming_raiser);
 	size_t seq = callee->seq++;
 	container->inode.key = seq;
 	intmap_insert(&callee->awaiting_reply, &container->inode);
@@ -387,7 +369,6 @@ int user_rpc_get_result(struct user_rpc_caller *caller, struct user_rpc_msg *msg
 		thread_spinlock_unlock(&caller->lock, int_state);
 		return USER_STATUS_EMPTY;
 	}
-	user_raiser_ack(&caller->on_reply_raiser);
 	user_rpc_copy_contents_from_kernel(msg, &container->message);
 	msg->opaque = container->client_opaque;
 	msg->status = container->message.status;

@@ -48,12 +48,6 @@ void test_rpc_server(struct test_rpc_server_params *params) {
 		ASSERT(status == USER_STATUS_SUCCESS, "Failed to return RPC");
 		// LOG_INFO("Returned RPC #%U", i);
 	}
-	struct user_notification notification;
-	int status = user_sys_get_notification(params->entry, params->hmailbox, &notification);
-	LOG_INFO("Recieved callee lost notification");
-	ASSERT(status == USER_STATUS_SUCCESS, "Failed to recieve callee lost notification");
-	ASSERT(notification.type == USER_NOTE_TYPE_RPC_CALLEE_LOST, "Wrong notification type");
-	ASSERT(notification.opaque == 0xdeadbeef, "Wrong notification opaque value");
 	user_api_entry_deinit(params->entry);
 	LOG_INFO("Server finished");
 	thread_localsched_wake_up(params->main_task);
@@ -116,10 +110,12 @@ void test_rpc(void) {
 	}
 	client_params.entry = &client_entry;
 	server_params.entry = &server_entry;
-	if (user_sys_create_mailbox(&client_entry, 1, &client_params.hmailbox) != USER_STATUS_SUCCESS) {
+	if (user_sys_create_mailbox(&client_entry, false, &client_params.hmailbox) !=
+	    USER_STATUS_SUCCESS) {
 		PANIC("Failed to initialize client mailbox");
 	}
-	if (user_sys_create_mailbox(&server_entry, 2, &server_params.hmailbox) != USER_STATUS_SUCCESS) {
+	if (user_sys_create_mailbox(&server_entry, false, &server_params.hmailbox) !=
+	    USER_STATUS_SUCCESS) {
 		PANIC("Failed to initialize server mailbox");
 	}
 	int error;

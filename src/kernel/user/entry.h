@@ -41,10 +41,11 @@ int user_api_entry_move_handle_in(struct user_api_entry *entry, struct user_ref 
 
 //! @brief Create mailbox
 //! @param entry Pointer to the user API entry
-//! @param quota Max pending notifications count
+//! @param percpu True if waiting threads should only be able to recieve notifications from the same
+//! CPU
 //! @param handle Buffer to store mailbox handle in
 //! @return API status
-int user_sys_create_mailbox(struct user_api_entry *entry, size_t quota, size_t *handle);
+int user_sys_create_mailbox(struct user_api_entry *entry, bool percpu, size_t *handle);
 
 //! @brief Wait for notification
 //! @param entry Pointer to the user API entry
