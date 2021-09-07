@@ -8,6 +8,7 @@
 #include <user/rpc.h>
 #include <user/shm.h>
 #include <user/status.h>
+#include <user/tls.h>
 #include <user/universe.h>
 
 //! @brief User API entry. Thread-local structure that contains all data needed for handling
@@ -17,6 +18,8 @@ struct user_api_entry {
 	struct user_universe *universe;
 	//! @brief Entry cookie
 	struct user_entry_cookie *cookie;
+	//! @brief TLS table
+	struct user_tls_table *tls;
 };
 
 //! @brief Initialize user API entry
@@ -328,6 +331,19 @@ int user_sys_restrict_shm_to_group(struct user_api_entry *entry, size_t hshm, si
 //! @param handle Handle to drop
 //! @return API status
 int user_sys_drop(struct user_api_entry *entry, size_t handle);
+
+//! @brief Set thread-local storage key
+//! @param entry Pointer to the user API entry
+//! @param key Key
+//! @param value
+//! @return API status
+int user_sys_set_tls_key(struct user_api_entry *entry, size_t key, size_t value);
+
+//! @brief Get value from thread-local storage
+//! @param entry Pointer to the user API entry
+//! @param key Key
+//! @return Value at specified key or 0 if key does not exist
+size_t user_sys_get_tls_key(struct user_api_entry *entry, size_t key);
 
 //! @brief Deinitialize user API entry
 //! @param entry Pointer to the user API entry

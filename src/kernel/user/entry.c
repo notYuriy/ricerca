@@ -16,6 +16,12 @@ int user_api_entry_init(struct user_api_entry *entry) {
 		MEM_REF_DROP(entry->universe);
 		return status;
 	}
+	status = user_tls_table_create(&entry->tls);
+	if (status != USER_STATUS_SUCCESS) {
+		MEM_REF_DROP(entry->cookie);
+		MEM_REF_DROP(entry->universe);
+		return status;
+	}
 	return USER_STATUS_SUCCESS;
 }
 
@@ -923,8 +929,27 @@ int user_sys_drop(struct user_api_entry *entry, size_t handle) {
 	return user_universe_drop_cell(entry->universe, handle, entry->cookie);
 }
 
+//! @brief Set thread-local storage key
+//! @param entry Pointer to the user API entry
+//! @param key Key
+//! @param value
+//! @return API status
+int user_sys_set_tls_key(struct user_api_entry *entry, size_t key, size_t value) {
+	return user_tls_table_set_key(entry->tls, key, value);
+}
+
+//! @brief Get value from thread-local storage
+//! @param entry Pointer to the user API entry
+//! @param key Key
+//! @return Value at specified key or 0 if key does not exist
+size_t user_sys_get_tls_key(struct user_api_entry *entry, size_t key) {
+	return user_tls_table_get_key(entry->tls, key);
+}
+
 //! @brief Deinitialize user API entry
 //! @param entry Pointer to the user API entry
 void user_api_entry_deinit(struct user_api_entry *entry) {
 	MEM_REF_DROP(entry->universe);
+	MEM_REF_DROP(entry->cookie);
+	MEM_REF_DROP(entry->tls);
 }
