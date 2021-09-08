@@ -135,7 +135,6 @@ run-ci: ricerca-safe.iso
 	-display none \
 	-no-shutdown -no-reboot \
 	`cat machines/$(MACHINE) | tr '\n' ' '`
-	cat e9.txt
 
 # Start QEMU with debug image and wait for debugger to attach
 debug: ricerca-debug.iso

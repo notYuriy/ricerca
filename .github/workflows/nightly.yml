@@ -54,5 +54,5 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Run debug image
-        run: timeout --signal=SIGINT 60 make run-ci || true && cat e9.txt
+      - name: Run safe release image
+        run: timeout --signal=SIGINT 120 make run-ci || true && cat e9.vt100
