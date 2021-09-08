@@ -283,8 +283,8 @@ int user_sys_read_from_shm_ref(struct user_api_entry *entry, size_t hshmref, siz
 //! @param len Number of bytes to write
 //! @param data Pointer to the data to read
 //! @return API status
-int user_sys_write_from_shm_ref(struct user_api_entry *entry, size_t hshmref, size_t offset,
-                                size_t len, uintptr_t data);
+int user_sys_write_to_shm_ref(struct user_api_entry *entry, size_t hshmref, size_t offset,
+                              size_t len, uintptr_t data);
 
 //! @brief Read from SHM object given its ID
 //! @param entry Pointer to the user API entry
@@ -303,8 +303,8 @@ int user_sys_read_from_shm_id(struct user_api_entry *entry, size_t id, size_t of
 //! @param len Number of bytes to write
 //! @param data Pointer to the data to read
 //! @return API status
-int user_sys_write_from_shm_id(struct user_api_entry *entry, size_t id, size_t offset, size_t len,
-                               uintptr_t data);
+int user_sys_write_to_shm_id(struct user_api_entry *entry, size_t id, size_t offset, size_t len,
+                             uintptr_t data);
 
 //! @brief Make SHM object accessible to the entire system
 //! @param entry Pointer to the user API entry

@@ -110,8 +110,7 @@ void kernel_unload_stivale2_term(void) {
 void kernel_init_stage2() {
 	LOG_SUCCESS("Running in stage 2");
 	tests_run();
-	while (true)
-		;
+	hang();
 }
 
 //! @brief Kernel entrypoint

@@ -358,7 +358,7 @@ int user_sys_rpc_accept(struct user_api_entry *entry, size_t hcallee, struct use
 	}
 	if (callee_ref.type != USER_OBJ_TYPE_CALLEE) {
 		user_drop_ref(callee_ref);
-		return USER_STATUS_INVALID_HANDLE;
+		return USER_STATUS_INVALID_HANDLE_TYPE;
 	}
 	status = user_rpc_accept(callee_ref.callee, args);
 	user_drop_ref(callee_ref);
@@ -379,7 +379,7 @@ int user_sys_rpc_return(struct user_api_entry *entry, size_t hcallee,
 	}
 	if (callee_ref.type != USER_OBJ_TYPE_CALLEE) {
 		user_drop_ref(callee_ref);
-		return USER_STATUS_INVALID_HANDLE;
+		return USER_STATUS_INVALID_HANDLE_TYPE;
 	}
 	status = user_rpc_return(callee_ref.callee, ret);
 	user_drop_ref(callee_ref);
@@ -400,7 +400,7 @@ int user_sys_rpc_recv_reply(struct user_api_entry *entry, size_t hcaller,
 	}
 	if (caller_ref.type != USER_OBJ_TYPE_CALLER) {
 		user_drop_ref(caller_ref);
-		return USER_STATUS_INVALID_HANDLE;
+		return USER_STATUS_INVALID_HANDLE_TYPE;
 	}
 	status = user_rpc_get_result(caller_ref.caller, ret);
 	user_drop_ref(caller_ref);
@@ -612,7 +612,7 @@ int user_sys_unpin_from_group(struct user_api_entry *entry, size_t handle, size_
 	struct user_ref group_ref;
 	int status = user_universe_borrow_out(entry->universe, hgrp, &group_ref);
 	if (status != USER_STATUS_SUCCESS) {
-		return USER_STATUS_INVALID_HANDLE;
+		return status;
 	}
 	if (group_ref.type != USER_OBJ_TYPE_GROUP_COOKIE) {
 		user_drop_ref(group_ref);
@@ -634,7 +634,7 @@ int user_sys_pin_to_group(struct user_api_entry *entry, size_t handle, size_t hg
 	struct user_ref group_ref;
 	int status = user_universe_borrow_out(entry->universe, hgrp, &group_ref);
 	if (status != USER_STATUS_SUCCESS) {
-		return USER_STATUS_INVALID_HANDLE;
+		return status;
 	}
 	if (group_ref.type != USER_OBJ_TYPE_GROUP_COOKIE) {
 		user_drop_ref(group_ref);
@@ -794,9 +794,9 @@ int user_sys_read_from_shm_ref(struct user_api_entry *entry, size_t hshmref, siz
 	if (status != USER_STATUS_SUCCESS) {
 		return status;
 	}
-	if (shm_ref.type != USER_OBJ_TYPE_SHM_RO_REF || shm_ref.type != USER_OBJ_TYPE_SHM_RW_REF) {
+	if (shm_ref.type != USER_OBJ_TYPE_SHM_RO_REF && shm_ref.type != USER_OBJ_TYPE_SHM_RW_REF) {
 		user_drop_ref(shm_ref);
-		return USER_STATUS_INVALID_HANDLE;
+		return USER_STATUS_INVALID_HANDLE_TYPE;
 	}
 	status = user_shm_read_by_ref(shm_ref.shm_ref, offset, len, (void *)data);
 	user_drop_ref(shm_ref);
@@ -810,8 +810,8 @@ int user_sys_read_from_shm_ref(struct user_api_entry *entry, size_t hshmref, siz
 //! @param len Number of bytes to write
 //! @param data Pointer to the data to read
 //! @return API status
-int user_sys_write_from_shm_ref(struct user_api_entry *entry, size_t hshmref, size_t offset,
-                                size_t len, uintptr_t data) {
+int user_sys_write_to_shm_ref(struct user_api_entry *entry, size_t hshmref, size_t offset,
+                              size_t len, uintptr_t data) {
 	struct user_ref shm_ref;
 	int status = user_universe_borrow_out(entry->universe, hshmref, &shm_ref);
 	if (status != USER_STATUS_SUCCESS) {
@@ -819,7 +819,7 @@ int user_sys_write_from_shm_ref(struct user_api_entry *entry, size_t hshmref, si
 	}
 	if (shm_ref.type != USER_OBJ_TYPE_SHM_RW_REF) {
 		user_drop_ref(shm_ref);
-		return USER_STATUS_INVALID_HANDLE;
+		return USER_STATUS_INVALID_HANDLE_TYPE;
 	}
 	status = user_shm_write_by_ref(shm_ref.shm_ref, offset, len, (void *)data);
 	user_drop_ref(shm_ref);
@@ -845,8 +845,8 @@ int user_sys_read_from_shm_id(struct user_api_entry *entry, size_t id, size_t of
 //! @param len Number of bytes to write
 //! @param data Pointer to the data to read
 //! @return API status
-int user_sys_write_from_shm_id(struct user_api_entry *entry, size_t id, size_t offset, size_t len,
-                               uintptr_t data) {
+int user_sys_write_to_shm_id(struct user_api_entry *entry, size_t id, size_t offset, size_t len,
+                             uintptr_t data) {
 	return user_shm_write_by_id(id, offset, len, (void *)data, entry->cookie);
 }
 

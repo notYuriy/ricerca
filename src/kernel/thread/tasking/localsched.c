@@ -5,6 +5,7 @@
 #include <lib/pairing_heap.h>
 #include <lib/panic.h>
 #include <lib/string.h>
+#include <mem/user/invtlb.h>
 #include <sys/arch/gdt.h>
 #include <sys/ic.h>
 #include <sys/intlevel.h>
@@ -16,7 +17,8 @@
 #include <thread/tasking/schedcall.h>
 
 MODULE("thread/tasking/localsched")
-TARGET(thread_localsched_available, thread_localsched_init_target, {thread_sched_call_available})
+TARGET(thread_localsched_available, thread_localsched_init_target,
+       {thread_sched_call_available, thread_smp_core_available, mem_user_invtlb_available})
 
 //! @brief Length of the minimal timeslice in us
 #define THREAD_LOCAL_TIMESLICE_MIN 10000
@@ -118,6 +120,7 @@ static struct thread_task *thread_localsched_dequeue(struct thread_localsched_da
 	ATOMIC_RELEASE_STORE(&data->idle, true);
 	ic_timer_cancel_one_shot();
 	*exited_idle = true;
+	mem_user_invtlb_on_idle_enter();
 	// Drop queue lock
 	thread_spinlock_unlock(&data->lock, false);
 	while (true) {
@@ -127,6 +130,7 @@ static struct thread_task *thread_localsched_dequeue(struct thread_localsched_da
 		             "cli\n\r");
 		result = thread_localsched_try_dequeue_lock(data);
 		if (result != NULL) {
+			mem_user_invtlb_on_idle_exit();
 			// Idle flag is cleared in IPI handler
 			return result;
 		}
@@ -169,11 +173,13 @@ static uint64_t thread_localsched_pick_timeslice_len(uint64_t current_unfairness
 //! @param ctx Unused
 static void thread_localsched_wait_on_boostrap(struct interrupt_frame *frame, void *ctx) {
 	(void)ctx;
+	uint64_t old_cr3 = rdcr3();
 	struct thread_localsched_data *data = &PER_CPU(localsched);
 	// Wait until we have task to run
 	bool exited_idle;
 	const bool int_state = thread_spinlock_lock(&data->lock);
 	struct thread_task *task = thread_localsched_dequeue(data, &exited_idle);
+	mem_user_invtlb_update_cr3(old_cr3, task->cr3);
 	// Calculate optimal timeslice
 	uint64_t us = thread_localsched_pick_timeslice_len(task->unfairness);
 	thread_spinlock_unlock(&data->lock, int_state);
@@ -225,7 +231,11 @@ static void thread_localsched_timer_int_handler(struct interrupt_frame *frame, v
 	(void)ctx;
 	struct thread_localsched_data *data = &PER_CPU(localsched);
 	struct thread_task *old_task = data->current_task;
-	ASSERT(old_task != NULL, "Timer interrupt not being cancelled properly");
+	if (old_task == NULL) {
+		LOG_WARN("Spurious timer interrupt");
+		return;
+	}
+	uint64_t old_cr3 = old_task->cr3;
 	// Save old task data
 	thread_localsched_frame_to_task(frame, old_task);
 	// Lock CPU queue
@@ -240,6 +250,7 @@ static void thread_localsched_timer_int_handler(struct interrupt_frame *frame, v
 		// No other task to run, continue existing one
 		new_task = old_task;
 	}
+	mem_user_invtlb_update_cr3(old_cr3, new_task->cr3);
 	// Pick timeslice length and create new one-shot timer event
 	uint64_t us = thread_localsched_pick_timeslice_len(new_task->unfairness);
 	ic_timer_one_shot(us);
@@ -265,6 +276,7 @@ static void thread_localsched_preemption_handler(struct interrupt_frame *frame, 
 	struct thread_localsched_data *data = &PER_CPU(localsched);
 	// Save old task data
 	struct thread_task *old_task = data->current_task;
+	uint64_t old_cr3 = old_task->cr3;
 	thread_localsched_frame_to_task(frame, old_task);
 	// Update unfairness values
 	ASSERT(old_task != NULL, "No active task");
@@ -285,6 +297,7 @@ static void thread_localsched_preemption_handler(struct interrupt_frame *frame, 
 	data->current_task = NULL;
 	bool exited_idle;
 	struct thread_task *new_task = thread_localsched_dequeue(data, &exited_idle);
+	mem_user_invtlb_update_cr3(old_cr3, new_task->cr3);
 	// If exited_idle is true, we get to decide the length of the new timeslice
 	if (exited_idle) {
 		uint64_t us = thread_localsched_pick_timeslice_len(new_task->unfairness);
@@ -347,6 +360,7 @@ static void thread_localsched_termination_handler(struct interrupt_frame *frame,
 	(void)ctx;
 	struct thread_localsched_data *data = &PER_CPU(localsched);
 	struct thread_task *old_task = data->current_task;
+	uint64_t old_cr3 = old_task->cr3;
 	// Update unfairness values
 	thread_localsched_update_unfairness(old_task);
 	// Free task data
@@ -357,6 +371,7 @@ static void thread_localsched_termination_handler(struct interrupt_frame *frame,
 	data->current_task = NULL;
 	bool exited_idle;
 	struct thread_task *new_task = thread_localsched_dequeue(data, &exited_idle);
+	mem_user_invtlb_update_cr3(old_cr3, new_task->cr3);
 	// If exited_idle is true, we get to decide the length of the new timeslice
 	if (exited_idle) {
 		uint64_t us = thread_localsched_pick_timeslice_len(new_task->unfairness);

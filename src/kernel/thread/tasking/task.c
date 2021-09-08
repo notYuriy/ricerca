@@ -26,9 +26,9 @@ struct thread_task *thread_task_create_call(struct callback_void callback) {
 	task->frame.rip = (uint64_t)callback.func;
 	task->frame.rdi = (uint64_t)callback.ctx;
 	task->frame.rflags = (1 << 9); // Enable interrupts
-
 	task->stack = (uintptr_t)stack + THREAD_TASK_STACK_SIZE;
 	task->frame.rsp = task->stack;
+	task->cr3 = rdcr3();
 	return task;
 }
 

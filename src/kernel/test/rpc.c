@@ -2,6 +2,7 @@
 //! @brief File containing code for RPC test
 
 #include <lib/panic.h>
+#include <lib/progress.h>
 #include <lib/target.h>
 #include <misc/atomics.h>
 #include <test/tests.h>
@@ -13,7 +14,9 @@
 MODULE("test/rpc")
 
 //! @brief Number of messages to be passed
-#define TEST_RPC_CALLS_NUM 1000000
+#define TEST_RPC_CALLS_NUM 10000000
+//! @brief Progress bar size
+#define PROGRESS_BAR_SIZE 50
 
 //! @brief RPC server paramenters
 struct test_rpc_server_params {
@@ -30,7 +33,9 @@ struct test_rpc_server_params {
 //! @brief RPC server code
 //! @param params Server parameters
 void test_rpc_server(struct test_rpc_server_params *params) {
+	log_printf("RPC calls recieved\r\t\t\t");
 	for (size_t i = 0; i < TEST_RPC_CALLS_NUM; ++i) {
+		progress_bar(i, TEST_RPC_CALLS_NUM, PROGRESS_BAR_SIZE);
 		struct user_notification notification;
 		int status = user_sys_get_notification(params->entry, params->hmailbox, &notification);
 		ASSERT(status == USER_STATUS_SUCCESS, "Failed to recieve notification");
@@ -48,6 +53,8 @@ void test_rpc_server(struct test_rpc_server_params *params) {
 		ASSERT(status == USER_STATUS_SUCCESS, "Failed to return RPC");
 		// LOG_INFO("Returned RPC #%U", i);
 	}
+	progress_bar(TEST_RPC_CALLS_NUM, TEST_RPC_CALLS_NUM, PROGRESS_BAR_SIZE);
+	log_printf("\n");
 	user_api_entry_deinit(params->entry);
 	LOG_INFO("Server finished");
 	thread_localsched_wake_up(params->main_task);

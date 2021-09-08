@@ -2,9 +2,14 @@
 //! @brief File containing implementation of TLS API
 
 #include <lib/intmap.h>
+#include <lib/log.h>
+#include <lib/panic.h>
 #include <lib/queue.h>
+#include <lib/target.h>
 #include <mem/rc.h>
 #include <user/tls.h>
+
+MODULE("user/tls")
 
 //! @brief TLS intmap buckets count
 #define USER_TLS_BUCKETS 16
@@ -61,10 +66,10 @@ int user_tls_table_create(struct user_tls_table **table) {
 //! @param value value
 //! @return API status
 int user_tls_table_set_key(struct user_tls_table *table, size_t key, size_t value) {
-	struct intmap_node *node;
-	if ((node = intmap_search(&table->keys, key)) != NULL) {
-		struct user_tls_node *node = CONTAINER_OF(node, struct user_tls_node, node);
-		node->value = value;
+	struct intmap_node *raw_node;
+	if ((raw_node = intmap_search(&table->keys, key)) != NULL) {
+		struct user_tls_node *tls_node = CONTAINER_OF(raw_node, struct user_tls_node, node);
+		tls_node->value = value;
 	} else {
 		struct user_tls_node *node = mem_heap_alloc(sizeof(struct user_tls_node));
 		if (node == NULL) {
@@ -82,10 +87,10 @@ int user_tls_table_set_key(struct user_tls_table *table, size_t key, size_t valu
 //! @param key TLS key
 //! @return Value at key or 0 if key is not present
 size_t user_tls_table_get_key(struct user_tls_table *table, size_t key) {
-	struct intmap_node *node;
-	if ((node = intmap_search(&table->keys, key)) != NULL) {
-		struct user_tls_node *node = CONTAINER_OF(node, struct user_tls_node, node);
-		return node->value;
+	struct intmap_node *raw_node;
+	if ((raw_node = intmap_search(&table->keys, key)) != NULL) {
+		struct user_tls_node *tls_node = CONTAINER_OF(raw_node, struct user_tls_node, node);
+		return tls_node->value;
 	}
 	return 0;
 }

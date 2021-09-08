@@ -24,6 +24,8 @@ struct thread_task {
 	uint64_t timestamp;
 	//! @brief Task stack
 	uintptr_t stack;
+	//! @brief CR3 register
+	uint64_t cr3;
 	//! @brief ID of the core task was allocated to
 	uint32_t core_id;
 };

@@ -15,4 +15,4 @@ build/libraries/**
 **/*.link
 .vscode
 qemu.log
-e9.txt
+e9.vt100

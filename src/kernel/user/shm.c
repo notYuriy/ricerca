@@ -39,8 +39,6 @@ struct user_shm_owner {
 	size_t size;
 	//! @brief Intmap node
 	struct intmap_node node;
-	//! @brief Intmap key
-	size_t key;
 	//! @brief RO cookie key
 	user_cookie_key_t ro_key;
 	//! @brief RW cookie key
@@ -60,9 +58,10 @@ static size_t user_shm_last_allocated_id = 0;
 //! @param shm Pointer to the SHM object
 static void user_shm_shutdown(struct user_shm_owner *shm) {
 	const bool int_state =
-	    thread_spinlock_lock(user_shm_spinlocks + (shm->key % USER_SHM_INTMAP_BUCKETS));
+	    thread_spinlock_lock(user_shm_spinlocks + (shm->node.key % USER_SHM_INTMAP_BUCKETS));
 	intmap_remove(&user_shm_intmap, &shm->node);
-	thread_spinlock_unlock(user_shm_spinlocks + (shm->key % USER_SHM_INTMAP_BUCKETS), int_state);
+	thread_spinlock_unlock(user_shm_spinlocks + (shm->node.key % USER_SHM_INTMAP_BUCKETS),
+	                       int_state);
 	MEM_REF_DROP(&shm->ref);
 }
 
@@ -70,7 +69,7 @@ static void user_shm_shutdown(struct user_shm_owner *shm) {
 //! @param ref Pointer to the SHM ref object
 static void user_shm_dealloc(struct user_shm_ref *ref) {
 	struct user_shm_owner *shm = CONTAINER_OF(ref, struct user_shm_owner, ref);
-	DYNARRAY_DESTROY(shm->data);
+	mem_heap_free(shm->data, shm->size);
 	mem_heap_free(shm, sizeof(struct user_shm_owner));
 }
 
@@ -95,16 +94,17 @@ int user_shm_create(struct user_shm_owner **objbuf, size_t *idbuf, size_t size,
 	shm->data = data;
 	shm->size = size;
 	shm->lock = THREAD_SPINLOCK_INIT;
-	shm->key = ATOMIC_FETCH_INCREMENT(&user_shm_last_allocated_id);
+	shm->node.key = ATOMIC_FETCH_INCREMENT(&user_shm_last_allocated_id);
 	shm->ro_key = shm->rw_key = user_entry_cookie_get_key(cookie);
 	MEM_REF_INIT(&shm->ref, user_shm_dealloc);
 	MEM_REF_INIT(&shm->shutdown_rc_base, user_shm_shutdown);
 	const bool int_state =
-	    thread_spinlock_lock(user_shm_spinlocks + (shm->key % USER_SHM_INTMAP_BUCKETS));
+	    thread_spinlock_lock(user_shm_spinlocks + (shm->node.key % USER_SHM_INTMAP_BUCKETS));
 	intmap_insert(&user_shm_intmap, &shm->node);
-	thread_spinlock_unlock(user_shm_spinlocks + (shm->key % USER_SHM_INTMAP_BUCKETS), int_state);
+	thread_spinlock_unlock(user_shm_spinlocks + (shm->node.key % USER_SHM_INTMAP_BUCKETS),
+	                       int_state);
 	*objbuf = shm;
-	*idbuf = shm->key;
+	*idbuf = shm->node.key;
 	return USER_STATUS_SUCCESS;
 }
 

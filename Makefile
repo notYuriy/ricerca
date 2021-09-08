@@ -77,7 +77,7 @@ kernel-clean:
 run-release-kvm: ricerca-release.iso
 	qemu-system-x86_64 \
 	-cdrom ricerca-release.iso \
-	-debugcon file:e9.txt \
+	-debugcon file:e9.vt100 \
 	-no-shutdown -no-reboot \
 	--enable-kvm \
 	`cat machines/$(MACHINE) | tr '\n' ' '`
@@ -86,7 +86,7 @@ run-release-kvm: ricerca-release.iso
 run-safe-kvm: ricerca-safe.iso
 	qemu-system-x86_64 \
 	-cdrom ricerca-safe.iso \
-	-debugcon file:e9.txt \
+	-debugcon file:e9.vt100 \
 	-no-shutdown -no-reboot \
 	--enable-kvm \
 	`cat machines/$(MACHINE) | tr '\n' ' '`
@@ -95,7 +95,7 @@ run-safe-kvm: ricerca-safe.iso
 run-release-tcg: ricerca-release.iso
 	qemu-system-x86_64 \
 	-cdrom ricerca-release.iso \
-	-debugcon file:e9.txt \
+	-debugcon file:e9.vt100 \
 	-no-shutdown -no-reboot \
 	`cat machines/$(MACHINE) | tr '\n' ' '`
 
@@ -103,7 +103,7 @@ run-release-tcg: ricerca-release.iso
 run-safe-tcg: ricerca-safe.iso
 	qemu-system-x86_64 \
 	-cdrom ricerca-safe.iso \
-	-debugcon file:e9.txt \
+	-debugcon file:e9.vt100 \
 	-no-shutdown -no-reboot \
 	`cat machines/$(MACHINE) | tr '\n' ' '`
 
@@ -131,7 +131,7 @@ profile-tcg: ricerca-profile.iso
 run-ci: ricerca-safe.iso
 	qemu-system-x86_64 \
 	-cdrom ricerca-safe.iso \
-	-debugcon file:e9.txt \
+	-debugcon file:e9.vt100 \
 	-display none \
 	-no-shutdown -no-reboot \
 	`cat machines/$(MACHINE) | tr '\n' ' '`
@@ -141,7 +141,7 @@ run-ci: ricerca-safe.iso
 debug: ricerca-debug.iso
 	qemu-system-x86_64 \
 	-cdrom ricerca-debug.iso \
-	-debugcon file:e9.txt \
+	-debugcon file:e9.vt100 \
 	-S -s \
 	-no-shutdown -no-reboot \
 	`cat machines/$(MACHINE) | tr '\n' ' '`
