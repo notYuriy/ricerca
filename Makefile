@@ -97,6 +97,7 @@ run-release-tcg: ricerca-release.iso
 	-cdrom ricerca-release.iso \
 	-debugcon file:e9.vt100 \
 	-no-shutdown -no-reboot \
+	-d int \
 	`cat machines/$(MACHINE) | tr '\n' ' '`
 
 # Run safe image in QEMU without KVM enabled
@@ -105,6 +106,7 @@ run-safe-tcg: ricerca-safe.iso
 	-cdrom ricerca-safe.iso \
 	-debugcon file:e9.vt100 \
 	-no-shutdown -no-reboot \
+	-d int \
 	`cat machines/$(MACHINE) | tr '\n' ' '`
 
 # Run profiling kernel build in QEMU with KVM enabled

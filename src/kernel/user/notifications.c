@@ -86,7 +86,7 @@ struct user_mailbox {
 static bool user_local_global_init(union user_local_global_queue *queue, bool is_per_cpu) {
 	if (is_per_cpu) {
 		size_t core_count = thread_smp_core_max_cpus;
-		struct queue *queues = mem_heap_alloc(sizeof(struct queue_node) * core_count);
+		struct queue *queues = mem_heap_alloc(sizeof(struct queue) * core_count);
 		if (queues == NULL) {
 			return false;
 		}
@@ -142,16 +142,9 @@ static void user_shutdown_mailbox(struct user_mailbox *mailbox) {
 	mailbox->is_shut_down = true;
 	thread_spinlock_unlock(&mailbox->lock, int_state);
 	struct queue_node *node;
-	if (mailbox->is_per_cpu) {
-		for (uint32_t i = 0; i < thread_smp_core_max_cpus; ++i) {
-			while ((node = user_local_global_dequeue(&mailbox->msg_queue, true, i)) != NULL) {
-				struct user_raiser *raiser =
-				    CONTAINER_OF(node, struct user_raiser_channel, node)->owner;
-				MEM_REF_DROP(raiser);
-			}
-		}
-	} else {
-		while ((node = user_local_global_dequeue(&mailbox->task_queue, false, 0)) != NULL) {
+	for (uint32_t i = 0; i < (mailbox->is_per_cpu ? thread_smp_core_max_cpus : 1); ++i) {
+		while ((node = user_local_global_dequeue(&mailbox->msg_queue, mailbox->is_per_cpu, i)) !=
+		       NULL) {
 			struct user_raiser *raiser =
 			    CONTAINER_OF(node, struct user_raiser_channel, node)->owner;
 			MEM_REF_DROP(raiser);
@@ -163,10 +156,11 @@ static void user_shutdown_mailbox(struct user_mailbox *mailbox) {
 //! @brief Destroy mailbox
 //! @param dealloc_rc_base Pointer to the mailbox's dealloc_rc_base
 static void user_destroy_mailbox(struct mem_rc *dealloc_rc_base) {
-	struct user_mailbox *maillbox =
+	struct user_mailbox *mailbox =
 	    CONTAINER_OF(dealloc_rc_base, struct user_mailbox, dealloc_rc_base);
-	user_local_global_deinit(&maillbox->task_queue, maillbox->is_per_cpu);
-	user_local_global_deinit(&maillbox->msg_queue, maillbox->is_per_cpu);
+	user_local_global_deinit(&mailbox->task_queue, mailbox->is_per_cpu);
+	user_local_global_deinit(&mailbox->msg_queue, mailbox->is_per_cpu);
+	mem_heap_free(mailbox, sizeof(struct user_mailbox));
 }
 
 //! @brief Create mailbox
@@ -205,7 +199,7 @@ static void user_destroy_raiser(struct user_raiser *raiser) {
 		mem_heap_free(raiser->local_channels,
 		              sizeof(struct user_raiser_channel) * thread_smp_core_max_cpus);
 	}
-	MEM_REF_DROP(raiser->mailbox_ref);
+	MEM_REF_DROP(&raiser->mailbox_ref->dealloc_rc_base);
 	mem_heap_free(raiser, sizeof(struct user_raiser));
 }
 
@@ -236,7 +230,8 @@ int user_create_raiser(struct user_mailbox *mailbox, struct user_raiser **raiser
 		res_raiser->global_channel.owner = res_raiser;
 	}
 	MEM_REF_INIT(&res_raiser->rc_base, user_destroy_raiser);
-	res_raiser->mailbox_ref = MEM_REF_BORROW(mailbox);
+	MEM_REF_BORROW(&mailbox->dealloc_rc_base);
+	res_raiser->mailbox_ref = mailbox;
 	res_raiser->notification = notification;
 	*raiser = res_raiser;
 	return USER_STATUS_SUCCESS;

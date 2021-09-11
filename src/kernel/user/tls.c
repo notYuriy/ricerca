@@ -40,6 +40,7 @@ static void user_tls_table_destroy(struct user_tls_table *table) {
 			mem_heap_free(node, sizeof(struct user_tls_node));
 		}
 	}
+	intmap_destroy(&table->keys);
 	mem_heap_free(table, sizeof(struct user_tls_table));
 }
 

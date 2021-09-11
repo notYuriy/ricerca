@@ -78,7 +78,7 @@ struct user_rpc_callee {
 static void user_rpc_destroy_msg_queue(struct queue *queue) {
 	struct user_rpc_container *current;
 	while ((current = QUEUE_DEQUEUE(queue, struct user_rpc_container, qnode)) != NULL) {
-		mem_heap_free(current, sizeof(struct user_rpc_msg));
+		mem_heap_free(current, sizeof(struct user_rpc_container));
 	}
 }
 
@@ -210,12 +210,12 @@ int user_rpc_create_callee(struct user_mailbox *mailbox, size_t opaque, size_t b
 	template.type = USER_NOTE_TYPE_RPC_INCOMING;
 	int status = user_create_raiser(mailbox, &res_callee->on_incoming_raiser, template);
 	if (status != USER_STATUS_SUCCESS) {
-		mem_heap_free(res_callee, sizeof(struct user_rpc_caller));
+		mem_heap_free(res_callee, sizeof(struct user_rpc_callee));
 		return status;
 	}
 	if (!intmap_init(&res_callee->awaiting_reply, buckets == 0 ? 1 : buckets)) {
 		MEM_REF_DROP(res_callee->on_incoming_raiser);
-		mem_heap_free(res_callee, sizeof(struct user_rpc_caller));
+		mem_heap_free(res_callee, sizeof(struct user_rpc_callee));
 		return status;
 	}
 	*callee = res_callee;
@@ -261,7 +261,7 @@ static inline void user_rpc_copy_contents_from_kernel(struct user_rpc_msg *dst,
 //! @param msg RPC arguments
 int user_rpc_initiate(struct user_rpc_caller *caller, const struct user_rpc_token *token,
                       const struct user_rpc_msg *msg) {
-	bool int_state = thread_spinlock_lock(&caller->lock);
+	const bool int_state = thread_spinlock_lock(&caller->lock);
 	ASSERT(!caller->is_shut_down, "Caller is shutdown while the ref to it is borrowed");
 	// Try to allocate container from free containers pool
 	struct user_rpc_container *container =
@@ -284,19 +284,19 @@ int user_rpc_initiate(struct user_rpc_caller *caller, const struct user_rpc_toke
 	// Borrow caller
 	MEM_REF_BORROW(&caller->dealloc_rc_base);
 	container->caller = caller;
-	thread_spinlock_unlock(&caller->lock, int_state);
+	thread_spinlock_ungrab(&caller->lock);
 	// Save client's opaque value
 	container->client_opaque = msg->opaque;
 	// Copy status value
 	container->message.status = msg->status;
 	// Lock callee
 	struct user_rpc_callee *callee = CONTAINER_OF(token, struct user_rpc_callee, token);
-	int_state = thread_spinlock_lock(&callee->lock);
+	thread_spinlock_grab(&callee->lock);
 	// Check if callee has been shutdown
 	if (callee->is_shut_down) {
 		// Unlock callee and lock caller
-		thread_spinlock_unlock(&callee->lock, int_state);
-		int_state = thread_spinlock_lock(&caller->lock);
+		thread_spinlock_ungrab(&callee->lock);
+		thread_spinlock_grab(&caller->lock);
 		// We still hold the reference to the caller
 		ASSERT(!caller->is_shut_down, "Caller is shutdown while the ref to it is borrowed");
 		QUEUE_ENQUEUE(&caller->free_containers, container, qnode);

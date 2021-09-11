@@ -124,6 +124,9 @@ enum
 	LAPIC_IA32_APIC_BASE = 0x1b,
 };
 
+//! @brief Physical base of LAPIC registers
+static uint64_t ic_xapic_phys_base;
+
 //! @brief Pointer to LAPIC registers
 static volatile uint32_t *ic_xapic_base;
 
@@ -169,7 +172,8 @@ uint32_t ic_get_apic_id(void) {
 void ic_enable(void) {
 	// Enable LAPIC
 	if (ic_state == IC_X2APIC_USED) {
-		wrmsr(LAPIC_IA32_APIC_BASE, rdmsr(LAPIC_IA32_APIC_BASE) | X2APIC_ENABLE);
+		uint64_t flags = rdmsr(LAPIC_IA32_APIC_BASE) & 0xfff;
+		wrmsr(LAPIC_IA32_APIC_BASE, ic_xapic_phys_base | flags | X2APIC_ENABLE);
 		wrmsr(LAPIC_X2APIC_SPUR_REG, LAPIC_ENABLE | ic_spur_vec);
 	} else {
 		ic_xapic_base[LAPIC_XAPIC_SPUR_REG] = LAPIC_ENABLE | ic_spur_vec;
@@ -315,11 +319,8 @@ static void ic_bsp_init(void) {
 		LOG_INFO("x2APIC support detected");
 		ic_state = IC_X2APIC_USED;
 	}
-	const uint64_t lapic_phys_base = rdmsr(LAPIC_IA32_APIC_BASE) & (~0xfffULL);
-	if (lapic_phys_base >= INIT_PHYS_MAPPING_SIZE && !(ic_state == IC_X2APIC_USED)) {
-		PANIC("LAPIC unreachable until direct phys window set up");
-	}
-	ic_xapic_base = (volatile uint32_t *)(mem_wb_phys_win_base + lapic_phys_base);
+	ic_xapic_phys_base = rdmsr(LAPIC_IA32_APIC_BASE) & (~0xfffULL);
+	ic_xapic_base = (volatile uint32_t *)(mem_wb_phys_win_base + ic_xapic_phys_base);
 	LOG_INFO("xAPIC address: 0x%p", ic_xapic_base);
 	// Enable LAPIC
 	ic_enable();
