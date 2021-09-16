@@ -9,7 +9,7 @@ bool intlevel_elevate(void) {
 	// Get interrupt enable flag
 	uint64_t flags;
 	asm volatile("pushf; pop %0; cli" : "=g"(flags));
-	return flags & (1 << 9);
+	return (flags & (1 << 9)) != 0;
 }
 
 //! @brief Enable interrupts if true is passed
