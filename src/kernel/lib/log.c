@@ -62,14 +62,12 @@ void log_printf(const char *fmt, ...) {
 	thread_spinlock_unlock(&log_spinlock, state);
 }
 
-//! @brief Log formatted message to kernel log
+//! @brief Log formatted message to kernel log without locking
 //! @param type Log type
 //! @param subsystem String identifying kernel subsystem from which message comes from
 //! @param format Format string for the message
-//! @param ... Arguments for the format string
-void log_logf(enum log_type type, const char *subsystem, const char *fmt, ...) {
-	const bool state = thread_spinlock_lock(&log_spinlock);
-	// Select appropriate ANSI color escapes depending on the log type
+//! @param args Arguments for the format string
+void log_valogf_lockless(enum log_type type, const char *subsystem, const char *fmt, va_list args) {
 	const char *prefix = "[";
 	const char *suffix = "] ";
 	switch (type) {
@@ -102,18 +100,50 @@ void log_logf(enum log_type type, const char *subsystem, const char *fmt, ...) {
 	log_write_lockless(suffix, strlen(suffix));       // Color suffix
 	// Buffer that message will be formatted to
 	static char buf[LOG_BUFFER_SIZE];
-	// Initialize varargs
-	va_list args;
-	va_start(args, fmt);
 	// Format message
 	int bytes_written = vsnprintf(buf, LOG_BUFFER_SIZE, fmt, args);
 	// Write message
 	log_write_lockless(buf, bytes_written);
-	// Deinitialize varargs
-	va_end(args);
 	// Print \n\r
 	log_write_lockless("\n\r", 1);
+}
+
+//! @brief Log formatted message to kernel log without locking
+//! @param type Log type
+//! @param subsystem String identifying kernel subsystem from which message comes from
+//! @param format Format string for the message
+//! @param ... Arguments for the format string
+void log_logf_lockless(enum log_type type, const char *subsystem, const char *fmt, ...) {
+	// Initialize varargs
+	va_list args;
+	va_start(args, fmt);
+	// Print log statement
+	log_valogf_lockless(type, subsystem, fmt, args);
+	// Deinitialize varargs
+	va_end(args);
+}
+
+//! @brief Log formatted message to kernel log
+//! @param type Log type
+//! @param subsystem String identifying kernel subsystem from which message comes from
+//! @param format Format string for the message
+//! @param ... Arguments for the format string
+void log_logf(enum log_type type, const char *subsystem, const char *fmt, ...) {
+	const bool state = thread_spinlock_lock(&log_spinlock);
+	// Initialize varargs
+	va_list args;
+	va_start(args, fmt);
+	// Print log statement
+	log_valogf_lockless(type, subsystem, fmt, args);
+	// Deinitialize varargs
+	va_end(args);
 	thread_spinlock_unlock(&log_spinlock, state);
+}
+
+//! @brief Lock log subsystem
+//! @return Interrupt state
+bool log_lock(void) {
+	return thread_spinlock_lock(&log_spinlock);
 }
 
 //! @brief Load logging subsystem

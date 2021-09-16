@@ -45,12 +45,30 @@ void log_write(const char *data, size_t size);
 //! @param ... Arguments for the format string
 void log_printf(const char *fmt, ...);
 
+//! @brief Log formatted message to kernel log without locking
+//! @param type Log type
+//! @param subsystem String identifying kernel subsystem from which message comes from
+//! @param format Format string for the message
+//! @param args Arguments for the format string
+void log_valogf_lockless(enum log_type type, const char *subsystem, const char *fmt, va_list args);
+
+//! @brief Log formatted message to kernel log without locking
+//! @param type Log type
+//! @param subsystem String identifying kernel subsystem from which message comes from
+//! @param format Format string for the message
+//! @param ... Arguments for the format string
+void log_logf_lockless(enum log_type type, const char *subsystem, const char *fmt, ...);
+
 //! @brief Log formatted message to kernel log
 //! @param type Log type
 //! @param subsystem String identifying kernel subsystem from which message comes from
 //! @param format Format string for the message
 //! @param ... Arguments for the format string
 void log_logf(enum log_type type, const char *subsystem, const char *fmt, ...);
+
+//! @brief Lock log subsystem
+//! @return Interrupt state
+bool log_lock(void);
 
 //! @brief Local info log statement.
 //! @note Requires module_name macro to be defined

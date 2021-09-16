@@ -13,28 +13,29 @@ static inline attribute_noreturn void hang() {
 		asm volatile("pause");
 	}
 }
-#define FAIL_IMPL(...)                                                                             \
-	do {                                                                                           \
-		LOG_PANIC(__VA_ARGS__);                                                                    \
-		hang();                                                                                    \
-	} while (0)
 
-// clang-format off
+//! @brief Panic handler
+//! @param subsystem Subsystem from which panic originates
+//! @param fmt Panic message format string
+//! @param ... Fmt arguments
+attribute_noreturn void panic_handler(const char *subsystem, const char *fmt, ...);
+
 #ifdef DEBUG
 #define ASSERT_IMPL(file, line, cond, template, ...)                                               \
 	do {                                                                                           \
 		if (!(cond)) {                                                                             \
-			FAIL_IMPL("Assertion \"%s\" failed at %s:%U: " template, #cond, file, (size_t)line __VA_OPT__(,) __VA_ARGS__);\
+			panic_handler(module_name, "Assertion \"%s\" failed at %s:%U: " template, #cond, file, \
+			              (size_t)line __VA_OPT__(, ) __VA_ARGS__);                                \
 		}                                                                                          \
 	} while (0)
 #else
 #define ASSERT_IMPL(file, line, cond, template, ...) (void)(cond)
 #endif
-// clang-format on
 
 #define PANIC_IMPL(file, line, template, ...)                                                      \
 	do {                                                                                           \
-		FAIL_IMPL("Panic at %s:%U: " template, file, (size_t)line __VA_OPT__(, ) __VA_ARGS__);     \
+		panic_handler(module_name, "Panic at %s:%U: " template, file,                              \
+		              (size_t)line __VA_OPT__(, ) __VA_ARGS__);                                    \
 	} while (0)
 
 //! @brief PANIC macro
@@ -47,7 +48,8 @@ static inline attribute_noreturn void hang() {
 #define ASSERT(cond, ...) ASSERT_IMPL(__FILE__, __LINE__, cond, __VA_ARGS__)
 
 //! @brief TODO macro
-#define TODO() FAIL_IMPL("TODO encountered at %s:%U", __FILE__, (size_t)__LINE__)
+#define TODO() panic_handler(module_name, "TODO encountered at %s:%U", __FILE__, (size_t)__LINE__)
 
 //! @brief UNREACHABLE macro
-#define UNREACHABLE FAIL_IMPL("Unreachable reached at %s:%U", __FILE__, (size_t)__LINE__)
+#define UNREACHABLE                                                                                \
+	panic_handler(module_name, "Unreachable reached at %s:%U", __FILE__, (size_t)__LINE__)

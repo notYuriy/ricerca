@@ -73,3 +73,11 @@ void target_plan_dump(struct target *plan);
 #define META_DEFINE_DUMMY()                                                                        \
 	static void target_dummy() {                                                                   \
 	}
+
+//! @brief Test if target is reached
+//! @param name Target name
+#define TARGET_IS_REACHED(name)                                                                    \
+	({                                                                                             \
+		EXPORT_TARGET(name);                                                                       \
+		name->resolved;                                                                            \
+	})
