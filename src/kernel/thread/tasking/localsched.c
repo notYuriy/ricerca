@@ -127,7 +127,8 @@ static struct thread_task *thread_localsched_dequeue(struct thread_localsched_da
 		// Wait for IPI
 		asm volatile("sti\n\r"
 		             "hlt\n\r"
-		             "cli\n\r");
+		             "cli\n\r" ::
+		                 : "memory");
 		result = thread_localsched_try_dequeue_lock(data);
 		if (result != NULL) {
 			mem_user_invtlb_on_idle_exit();
