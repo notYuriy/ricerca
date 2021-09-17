@@ -40,6 +40,16 @@ void log_putc(char character);
 //! @param size Size of the string
 void log_write(const char *data, size_t size);
 
+//! @brief Print formatted message to kernel log with no locking
+//! @param format Format string for the message
+//! @param args Arguments for the format string
+void log_vaprintf_lockless(const char *fmt, va_list args);
+
+//! @brief Print formatted message to kernel log without locking
+//! @param format Format string for the message
+//! @param ... Arguments for the format string
+void log_printf_lockless(const char *fmt, ...);
+
 //! @brief Print raw message to kernel log
 //! @param format Format string for the message
 //! @param ... Arguments for the format string

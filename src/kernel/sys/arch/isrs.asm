@@ -55,6 +55,9 @@ interrupts_common:
 	swapgs
 .kernel:
 
+	; Set rbp to 0
+	xor rbp, rbp
+
 	; Call generic interrupt handling routine
 	call interrupt_handle
 

@@ -36,6 +36,9 @@ struct stivale2_struct_tag_rsdp *init_rsdp_tag;
 //! @brief Memory map tag or NULL if not found
 struct stivale2_struct_tag_memmap *init_memmap_tag;
 
+//! @brief Modules tag or NULL if not found
+struct stivale2_struct_tag_modules *init_modules_tag;
+
 //! @brief Stivale2 5-level paging tag
 static struct stivale2_tag stivale2_5lvl_paging_tag = {
     .identifier = STIVALE2_HEADER_TAG_5LV_PAGING_ID,
@@ -127,6 +130,9 @@ void kernel_init(struct stivale2_struct *info) {
 
 	init_memmap_tag =
 	    (struct stivale2_struct_tag_memmap *)stivale2_query(info, STIVALE2_STRUCT_TAG_MEMMAP_ID);
+
+	init_modules_tag =
+	    (struct stivale2_struct_tag_modules *)stivale2_query(info, STIVALE2_STRUCT_TAG_MODULES_ID);
 
 	// If we are running PROFILE kernel, initialize performance counters subsystems first
 #ifdef PROFILE

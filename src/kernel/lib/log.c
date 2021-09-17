@@ -43,20 +43,41 @@ void log_write(const char *data, size_t size) {
 	thread_spinlock_unlock(&log_spinlock, state);
 }
 
+//! @brief Print formatted message to kernel log with no locking
+//! @param format Format string for the message
+//! @param args Arguments for the format string
+void log_vaprintf_lockless(const char *fmt, va_list args) {
+	// Buffer that messages will be formatted to
+	static char buf[LOG_BUFFER_SIZE];
+	// Format message
+	int bytes_written = vsnprintf(buf, LOG_BUFFER_SIZE, fmt, args);
+	// Write message
+	log_write_lockless(buf, bytes_written);
+}
+
+//! @brief Print formatted message to kernel log without locking
+//! @param format Format string for the message
+//! @param ... Arguments for the format string
+void log_printf_lockless(const char *fmt, ...) {
+	// Initialize varargs
+	va_list args;
+	va_start(args, fmt);
+	// Format and print
+	log_vaprintf_lockless(fmt, args);
+	// Deinitialize varargs
+	va_end(args);
+}
+
 //! @brief Print formatted message to kernel log
 //! @param format Format string for the message
 //! @param ... Arguments for the format string
 void log_printf(const char *fmt, ...) {
 	const bool state = thread_spinlock_lock(&log_spinlock);
-	// Buffer that messages will be formatted to
-	static char buf[LOG_BUFFER_SIZE];
 	// Initialize varargs
 	va_list args;
 	va_start(args, fmt);
-	// Format message
-	int bytes_written = vsnprintf(buf, LOG_BUFFER_SIZE, fmt, args);
-	// Write message
-	log_write_lockless(buf, bytes_written);
+	// Format and print
+	log_vaprintf_lockless(fmt, args);
 	// Deinitialize varargs
 	va_end(args);
 	thread_spinlock_unlock(&log_spinlock, state);

@@ -12,9 +12,11 @@ SECTIONS
 {
     . = 0xffffffff80200000;
 
+    _kernel_text_start = .;
     .text : {
         *(.text*)
     } :text
+    _kernel_text_end = .;
 
     . += 0x1000;
 

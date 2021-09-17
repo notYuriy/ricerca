@@ -33,7 +33,8 @@ C_RELEASE_FLAGS = -O3 -fno-stack-protector -flto
 # -DDEBUG - define DEBUG macro to check assertions
 # -fstack-protector-all - Enable stack protector
 # -fsanitize-undefined - Enable UB sanitizer
-C_DEBUG_FLAGS = -g -DDEBUG -fstack-protector-all -fsanitize=undefined
+# -fno-omit-frame-pointer - Preserve frame pointers
+C_DEBUG_FLAGS = -g -DDEBUG -fstack-protector-all -fsanitize=undefined -fno-omit-frame-pointer
 
 # C flags used for safe builds
 # -g - generate debugging symbols
@@ -41,7 +42,8 @@ C_DEBUG_FLAGS = -g -DDEBUG -fstack-protector-all -fsanitize=undefined
 # -DDEBUG - define DEBUG macro to check assertions
 # -fstack-protector-all - Enable stack protector
 # -fsanitize-undefined - Enable UB sanitizer
-C_SAFE_FLAGS = -g -O2 -DDEBUG -fstack-protector -fsanitize=undefined
+# -fno-omit-frame-pointer - Preserve frame pointers
+C_SAFE_FLAGS = -g -O2 -DDEBUG -fstack-protector -fsanitize=undefined -fno-omit-frame-pointer
 
 # C flags used for profiled builds
 # -g - generate debugging symbols
@@ -50,7 +52,8 @@ C_SAFE_FLAGS = -g -O2 -DDEBUG -fstack-protector -fsanitize=undefined
 # -DPROFILE - Hint for kernel logger to disable logging to e9 (e9 is used for profiling logging)
 # -fstack-protector-all - Enable stack protector
 # -fsanitize-undefined - Enable UB sanitizer
-C_PROFILE_FLAGS = -O2 -g -pg -DPROFILE -fstack-protector -fsanitize=undefined
+# -fno-omit-frame-pointer - Preserve frame pointers
+C_PROFILE_FLAGS = -O2 -g -pg -DPROFILE -fstack-protector -fsanitize=undefined -fno-omit-frame-pointer
 
 # Common linker flags (used both in debug and release mode), that are
 # essential for correct kernel linkage
@@ -81,8 +84,11 @@ LD_SCRIPT = link.ld
 # Destination directory
 DESTDIR = .
 
-# Release kernel binary output path
+# Kernel binary output path
 OUTPUT_PATH = $(DESTDIR)/ricerca-kernel.elf
+
+# Path to symbol map
+SYM_MAP_PATH = $(DESTDIR)/ricerca-kernel.map
 
 ### Source files and object lists ###
 
@@ -135,19 +141,23 @@ AS_OBJS = $(AS_SOURCES:.asm=.asm.o)
 
 # Release kernel build rule
 release: $(C_RELEASE_OBJS) $(AS_OBJS)
-	$(LD) -T $(LD_SCRIPT) -o $(OUTPUT_PATH) $(LD_HARD_FLAGS) $(LDFLAGS) $(LD_RELEASE_FLAGS) $^
+	$(LD) -T $(LD_SCRIPT) -o $(OUTPUT_PATH) $(LD_HARD_FLAGS) $(LDFLAGS) $(LD_RELEASE_FLAGS) $^ -Wl,-Map=$(SYM_MAP_PATH)
+	python3 sanitize-map-file.py $(SYM_MAP_PATH)
 
 # Debug kernel build rule
 debug: $(C_DEBUG_OBJS) $(AS_OBJS)
-	$(LD) -T $(LD_SCRIPT) -o $(OUTPUT_PATH) $(LD_HARD_FLAGS) $(LDFLAGS) $(LD_DEBUG_FLAGS) $^
+	$(LD) -T $(LD_SCRIPT) -o $(OUTPUT_PATH) $(LD_HARD_FLAGS) $(LDFLAGS) $(LD_DEBUG_FLAGS) $^ -Wl,-Map=$(SYM_MAP_PATH)
+	python3 sanitize-map-file.py $(SYM_MAP_PATH)
 
 # Safe kernel build rule
 safe: $(C_SAFE_OBJS) $(AS_OBJS)
-	$(LD) -T $(LD_SCRIPT) -o $(OUTPUT_PATH) $(LD_HARD_FLAGS) $(LDFLAGS) $(LD_SAFE_FLAGS) $^
+	$(LD) -T $(LD_SCRIPT) -o $(OUTPUT_PATH) $(LD_HARD_FLAGS) $(LDFLAGS) $(LD_SAFE_FLAGS) $^ -Wl,-Map=$(SYM_MAP_PATH)
+	python3 sanitize-map-file.py $(SYM_MAP_PATH)
 
 # Profile kernel build rule
 profile: $(C_PROFILE_OBJS) $(AS_OBJS)
-	$(LD) -T $(LD_SCRIPT) -o $(OUTPUT_PATH) $(LD_HARD_FLAGS) $(LDFLAGS) $(LD_PROFILE_FLAGS) $^
+	$(LD) -T $(LD_SCRIPT) -o $(OUTPUT_PATH) $(LD_HARD_FLAGS) $(LDFLAGS) $(LD_PROFILE_FLAGS) $^ -Wl,-Map=$(SYM_MAP_PATH)
+	python3 sanitize-map-file.py $(SYM_MAP_PATH)
 
 # Clean object files
 obj_clean:

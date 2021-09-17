@@ -178,3 +178,7 @@ kernel-cloc:
 # Run bloaty on kernel binary
 kernel-bloaty:
 	bloaty build/system-root/boot/ricerca-kernel.elf -d compileunits
+
+# Run radare2 on kernel binary
+kernel-radare2:
+	radare2 build/system-root/boot/ricerca-kernel.elf
