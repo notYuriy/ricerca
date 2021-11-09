@@ -78,7 +78,8 @@ void mem_paging_dispose_root(struct mem_paging_root *root) {
 	uintptr_t *root_table = (uintptr_t *)(root->cr3 + mem_wb_phys_win_base);
 	for (uint16_t i = 0; i < 256; ++i) {
 		if (root_table[i] != 0) {
-			mem_paging_dispose_at_level(root_table[i] & (~FLAGS_MASK), mem_5level_paging_enabled ? 4 : 3);
+			mem_paging_dispose_at_level(root_table[i] & (~FLAGS_MASK),
+			                            mem_5level_paging_enabled ? 4 : 3);
 		}
 	}
 	mem_phys_free(root->cr3);
@@ -172,9 +173,9 @@ bool mem_paging_map_at(struct mem_paging_root *root, uintptr_t vaddr, uintptr_t 
 		uintptr_t next_phys_alternative = mapper->zeroed_pages[i - 2];
 		uint16_t index = mem_paging_get_lvl_index(vaddr, i);
 		const uintptr_t interm_perms = FLAG_PRESENT | FLAG_WRITABLE | FLAGS_USER;
-		bool alternative_used =
-		    __atomic_compare_exchange_n(table + index, &next_phys, next_phys_alternative | interm_perms,
-		                                false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE);
+		bool alternative_used = __atomic_compare_exchange_n(
+		    table + index, &next_phys, next_phys_alternative | interm_perms, false,
+		    __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE);
 		if (alternative_used) {
 			mapper->zeroed_pages[i - 2] = PHYS_NULL;
 			current_phys = next_phys_alternative;

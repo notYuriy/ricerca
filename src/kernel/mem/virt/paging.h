@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include <misc/types.h>
 #include <mem/misc.h>
+#include <misc/types.h>
 
 //! @brief READ permissions
 #define MEM_PAGING_READABLE 1
