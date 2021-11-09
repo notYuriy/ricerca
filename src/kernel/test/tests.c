@@ -28,6 +28,9 @@ void test_shm(void);
 //! @brief TLS test
 void test_tls(void);
 
+//! @brief Paging test
+void test_paging(void);
+
 //! @brief Test unit
 struct test_unit {
 	//! @brief Test name
@@ -51,6 +54,7 @@ static struct test_unit units[] = {
     {.name = "Universes test", .callback = test_universe},
     {.name = "Shared memory test", .callback = test_shm},
     {.name = "Thread-local storage test", .callback = test_tls},
+	{.name = "Paging test", .callback = test_paging},
     {.name = "RPC test", .callback = test_rpc},
     {.name = "Heap integrity test", .callback = test_heap_integrity},
 };

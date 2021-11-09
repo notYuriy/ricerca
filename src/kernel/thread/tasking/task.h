@@ -5,6 +5,7 @@
 
 #include <lib/callback.h>
 #include <lib/pairing_heap.h>
+#include <mem/virt/paging.h>
 #include <misc/types.h>
 #include <sys/arch/interrupts.h>
 
@@ -16,6 +17,8 @@ struct thread_task {
 	struct interrupt_frame frame;
 	//! @brief Pairing heap hook
 	struct pairing_heap_hook hook;
+	//! @brief Paging mapper
+	struct mem_paging_mapper mapper;
 	//! @brief Task unfairness (in clock cycles)
 	uint64_t unfairness;
 	//! @brief Accumulated idle unfairness (in clock cycles)

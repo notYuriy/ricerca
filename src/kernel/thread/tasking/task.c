@@ -20,6 +20,11 @@ struct thread_task *thread_task_create_call(struct callback_void callback) {
 		mem_heap_free(task, sizeof(struct thread_task));
 		return NULL;
 	}
+	if (!mem_paging_init_mapper(&task->mapper)) {
+		mem_heap_free(task, sizeof(struct thread_task));
+		mem_heap_free(stack, THREAD_TASK_STACK_SIZE);
+		return NULL;
+	}
 	memset(task, 0, sizeof(struct thread_task));
 	task->frame.cs = GDT_CODE64;
 	task->frame.ss = GDT_DATA64;
@@ -35,6 +40,8 @@ struct thread_task *thread_task_create_call(struct callback_void callback) {
 //! @brief Dispose task
 //! @param task Pointer to the task
 void thread_task_dispose(struct thread_task *task) {
+	// Dispose paging mapper
+	mem_paging_deinit_mapper(&task->mapper);
 	// Free task stack
 	mem_heap_free((void *)(task->stack - THREAD_TASK_STACK_SIZE), THREAD_TASK_STACK_SIZE);
 	// Free task structure itself

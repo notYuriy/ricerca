@@ -12,8 +12,6 @@ struct mem_phys_object_data {
 	struct mem_range *range;
 	//! @brief Size of the memory block
 	size_t size;
-	//! @brief Reference count (used for page tables)
-	size_t rc;
 	//! @brief NUMA id of the owner
 	numa_id_t node_id;
 };

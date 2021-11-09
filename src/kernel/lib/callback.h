@@ -17,7 +17,7 @@ struct callback_void {
 //! @param _func Function to run
 //! @param _ctx Context pointer
 #define CALLBACK_VOID(_func, _ctx)                                                                 \
-	((struct callback_void){.func = (void (*)(void *))_func, .ctx = (void *)_ctx})
+	((struct callback_void){.func = (void *)(_func), .ctx = (void *)(_ctx)})
 
 //! @brief Null void callback
 #define CALLBACK_VOID_NULL ((struct callback_void){.func = NULL})
