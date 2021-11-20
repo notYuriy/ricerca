@@ -11,6 +11,7 @@
 #include <mem/rc.h>
 #include <mem/virt/paging.h>
 #include <sys/cr.h>
+#include <thread/locking/spinlock.h>
 #include <thread/smp/core.h>
 
 MODULE("mem/virt/paging")
@@ -34,6 +35,8 @@ MODULE("mem/virt/paging")
 struct mem_paging_root {
 	//! @brief RC base
 	struct mem_rc rc_base;
+	//! @brief Lock
+	struct thread_spinlock lock;
 	//! @brief CR3 value
 	uintptr_t cr3;
 };
@@ -60,21 +63,21 @@ static uintptr_t mem_paging_new_zeroed() {
 //! @brief Dispose paging table at level
 //! @param addr Table physical address
 //! @param lvl Level
-void mem_paging_dispose_at_level(uintptr_t addr, uint8_t level) {
+static void mem_paging_dispose_at_level(uintptr_t addr, uint8_t level) {
 	if (level == 0) {
 		mem_phys_free(addr);
 	}
 	uintptr_t *table = (uintptr_t *)(addr + mem_wb_phys_win_base);
 	for (uint16_t i = 0; i < 512; ++i) {
 		if (table[i] != 0) {
-			mem_paging_dispose_at_level(addr & (~FLAGS_MASK), level - 1);
+			mem_paging_dispose_at_level(table[i] & (~FLAGS_MASK), level - 1);
 		}
 	}
 }
 
 //! @brief Dispose paging root
 //! @param root Pointer to the paging root
-void mem_paging_dispose_root(struct mem_paging_root *root) {
+static void mem_paging_dispose_root(struct mem_paging_root *root) {
 	uintptr_t *root_table = (uintptr_t *)(root->cr3 + mem_wb_phys_win_base);
 	for (uint16_t i = 0; i < 256; ++i) {
 		if (root_table[i] != 0) {
@@ -90,11 +93,12 @@ void mem_paging_dispose_root(struct mem_paging_root *root) {
 //! @return Pointer to the new paging root or NULL on failure
 struct mem_paging_root *mem_paging_new_root(void) {
 	struct mem_paging_root *res = mem_heap_alloc(sizeof(struct mem_paging_root));
+	res->lock = THREAD_SPINLOCK_INIT;
 	if (res == NULL) {
 		return NULL;
 	}
 	res->cr3 = mem_paging_new_zeroed();
-	if (res == PHYS_NULL) {
+	if (res->cr3 == PHYS_NULL) {
 		mem_heap_free(res, sizeof(struct mem_paging_root));
 		return NULL;
 	}
@@ -163,24 +167,22 @@ bool mem_paging_map_at(struct mem_paging_root *root, uintptr_t vaddr, uintptr_t 
 		return false;
 	}
 
+	const bool int_state = thread_spinlock_lock(&root->lock);
+
 	uintptr_t current_phys = root->cr3;
 	uint8_t lvls = mem_5level_paging_enabled ? 5 : 4;
 
 	// Map all intermidiate pages
 	for (uint8_t i = lvls; i > 1; --i) {
 		uintptr_t *table = (uintptr_t *)(mem_wb_phys_win_base + current_phys);
-		uintptr_t next_phys = 0;
-		uintptr_t next_phys_alternative = mapper->zeroed_pages[i - 2];
 		uint16_t index = mem_paging_get_lvl_index(vaddr, i);
 		const uintptr_t interm_perms = FLAG_PRESENT | FLAG_WRITABLE | FLAGS_USER;
-		bool alternative_used = __atomic_compare_exchange_n(
-		    table + index, &next_phys, next_phys_alternative | interm_perms, false,
-		    __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE);
-		if (alternative_used) {
+		if (table[index] == 0) {
+			table[index] = mapper->zeroed_pages[i - 2] | interm_perms;
+			current_phys = mapper->zeroed_pages[i - 2];
 			mapper->zeroed_pages[i - 2] = PHYS_NULL;
-			current_phys = next_phys_alternative;
 		} else {
-			current_phys = next_phys & (~FLAGS_MASK);
+			current_phys = table[index] & (~FLAGS_MASK);
 		}
 	}
 
@@ -200,6 +202,8 @@ bool mem_paging_map_at(struct mem_paging_root *root, uintptr_t vaddr, uintptr_t 
 
 	table[mem_paging_get_lvl_index(vaddr, 1)] = paddr | perms_mask;
 
+	thread_spinlock_unlock(&root->lock, int_state);
+
 	return true;
 }
 
@@ -211,8 +215,10 @@ uintptr_t mem_paging_unmap_at(struct mem_paging_root *root, uintptr_t vaddr) {
 	ASSERT(vaddr < mem_wb_phys_win_base, "Address 0x%p is not in lower half", vaddr);
 	ASSERT(vaddr % PAGE_SIZE == 0, "Address 0x%p is not page size aligned", vaddr);
 
-	uintptr_t current_phys = root->cr3 & (~FLAGS_MASK);
+	uintptr_t current_phys = root->cr3;
 	uint8_t lvls = mem_5level_paging_enabled ? 5 : 4;
+
+	const bool int_state = thread_spinlock_lock(&root->lock);
 
 	// Walk intermidiate pages
 	for (uint8_t i = lvls; i > 1; --i) {
@@ -224,6 +230,8 @@ uintptr_t mem_paging_unmap_at(struct mem_paging_root *root, uintptr_t vaddr) {
 	uintptr_t *table = (uintptr_t *)(mem_wb_phys_win_base + current_phys);
 	uintptr_t addr = table[mem_paging_get_lvl_index(vaddr, 1)] & (~FLAGS_MASK);
 	table[mem_paging_get_lvl_index(vaddr, 1)] = 0;
+
+	thread_spinlock_unlock(&root->lock, int_state);
 
 	return addr;
 }
