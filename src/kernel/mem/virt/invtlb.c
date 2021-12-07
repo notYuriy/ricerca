@@ -7,7 +7,6 @@
 #include <lib/target.h>
 #include <mem/heap/heap.h>
 #include <mem/virt/invtlb.h>
-#include <mem/virt/space.h>
 #include <misc/atomics.h>
 #include <misc/types.h>
 #include <sys/cr.h>
@@ -90,7 +89,7 @@ static enum
 //! @brief Perform generation update without taking invtlb subsystem lock
 static void mem_virt_invtlb_gen_update_nolock(void) {
 	mem_virt_invtlb_pending = false;
-	mem_virt_space_gen_update_handler();
+	// TODO: Add update code here
 }
 
 //! @brief Update cr3
